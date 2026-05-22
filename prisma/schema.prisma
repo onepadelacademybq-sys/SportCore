@@ -1,0 +1,1019 @@
+// One Padel Academy — Prisma Schema
+// Generado desde DATABASE.md
+// Prisma 7 — provider: prisma-client (nuevo generator)
+// URLs de conexión en prisma.config.ts (no en este archivo)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  admin
+  coach
+  player
+}
+
+enum PadelLevel {
+  iniciacion
+  intermedio
+  avanzado
+  elite
+}
+
+enum CourtType {
+  indoor
+  outdoor
+}
+
+enum CourtSurface {
+  cesped_artificial
+  moqueta
+  cristal
+  hormigon
+}
+
+enum CourtStatus {
+  active
+  maintenance
+  closed
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  completed
+  no_show
+}
+
+enum ExerciseTheme {
+  calentamiento
+  tecnica
+  tactica
+  fisico
+  mental
+  vuelta_a_la_calma
+}
+
+enum MesocycleStatus {
+  draft
+  active
+  completed
+  archived
+}
+
+enum SessionBlockType {
+  calentamiento
+  central_1_defensa
+  central_2_ataque
+  vuelta_a_la_calma
+}
+
+enum SessionStatus {
+  scheduled
+  completed
+  cancelled
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  justified
+}
+
+enum GroupMemberStatus {
+  active
+  waitlist
+  inactive
+}
+
+enum EvalCategory {
+  tecnica
+  tactica
+  fisico
+  mental
+}
+
+enum EvalLevel {
+  C
+  B
+  A
+  Elite
+}
+
+enum KpiScoreType {
+  scale
+  percentage
+  numeric
+}
+
+enum TournamentFormat {
+  eliminatoria
+  grupos
+  grupos_y_eliminatoria
+}
+
+enum TournamentStatus {
+  draft
+  open
+  in_progress
+  completed
+  cancelled
+}
+
+enum EntryStatus {
+  pending
+  confirmed
+  eliminated
+  withdrawn
+}
+
+enum MatchStatus {
+  scheduled
+  in_progress
+  completed
+  cancelled
+}
+
+enum PaymentType {
+  subscription
+  booking
+  group_fee
+  tournament_entry
+  other
+}
+
+enum PaymentMethod {
+  stripe
+  cash
+  transfer
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  paid
+  cancelled
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  cancelled
+}
+
+enum SubscriptionPlan {
+  monthly
+  quarterly
+  annual
+}
+
+enum ExpenseCategory {
+  equipment
+  maintenance
+  utilities
+  salaries
+  marketing
+  other
+}
+
+enum NotificationType {
+  booking_confirmed
+  booking_reminder
+  booking_cancelled
+  session_assigned
+  session_reminder
+  session_cancelled
+  evaluation_ready
+  payment_processed
+  payment_failed
+  payment_overdue
+  tournament_update
+  group_change
+  announcement
+}
+
+enum GroupStatus {
+  active
+  paused
+  closed
+}
+
+enum GroupPaymentStatus {
+  pending
+  paid
+  partial
+  overdue
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 1 — Usuarios
+// ─────────────────────────────────────────────
+
+model Profile {
+  id               String     @id @db.Uuid
+  email            String     @unique
+  fullName         String     @map("full_name")
+  avatarUrl        String?    @map("avatar_url")
+  role             UserRole
+  phone            String?
+  dateOfBirth      DateTime?  @map("date_of_birth") @db.Date
+  padelLevel       PadelLevel? @map("padel_level")
+  stripeCustomerId String?    @unique @map("stripe_customer_id")
+  isActive         Boolean    @default(true) @map("is_active")
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Módulo 13
+  coachProfile     CoachProfile?
+
+  // Módulo 2
+  bookingsAsPlayer  Booking[]           @relation("PlayerBookings")
+  bookingsCreated   Booking[]           @relation("CreatedByBookings")
+  bookingWaitlist   BookingWaitlist[]
+
+  // Módulo 11
+  exercisesCreated  Exercise[]
+  exerciseFavorites ExerciseFavorite[]
+
+  // Módulo 4
+  mesocyclesCreated          Mesocycle[]
+  mesocycleAssignmentsPlayer MesocycleAssignment[] @relation("PlayerAssignments")
+  mesocycleAssignmentsBy     MesocycleAssignment[] @relation("AssignedByAssignments")
+  sessionAttendance          SessionAttendance[]
+
+  // Módulo 12
+  groupsAsCoach    TrainingGroup[]
+  groupMemberships GroupMember[]
+  groupPayments    GroupPayment[]
+
+  // Módulo 5
+  evaluationTemplatesCreated EvaluationTemplate[]
+  evaluationsAsPlayer        Evaluation[]         @relation("PlayerEvaluations")
+  evaluationsAsCoach         Evaluation[]         @relation("CoachEvaluations")
+
+  // Módulo 6
+  tournamentsCreated            Tournament[]
+  tournamentEntriesAsPlayer1    TournamentEntry[] @relation("Player1Entries")
+  tournamentEntriesAsPlayer2    TournamentEntry[] @relation("Player2Entries")
+  tournamentEntriesRegisteredBy TournamentEntry[] @relation("RegisteredByEntries")
+
+  // Módulo 7
+  invoices      Invoice[]
+  payments      Payment[]
+  subscriptions Subscription[]
+  expenses      Expense[]
+
+  // Módulo 8
+  notifications           Notification[]
+  notificationPreferences NotificationPreference?
+  announcementsCreated    Announcement[]
+
+  // Módulo 13
+  coachRatingsGiven CoachRating[]
+
+  @@map("profiles")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 3 — Instalaciones
+// ─────────────────────────────────────────────
+
+model Court {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  type       CourtType
+  surface    CourtSurface
+  status     CourtStatus @default(active)
+  hourlyRate Decimal     @default(0) @map("hourly_rate") @db.Decimal(10, 2)
+  imageUrl   String?     @map("image_url")
+  notes      String?
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  bookings         Booking[]
+  bookingWaitlist  BookingWaitlist[]
+  trainingSessions TrainingSession[]
+  trainingGroups   TrainingGroup[]
+  tournamentMatches TournamentMatch[]
+
+  @@map("courts")
+}
+
+model Equipment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  category  String
+  quantity  Int      @default(0)
+  condition String   @default("good")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("equipment")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 2 — Reservas
+// ─────────────────────────────────────────────
+
+model Booking {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courtId        String        @map("court_id") @db.Uuid
+  playerId       String?       @map("player_id") @db.Uuid
+  groupId        String?       @map("group_id") @db.Uuid
+  createdBy      String        @map("created_by") @db.Uuid
+  sessionId      String?       @map("session_id") @db.Uuid
+  startTime      DateTime      @map("start_time") @db.Timestamptz(6)
+  endTime        DateTime      @map("end_time") @db.Timestamptz(6)
+  status         BookingStatus @default(pending)
+  isRecurring    Boolean       @default(false) @map("is_recurring")
+  recurrenceRule String?       @map("recurrence_rule")
+  price          Decimal       @default(0) @db.Decimal(10, 2)
+  notes          String?
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  court   Court          @relation(fields: [courtId], references: [id])
+  player  Profile?       @relation("PlayerBookings", fields: [playerId], references: [id])
+  group   TrainingGroup? @relation(fields: [groupId], references: [id])
+  creator Profile        @relation("CreatedByBookings", fields: [createdBy], references: [id])
+  session TrainingSession? @relation(fields: [sessionId], references: [id])
+
+  @@map("bookings")
+}
+
+model BookingWaitlist {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courtId      String    @map("court_id") @db.Uuid
+  playerId     String    @map("player_id") @db.Uuid
+  desiredStart DateTime  @map("desired_start") @db.Timestamptz(6)
+  desiredEnd   DateTime  @map("desired_end") @db.Timestamptz(6)
+  notifiedAt   DateTime? @map("notified_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  court  Court   @relation(fields: [courtId], references: [id])
+  player Profile @relation(fields: [playerId], references: [id])
+
+  @@map("booking_waitlist")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 11 — Biblioteca de Ejercicios
+// ─────────────────────────────────────────────
+
+model Exercise {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdBy            String        @map("created_by") @db.Uuid
+  name                 String
+  theme                ExerciseTheme
+  objective            String
+  level                PadelLevel
+  estimatedDurationMin Int           @map("estimated_duration_min")
+  materials            String[]      @default([])
+  videoUrl             String?       @map("video_url")
+  imageUrl             String?       @map("image_url")
+  instructions         String?
+  isPublished          Boolean       @default(false) @map("is_published")
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creator        Profile                @relation(fields: [createdBy], references: [id])
+  tagAssignments ExerciseTagAssignment[]
+  favorites      ExerciseFavorite[]
+  blockExercises SessionBlockExercise[]
+
+  @@map("exercises")
+}
+
+model ExerciseTag {
+  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name String @unique
+
+  assignments ExerciseTagAssignment[]
+
+  @@map("exercise_tags")
+}
+
+model ExerciseTagAssignment {
+  exerciseId String @map("exercise_id") @db.Uuid
+  tagId      String @map("tag_id") @db.Uuid
+
+  exercise Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  tag      ExerciseTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, tagId])
+  @@map("exercise_tag_assignments")
+}
+
+model ExerciseFavorite {
+  coachId    String   @map("coach_id") @db.Uuid
+  exerciseId String   @map("exercise_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  coach    Profile  @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@id([coachId, exerciseId])
+  @@map("exercise_favorites")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 4 — Planificación (Mesociclo → Microciclo → Sesión → Bloques)
+// ─────────────────────────────────────────────
+
+model Mesocycle {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdBy       String          @map("created_by") @db.Uuid
+  name            String
+  generalObjective String         @map("general_objective")
+  level           PadelLevel
+  durationWeeks   Int             @map("duration_weeks")
+  status          MesocycleStatus @default(draft)
+  startDate       DateTime?       @map("start_date") @db.Date
+  endDate         DateTime?       @map("end_date") @db.Date
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creator     Profile               @relation(fields: [createdBy], references: [id])
+  assignments MesocycleAssignment[]
+  microcycles Microcycle[]
+
+  @@map("mesocycles")
+}
+
+model MesocycleAssignment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mesocycleId String   @map("mesocycle_id") @db.Uuid
+  playerId    String?  @map("player_id") @db.Uuid
+  groupId     String?  @map("group_id") @db.Uuid
+  assignedBy  String   @map("assigned_by") @db.Uuid
+  assignedAt  DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  mesocycle Mesocycle      @relation(fields: [mesocycleId], references: [id])
+  player    Profile?       @relation("PlayerAssignments", fields: [playerId], references: [id])
+  group     TrainingGroup? @relation(fields: [groupId], references: [id])
+  assigner  Profile        @relation("AssignedByAssignments", fields: [assignedBy], references: [id])
+
+  @@map("mesocycle_assignments")
+}
+
+model Microcycle {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mesocycleId     String    @map("mesocycle_id") @db.Uuid
+  weekNumber      Int       @map("week_number")
+  weeklyObjective String?   @map("weekly_objective")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  mesocycle Mesocycle        @relation(fields: [mesocycleId], references: [id], onDelete: Cascade)
+  sessions  TrainingSession[]
+
+  @@unique([mesocycleId, weekNumber])
+  @@map("microcycles")
+}
+
+model TrainingSession {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  microcycleId String        @map("microcycle_id") @db.Uuid
+  courtId      String?       @map("court_id") @db.Uuid
+  scheduledAt  DateTime      @map("scheduled_at") @db.Timestamptz(6)
+  durationMin  Int           @default(90) @map("duration_min")
+  status       SessionStatus @default(scheduled)
+  coachNotes   String?       @map("coach_notes")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  microcycle Microcycle     @relation(fields: [microcycleId], references: [id], onDelete: Cascade)
+  court      Court?         @relation(fields: [courtId], references: [id])
+  blocks     SessionBlock[]
+  attendance SessionAttendance[]
+  bookings   Booking[]
+
+  @@map("training_sessions")
+}
+
+model SessionBlock {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId   String           @map("session_id") @db.Uuid
+  blockType   SessionBlockType @map("block_type")
+  order       Int
+  durationMin Int              @default(20) @map("duration_min")
+  notes       String?
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  session   TrainingSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercises SessionBlockExercise[]
+
+  @@unique([sessionId, blockType])
+  @@map("session_blocks")
+}
+
+model SessionBlockExercise {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blockId     String   @map("block_id") @db.Uuid
+  exerciseId  String   @map("exercise_id") @db.Uuid
+  order       Int
+  repetitions String?
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  block    SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  exercise Exercise     @relation(fields: [exerciseId], references: [id])
+
+  @@map("session_block_exercises")
+}
+
+model SessionAttendance {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId  String           @map("session_id") @db.Uuid
+  playerId   String           @map("player_id") @db.Uuid
+  status     AttendanceStatus @default(present)
+  notes      String?
+  recordedAt DateTime         @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  session TrainingSession @relation(fields: [sessionId], references: [id])
+  player  Profile         @relation(fields: [playerId], references: [id])
+
+  @@unique([sessionId, playerId])
+  @@map("session_attendance")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 12 — Grupos de Entrenamiento
+// ─────────────────────────────────────────────
+
+model TrainingGroup {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  coachId        String      @map("coach_id") @db.Uuid
+  level          PadelLevel
+  maxCapacity    Int         @map("max_capacity")
+  monthlyFee     Decimal     @default(0) @map("monthly_fee") @db.Decimal(10, 2)
+  status         GroupStatus @default(active)
+  defaultCourtId String?     @map("default_court_id") @db.Uuid
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  coach        Profile     @relation(fields: [coachId], references: [id])
+  defaultCourt Court?      @relation(fields: [defaultCourtId], references: [id])
+  schedules    GroupSchedule[]
+  members      GroupMember[]
+  groupPayments GroupPayment[]
+  bookings     Booking[]
+  mesocycleAssignments MesocycleAssignment[]
+  announcements Announcement[]
+
+  @@map("training_groups")
+}
+
+model GroupSchedule {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  dayOfWeek Int      @map("day_of_week")
+  startTime DateTime @map("start_time") @db.Time(6)
+  endTime   DateTime @map("end_time") @db.Time(6)
+
+  group TrainingGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("group_schedules")
+}
+
+model GroupMember {
+  id       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId  String            @map("group_id") @db.Uuid
+  playerId String            @map("player_id") @db.Uuid
+  status   GroupMemberStatus @default(waitlist)
+  joinedAt DateTime          @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt   DateTime?         @map("left_at") @db.Timestamptz(6)
+  notes    String?
+
+  group  TrainingGroup @relation(fields: [groupId], references: [id])
+  player Profile       @relation(fields: [playerId], references: [id])
+
+  @@unique([groupId, playerId])
+  @@map("group_members")
+}
+
+model GroupPayment {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String             @map("group_id") @db.Uuid
+  playerId    String             @map("player_id") @db.Uuid
+  periodYear  Int                @map("period_year")
+  periodMonth Int                @map("period_month")
+  amountDue   Decimal            @map("amount_due") @db.Decimal(10, 2)
+  amountPaid  Decimal            @default(0) @map("amount_paid") @db.Decimal(10, 2)
+  status      GroupPaymentStatus @default(pending)
+  paymentDate DateTime?          @map("payment_date") @db.Date
+  paymentId   String?            @map("payment_id") @db.Uuid
+  notes       String?
+
+  group   TrainingGroup @relation(fields: [groupId], references: [id])
+  player  Profile       @relation(fields: [playerId], references: [id])
+  payment Payment?      @relation(fields: [paymentId], references: [id])
+
+  @@unique([groupId, playerId, periodYear, periodMonth])
+  @@map("group_payments")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 5 — Evaluaciones
+// ─────────────────────────────────────────────
+
+model EvaluationTemplate {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdBy   String   @map("created_by") @db.Uuid
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creator     Profile               @relation(fields: [createdBy], references: [id])
+  criteria    EvaluationCriterion[]
+  evaluations Evaluation[]
+
+  @@map("evaluation_templates")
+}
+
+model EvaluationCriterion {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId  String       @map("template_id") @db.Uuid
+  category    EvalCategory
+  name        String
+  description String?
+  scoreType   KpiScoreType @default(scale) @map("score_type")
+  minScore    Decimal      @default(0) @map("min_score") @db.Decimal(6, 2)
+  maxScore    Decimal      @default(10) @map("max_score") @db.Decimal(6, 2)
+  unit        String?
+  order       Int
+
+  template EvaluationTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  results  EvaluationResult[]
+
+  @@map("evaluation_criteria")
+}
+
+model Evaluation {
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playerId        String     @map("player_id") @db.Uuid
+  coachId         String     @map("coach_id") @db.Uuid
+  templateId      String?    @map("template_id") @db.Uuid
+  title           String
+  notes           String?
+  overallScore    Decimal?   @map("overall_score") @db.Decimal(4, 2)
+  normalizedScore Decimal?   @map("normalized_score") @db.Decimal(5, 2)
+  levelAssigned   EvalLevel? @map("level_assigned")
+  videoUrl        String?    @map("video_url")
+  imageUrl        String?    @map("image_url")
+  evaluatedAt     DateTime   @default(now()) @map("evaluated_at") @db.Timestamptz(6)
+  isShared        Boolean    @default(false) @map("is_shared")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  player   Profile             @relation("PlayerEvaluations", fields: [playerId], references: [id])
+  coach    Profile             @relation("CoachEvaluations", fields: [coachId], references: [id])
+  template EvaluationTemplate? @relation(fields: [templateId], references: [id])
+  results  EvaluationResult[]
+
+  @@map("evaluations")
+}
+
+model EvaluationResult {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evaluationId String  @map("evaluation_id") @db.Uuid
+  criterionId  String  @map("criterion_id") @db.Uuid
+  score        Decimal @db.Decimal(4, 1)
+  comment      String?
+
+  evaluation Evaluation          @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  criterion  EvaluationCriterion @relation(fields: [criterionId], references: [id])
+
+  @@unique([evaluationId, criterionId])
+  @@map("evaluation_results")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 6 — Torneos
+// ─────────────────────────────────────────────
+
+model Tournament {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdBy   String           @map("created_by") @db.Uuid
+  name        String
+  format      TournamentFormat
+  category    String
+  startDate   DateTime         @map("start_date") @db.Date
+  endDate     DateTime         @map("end_date") @db.Date
+  status      TournamentStatus @default(draft)
+  maxEntries  Int?             @map("max_entries")
+  entryFee    Decimal          @default(0) @map("entry_fee") @db.Decimal(10, 2)
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creatorProfile Profile    @relation(fields: [createdBy], references: [id])
+  entries TournamentEntry[]
+  matches TournamentMatch[]
+
+  @@map("tournaments")
+}
+
+model TournamentEntry {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId String      @map("tournament_id") @db.Uuid
+  player1Id    String      @map("player1_id") @db.Uuid
+  player2Id    String?     @map("player2_id") @db.Uuid
+  registeredBy String      @map("registered_by") @db.Uuid
+  status       EntryStatus @default(pending)
+  registeredAt DateTime    @default(now()) @map("registered_at") @db.Timestamptz(6)
+
+  tournament      Tournament  @relation(fields: [tournamentId], references: [id])
+  player1         Profile     @relation("Player1Entries", fields: [player1Id], references: [id])
+  player2         Profile?    @relation("Player2Entries", fields: [player2Id], references: [id])
+  registrar       Profile     @relation("RegisteredByEntries", fields: [registeredBy], references: [id])
+  matchesAsEntry1 TournamentMatch[] @relation("Entry1Matches")
+  matchesAsEntry2 TournamentMatch[] @relation("Entry2Matches")
+  matchesAsWinner TournamentMatch[] @relation("WinnerMatches")
+
+  @@map("tournament_entries")
+}
+
+model TournamentMatch {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId  String      @map("tournament_id") @db.Uuid
+  entry1Id      String      @map("entry1_id") @db.Uuid
+  entry2Id      String?     @map("entry2_id") @db.Uuid
+  round         String
+  scheduledAt   DateTime?   @map("scheduled_at") @db.Timestamptz(6)
+  courtId       String?     @map("court_id") @db.Uuid
+  scoreEntry1   String?     @map("score_entry1")
+  scoreEntry2   String?     @map("score_entry2")
+  winnerEntryId String?     @map("winner_entry_id") @db.Uuid
+  status        MatchStatus @default(scheduled)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tournament Tournament      @relation(fields: [tournamentId], references: [id])
+  entry1     TournamentEntry @relation("Entry1Matches", fields: [entry1Id], references: [id])
+  entry2     TournamentEntry? @relation("Entry2Matches", fields: [entry2Id], references: [id])
+  court      Court?          @relation(fields: [courtId], references: [id])
+  winner     TournamentEntry? @relation("WinnerMatches", fields: [winnerEntryId], references: [id])
+
+  @@map("tournament_matches")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 7 — Finanzas
+// ─────────────────────────────────────────────
+
+model Invoice {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playerId        String        @map("player_id") @db.Uuid
+  invoiceNumber   String        @unique @map("invoice_number")
+  netAmount       Decimal       @map("net_amount") @db.Decimal(10, 2)
+  taxRate         Decimal       @default(21) @map("tax_rate") @db.Decimal(4, 2)
+  taxAmount       Decimal       @map("tax_amount") @db.Decimal(10, 2)
+  totalAmount     Decimal       @map("total_amount") @db.Decimal(10, 2)
+  status          InvoiceStatus @default(draft)
+  issuedAt        DateTime      @default(now()) @map("issued_at") @db.Date
+  dueAt           DateTime?     @map("due_at") @db.Date
+  pdfUrl          String?       @map("pdf_url")
+  stripeInvoiceId String?       @unique @map("stripe_invoice_id")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  player   Profile   @relation(fields: [playerId], references: [id])
+  payments Payment[]
+
+  @@map("invoices")
+}
+
+model Payment {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playerId              String        @map("player_id") @db.Uuid
+  invoiceId             String?       @map("invoice_id") @db.Uuid
+  type                  PaymentType
+  concept               String
+  amount                Decimal       @db.Decimal(10, 2)
+  status                PaymentStatus @default(pending)
+  paymentMethod         PaymentMethod @default(stripe) @map("payment_method")
+  stripePaymentIntentId String?       @unique @map("stripe_payment_intent_id")
+  paidAt                DateTime?     @map("paid_at") @db.Timestamptz(6)
+  notes                 String?
+  metadata              Json          @default("{}")
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  player        Profile        @relation(fields: [playerId], references: [id])
+  invoice       Invoice?       @relation(fields: [invoiceId], references: [id])
+  groupPayments GroupPayment[]
+
+  @@map("payments")
+}
+
+model Subscription {
+  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playerId             String             @map("player_id") @db.Uuid
+  planName             String             @map("plan_name")
+  planType             SubscriptionPlan   @map("plan_type")
+  price                Decimal            @db.Decimal(10, 2)
+  status               SubscriptionStatus @default(trialing)
+  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  currentPeriodStart   DateTime           @map("current_period_start") @db.Date
+  currentPeriodEnd     DateTime           @map("current_period_end") @db.Date
+  cancelledAt          DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  player Profile @relation(fields: [playerId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Expense {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  registeredBy       String          @map("registered_by") @db.Uuid
+  category           ExpenseCategory
+  concept            String
+  amount             Decimal         @db.Decimal(10, 2)
+  expenseDate        DateTime        @map("expense_date") @db.Date
+  externalInvoiceRef String?         @map("external_invoice_ref")
+  attachmentUrl      String?         @map("attachment_url")
+  notes              String?
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  registrar Profile @relation(fields: [registeredBy], references: [id])
+
+  @@map("expenses")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 8 — Notificaciones
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  isRead    Boolean          @default(false) @map("is_read")
+  actionUrl String?          @map("action_url")
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId           String   @id @map("user_id") @db.Uuid
+  emailBookings    Boolean  @default(true) @map("email_bookings")
+  emailPayments    Boolean  @default(true) @map("email_payments")
+  emailSessions    Boolean  @default(true) @map("email_sessions")
+  emailEvaluations Boolean  @default(true) @map("email_evaluations")
+  emailTournaments Boolean  @default(true) @map("email_tournaments")
+  inAppAll         Boolean  @default(true) @map("in_app_all")
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model Announcement {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdBy     String    @map("created_by") @db.Uuid
+  title         String
+  body          String
+  targetRole    UserRole? @map("target_role")
+  targetGroupId String?   @map("target_group_id") @db.Uuid
+  sentAt        DateTime? @map("sent_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  creator     Profile        @relation(fields: [createdBy], references: [id])
+  targetGroup TrainingGroup? @relation(fields: [targetGroupId], references: [id])
+
+  @@map("announcements")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 10 — Configuración
+// ─────────────────────────────────────────────
+
+model AcademySetting {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                      String   @default("One Padel")
+  logoUrl                   String?  @map("logo_url")
+  address                   String?
+  phone                     String?
+  email                     String?
+  openingTime               DateTime @default(dbgenerated("'08:00'::time")) @map("opening_time") @db.Time(6)
+  closingTime               DateTime @default(dbgenerated("'22:00'::time")) @map("closing_time") @db.Time(6)
+  minBookingAdvanceHours    Int      @default(2) @map("min_booking_advance_hours")
+  maxBookingAdvanceDays     Int      @default(14) @map("max_booking_advance_days")
+  cancellationDeadlineHours Int      @default(24) @map("cancellation_deadline_hours")
+  stripePublishableKey      String?  @map("stripe_publishable_key")
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("academy_settings")
+}
+
+model AuditLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  tableName String   @map("table_name")
+  recordId  String?  @map("record_id") @db.Uuid
+  oldData   Json?    @map("old_data")
+  newData   Json?    @map("new_data")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 13 — Perfil del Entrenador
+// ─────────────────────────────────────────────
+
+model CoachProfile {
+  coachId         String       @id @map("coach_id") @db.Uuid
+  bio             String?
+  specialties     String[]     @default([])
+  preferredLevels PadelLevel[] @map("preferred_levels")
+  trainingStyle   String?      @map("training_style")
+  yearsExperience Int          @default(0) @map("years_experience")
+  languages       String[]     @default(["es"])
+  ratingAverage   Decimal?     @map("rating_average") @db.Decimal(3, 2)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  coach          Profile              @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  certifications CoachCertification[]
+  availability   CoachAvailability[]
+  ratings        CoachRating[]
+
+  @@map("coach_profiles")
+}
+
+model CoachCertification {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coachId             String    @map("coach_id") @db.Uuid
+  title               String
+  issuingOrganization String    @map("issuing_organization")
+  obtainedAt          DateTime  @map("obtained_at") @db.Date
+  expiresAt           DateTime? @map("expires_at") @db.Date
+  documentUrl         String?   @map("document_url")
+  isValidated         Boolean   @default(false) @map("is_validated")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  coach CoachProfile @relation(fields: [coachId], references: [coachId], onDelete: Cascade)
+
+  @@map("coach_certifications")
+}
+
+model CoachAvailability {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coachId   String   @map("coach_id") @db.Uuid
+  dayOfWeek Int      @map("day_of_week")
+  startTime DateTime @map("start_time") @db.Time(6)
+  endTime   DateTime @map("end_time") @db.Time(6)
+
+  coach CoachProfile @relation(fields: [coachId], references: [coachId], onDelete: Cascade)
+
+  @@map("coach_availability")
+}
+
+model CoachRating {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coachId   String   @map("coach_id") @db.Uuid
+  playerId  String   @map("player_id") @db.Uuid
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  coach  CoachProfile @relation(fields: [coachId], references: [coachId])
+  player Profile      @relation(fields: [playerId], references: [id])
+
+  @@unique([coachId, playerId])
+  @@map("coach_ratings")
+}
