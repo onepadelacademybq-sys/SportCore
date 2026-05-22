@@ -81,10 +81,19 @@ export async function registerAction(
     if (signUpError.message.includes('already registered')) {
       return { error: 'Ya existe una cuenta con ese email' }
     }
+    if (signUpError.message.includes('rate limit')) {
+      return { error: 'Demasiados intentos. Espera unos minutos antes de volver a intentarlo.' }
+    }
     return { error: signUpError.message }
   }
 
-  const userId = signUpData.user?.id
+  // user:null + error:null → el email ya existe en Supabase Auth (respuesta "fantasma"
+  // para prevenir enumeración de usuarios cuando email confirm está activado)
+  if (!signUpData.user) {
+    return { error: 'Ya existe una cuenta con ese email. Intenta iniciar sesión.' }
+  }
+
+  const userId = signUpData.user.id
   if (!userId) return { error: 'No se pudo crear el usuario' }
 
   const { error: profileError } = await supabase.from('profiles').insert({

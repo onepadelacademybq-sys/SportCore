@@ -34,7 +34,7 @@ export default async function PlayerDashboardPage() {
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Bienvenido, {fullName}</h1>
-          <span className="text-xs font-medium bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
+          <span className="text-xs font-medium bg-[#00C4CC]/15 text-[#00C4CC] px-2.5 py-1 rounded-full">
             Jugador
           </span>
           {level && (

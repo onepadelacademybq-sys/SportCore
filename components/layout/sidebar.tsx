@@ -54,9 +54,9 @@ const ROLE_LABEL: Record<Role, string> = {
 }
 
 const ROLE_BADGE: Record<Role, string> = {
-  admin: 'bg-red-100 text-red-700',
-  coach: 'bg-blue-100 text-blue-700',
-  player: 'bg-green-100 text-green-700',
+  admin: 'bg-red-500/15 text-red-400',
+  coach: 'bg-blue-500/15 text-blue-400',
+  player: 'bg-[#00C4CC]/15 text-[#00C4CC]',
 }
 
 interface SidebarProps {
@@ -73,8 +73,12 @@ export function Sidebar({ fullName, email, role }: SidebarProps) {
     <aside className="w-60 shrink-0 border-r bg-card flex flex-col h-screen sticky top-0">
       {/* Brand */}
       <div className="px-5 py-6">
-        <p className="text-lg font-bold tracking-tight">One Padel</p>
-        <p className="text-xs text-muted-foreground">Academia de Pádel</p>
+        <p className="text-lg font-bold tracking-tight font-heading">
+          <span className="text-primary">One</span> Padel
+        </p>
+        <p className="text-xs text-muted-foreground tracking-widest uppercase mt-0.5">
+          Academia
+        </p>
       </div>
 
       <Separator />

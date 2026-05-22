@@ -32,7 +32,7 @@ export default async function AdminDashboardPage() {
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Bienvenido, {fullName}</h1>
-          <span className="text-xs font-medium bg-red-100 text-red-700 px-2.5 py-1 rounded-full">
+          <span className="text-xs font-medium bg-red-500/15 text-red-400 px-2.5 py-1 rounded-full">
             Administrador
           </span>
         </div>
