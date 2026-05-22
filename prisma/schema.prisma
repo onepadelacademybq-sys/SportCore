@@ -48,8 +48,9 @@ enum CourtStatus {
 }
 
 enum BookingStatus {
-  pending
-  confirmed
+  pending    // solicitada
+  paid       // jugador subió comprobante
+  confirmed  // admin verificó y confirmó
   cancelled
   completed
   no_show
@@ -248,6 +249,7 @@ model Profile {
 
   // Módulo 2
   bookingsAsPlayer  Booking[]           @relation("PlayerBookings")
+  bookingsAsCoach   Booking[]           @relation("CoachBookings")
   bookingsCreated   Booking[]           @relation("CreatedByBookings")
   bookingWaitlist   BookingWaitlist[]
 
@@ -337,23 +339,26 @@ model Equipment {
 // ─────────────────────────────────────────────
 
 model Booking {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  courtId        String        @map("court_id") @db.Uuid
-  playerId       String?       @map("player_id") @db.Uuid
-  groupId        String?       @map("group_id") @db.Uuid
-  createdBy      String        @map("created_by") @db.Uuid
-  sessionId      String?       @map("session_id") @db.Uuid
-  startTime      DateTime      @map("start_time") @db.Timestamptz(6)
-  endTime        DateTime      @map("end_time") @db.Timestamptz(6)
-  status         BookingStatus @default(pending)
-  isRecurring    Boolean       @default(false) @map("is_recurring")
-  recurrenceRule String?       @map("recurrence_rule")
-  price          Decimal       @default(0) @db.Decimal(10, 2)
-  notes          String?
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courtId         String?       @map("court_id") @db.Uuid  // assigned by admin at confirmation
+  coachId         String?       @map("coach_id") @db.Uuid  // booking priority: coach availability
+  playerId        String?       @map("player_id") @db.Uuid
+  groupId         String?       @map("group_id") @db.Uuid
+  createdBy       String        @map("created_by") @db.Uuid
+  sessionId       String?       @map("session_id") @db.Uuid
+  startTime       DateTime      @map("start_time") @db.Timestamptz(6)
+  endTime         DateTime      @map("end_time") @db.Timestamptz(6)
+  status          BookingStatus @default(pending)
+  isRecurring     Boolean       @default(false) @map("is_recurring")
+  recurrenceRule  String?       @map("recurrence_rule")
+  price           Decimal       @default(0) @db.Decimal(10, 2)
+  notes           String?
+  paymentProofUrl String?       @map("payment_proof_url")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  court   Court          @relation(fields: [courtId], references: [id])
+  court   Court?         @relation(fields: [courtId], references: [id])
+  coach   Profile?       @relation("CoachBookings", fields: [coachId], references: [id])
   player  Profile?       @relation("PlayerBookings", fields: [playerId], references: [id])
   group   TrainingGroup? @relation(fields: [groupId], references: [id])
   creator Profile        @relation("CreatedByBookings", fields: [createdBy], references: [id])

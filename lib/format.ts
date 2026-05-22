@@ -1,0 +1,24 @@
+/** Formato de fecha corta en español: "lun, 23 may" */
+export function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat('es-ES', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(iso))
+}
+
+/** Rango de hora en formato 24h: "10:00 – 11:00" */
+export function formatTimeRange(startIso: string, endIso: string): string {
+  const fmt = (iso: string) =>
+    new Intl.DateTimeFormat('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(iso))
+  return `${fmt(startIso)} – ${fmt(endIso)}`
+}
+
+/** Fecha y hora compacta: "lun, 23 may · 10:00 – 11:00" */
+export function formatBookingDateTime(startIso: string, endIso: string): string {
+  return `${formatDate(startIso)} · ${formatTimeRange(startIso, endIso)}`
+}
