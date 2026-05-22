@@ -2,9 +2,18 @@
 // Run: npx supabase gen types typescript --project-id <id> > types/database.types.ts
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
+// Stub permisivo hasta ejecutar: npx supabase gen types typescript --project-id <id>
+// Reemplazar con los tipos generados para tener type-safety completo en las queries
 export interface Database {
   public: {
-    Tables: Record<string, never>
+    Tables: {
+      [tableName: string]: {
+        Row: Record<string, unknown>
+        Insert: Record<string, unknown>
+        Update: Record<string, unknown>
+        Relationships: never[]
+      }
+    }
     Views: Record<string, never>
     Functions: Record<string, never>
     Enums: Record<string, never>
