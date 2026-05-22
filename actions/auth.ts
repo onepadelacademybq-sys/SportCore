@@ -111,6 +111,18 @@ export async function registerAction(
   redirect('/login?registered=1')
 }
 
+// ─── Logout ───────────────────────────────────────────────────────────────────
+
+import { cookies } from 'next/headers'
+
+export async function logoutAction() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  const cookieStore = await cookies()
+  cookieStore.delete('x-user-role')
+  redirect('/login')
+}
+
 // ─── Forgot Password ──────────────────────────────────────────────────────────
 
 const ForgotSchema = z.object({
