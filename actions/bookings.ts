@@ -80,8 +80,8 @@ export async function getPlayerBookings(): Promise<Booking[]> {
     .from('bookings')
     .select(`
       id, start_time, end_time, status, notes, payment_proof_url, price, created_at,
-      coach:coach_id(id, full_name, email),
-      court:court_id(id, name)
+      coach:profiles!coach_id(id, full_name, email),
+      court:courts!court_id(id, name)
     `)
     .eq('player_id', userId)
     .order('start_time', { ascending: false })
@@ -97,8 +97,8 @@ export async function getCoachBookings(): Promise<Booking[]> {
     .from('bookings')
     .select(`
       id, start_time, end_time, status, notes, price, created_at,
-      player:player_id(id, full_name, email),
-      court:court_id(id, name)
+      player:profiles!player_id(id, full_name, email),
+      court:courts!court_id(id, name)
     `)
     .eq('coach_id', userId)
     .in('status', ['confirmed', 'completed'])
@@ -115,9 +115,9 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
     .from('bookings')
     .select(`
       id, start_time, end_time, status, notes, payment_proof_url, price, created_at,
-      coach:coach_id(id, full_name, email),
-      player:player_id(id, full_name, email),
-      court:court_id(id, name)
+      coach:profiles!coach_id(id, full_name, email),
+      player:profiles!player_id(id, full_name, email),
+      court:courts!court_id(id, name)
     `)
     .order('created_at', { ascending: false })
 
@@ -127,6 +127,27 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
 
   const { data } = await query
   return (data ?? []) as unknown as Booking[]
+}
+
+/** Bloques ocupados de un entrenador en el rango de fechas dado (para el calendario) */
+export async function getCoachAvailability(
+  coachId: string,
+  weekStart: string,
+  weekEnd: string,
+): Promise<{ start_time: string; end_time: string }[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data } = await supabase
+    .from('bookings')
+    .select('start_time, end_time')
+    .eq('coach_id', coachId)
+    .in('status', ['paid', 'confirmed'])
+    .lt('start_time', weekEnd)
+    .gte('end_time', weekStart)
+
+  return (data ?? []) as { start_time: string; end_time: string }[]
 }
 
 // ─── Player: solicitar reserva ─────────────────────────────────────────────────
