@@ -66,7 +66,12 @@ audit_logs
 CREATE TYPE user_role AS ENUM ('admin', 'coach', 'player');
 
 -- Nivel de pádel
-CREATE TYPE padel_level AS ENUM ('iniciacion', 'intermedio', 'avanzado', 'elite');
+CREATE TYPE padel_level AS ENUM (
+  '5ta_masculino', '6ta_masculino', '7ma_masculino',
+  'femenino_d', 'femenino_c',
+  'juvenil_s18', 'juvenil_s16', 'juvenil_s14',
+  'prejuvenil', 'baby_padel'
+);
 
 -- Estado general
 CREATE TYPE record_status AS ENUM ('active', 'inactive', 'archived');

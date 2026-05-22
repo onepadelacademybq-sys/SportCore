@@ -116,7 +116,7 @@ Período largo de entrenamiento con un objetivo global definido.
 |---|---|
 | Nombre | Identificador del mesociclo (ej. "Pretemporada Verano 2025") |
 | Objetivo general | Foco principal del período (físico, técnico, táctico, competición) |
-| Nivel del grupo | Iniciación / Intermedio / Avanzado / Élite |
+| Nivel del grupo | 5ta/6ta/7ma Masculino · Femenino D/C · Juvenil S18/S16/S14 · Prejuvenil · Baby Pádel |
 | Duración | 4 a 8 semanas |
 | Asignación | Uno o varios jugadores, o un Grupo de Entrenamiento (Módulo 12) |
 | Estado | Borrador / Activo / Completado / Archivado |
@@ -346,7 +346,7 @@ Cada bloque contiene:
   - **Nombre** del ejercicio
   - **Temática** (técnica, táctica, físico, mental, calentamiento, vuelta a la calma)
   - **Objetivo** (descripción del propósito del ejercicio)
-  - **Nivel recomendado** (iniciación, intermedio, avanzado, élite)
+  - **Nivel recomendado** (5ta Masculino, 6ta Masculino, 7ma Masculino, Femenino D/C, Juvenil S18/S16/S14, Prejuvenil, Baby Pádel)
   - **Duración estimada** (minutos)
   - **Material necesario** (pelotas, conos, palas, etc.)
   - **Vídeo demostrativo** (URL embebida de YouTube/Vimeo o subida directa a Supabase Storage)
@@ -382,7 +382,7 @@ Cada bloque contiene:
 - Creación de grupos con los siguientes atributos:
   - **Nombre** del grupo (ej. "Grupo Martes/Jueves Intermedio")
   - **Entrenador asignado**
-  - **Nivel del grupo** (iniciación, intermedio, avanzado, élite)
+  - **Nivel del grupo** (5ta Masculino, 6ta Masculino, 7ma Masculino, Femenino D/C, Juvenil S18/S16/S14, Prejuvenil, Baby Pádel)
   - **Cupo máximo de jugadores**
   - **Horario recurrente** (días de la semana, hora inicio/fin)
   - **Pista asignada** por defecto
