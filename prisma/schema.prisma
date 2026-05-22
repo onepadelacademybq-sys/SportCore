@@ -234,7 +234,9 @@ model Profile {
   avatarUrl        String?    @map("avatar_url")
   role             UserRole
   phone            String?
+  documentId       String?    @map("document_id")
   dateOfBirth      DateTime?  @map("date_of_birth") @db.Date
+  address          String?
   padelLevel       PadelLevel? @map("padel_level")
   stripeCustomerId String?    @unique @map("stripe_customer_id")
   isActive         Boolean    @default(true) @map("is_active")
