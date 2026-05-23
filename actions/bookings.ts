@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -244,10 +245,8 @@ export async function requestBookingAction(
 
 // ─── Player: subir comprobante de pago ────────────────────────────────────────
 
-const PaymentProofSchema = z.object({
-  bookingId:       z.string().uuid(),
-  paymentProofUrl: z.string().url('Ingresa una URL válida del comprobante'),
-})
+const ALLOWED_PROOF_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
+const MAX_PROOF_SIZE       = 5 * 1024 * 1024 // 5 MB
 
 export async function uploadPaymentProofAction(
   _prev: BookingState,
@@ -255,29 +254,47 @@ export async function uploadPaymentProofAction(
 ): Promise<BookingState> {
   const { supabase, userId } = await requireAuth()
 
-  const parsed = PaymentProofSchema.safeParse({
-    bookingId:       formData.get('bookingId'),
-    paymentProofUrl: formData.get('paymentProofUrl'),
-  })
-  if (!parsed.success) return { error: parsed.error.issues[0].message }
+  const bookingId = (formData.get('bookingId') as string | null)?.trim()
+  if (!bookingId) return { error: 'ID de reserva requerido' }
+
+  const file = formData.get('paymentProof') as File | null
+  if (!file || file.size === 0) return { error: 'Selecciona un comprobante de pago' }
+  if (!ALLOWED_PROOF_TYPES.includes(file.type))
+    return { error: 'Solo se aceptan archivos JPG, PNG o PDF' }
+  if (file.size > MAX_PROOF_SIZE)
+    return { error: 'El archivo no puede superar 5 MB' }
 
   const { data: booking } = await supabase
     .from('bookings')
     .select('id, player_id, status')
-    .eq('id', parsed.data.bookingId)
+    .eq('id', bookingId)
     .single()
 
   const b = booking as { player_id: string; status: string } | null
-  if (!b)                    return { error: 'Reserva no encontrada' }
+  if (!b)                     return { error: 'Reserva no encontrada' }
   if (b.player_id !== userId) return { error: 'Sin permisos' }
   if (b.status !== 'pending') return { error: 'Solo se puede subir comprobante en reservas pendientes' }
 
-  const { error } = await supabase
-    .from('bookings')
-    .update({ payment_proof_url: parsed.data.paymentProofUrl, status: 'paid' })
-    .eq('id', parsed.data.bookingId)
+  const ext      = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg'
+  const path     = `${bookingId}/${Date.now()}.${ext}`
+  const buffer   = await file.arrayBuffer()
+  const admin    = createAdminClient()
 
-  if (error) return { error: 'Error al actualizar la reserva' }
+  const { error: uploadError } = await admin.storage
+    .from('payment-proofs')
+    .upload(path, buffer, { contentType: file.type, upsert: true })
+
+  if (uploadError) {
+    console.error('[uploadPaymentProofAction] storage:', uploadError)
+    return { error: 'Error al subir el archivo. Intenta nuevamente.' }
+  }
+
+  const { error: dbError } = await supabase
+    .from('bookings')
+    .update({ payment_proof_url: path, status: 'paid' })
+    .eq('id', bookingId)
+
+  if (dbError) return { error: 'Error al actualizar la reserva' }
 
   revalidatePath('/player/bookings')
   return { error: null, success: 'Comprobante enviado. El administrador verificará el pago.' }
@@ -353,4 +370,30 @@ export async function cancelBookingAction(
 
   revalidatePath(role === 'admin' ? '/admin/bookings' : '/player/bookings')
   return { error: null, success: 'Reserva cancelada.' }
+}
+
+// ─── Signed URL para comprobante (admin/player dueño) ─────────────────────────
+
+export async function getPaymentProofUrl(
+  bookingId: string,
+  storagePath: string,
+): Promise<string | null> {
+  const { supabase, userId, role } = await requireAuth()
+
+  // Verify access: admin can see any, player can only see their own
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('bookings')
+      .select('player_id')
+      .eq('id', bookingId)
+      .single()
+    if (!data || (data as { player_id: string }).player_id !== userId) return null
+  }
+
+  const admin = createAdminClient()
+  const { data } = await admin.storage
+    .from('payment-proofs')
+    .createSignedUrl(storagePath, 60 * 60) // 1 hora
+
+  return data?.signedUrl ?? null
 }

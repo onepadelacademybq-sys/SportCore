@@ -4,6 +4,7 @@ import { getAllBookings, getCourts } from '@/actions/bookings'
 import { ConfirmBookingForm } from '@/components/bookings/confirm-booking-form'
 import { CancelBookingButton } from '@/components/bookings/confirm-booking-form'
 import { StatusBadge } from '@/components/bookings/status-badge'
+import { ViewProofButton } from '@/components/bookings/view-proof-button'
 import { formatBookingDateTime } from '@/lib/format'
 
 export const metadata: Metadata = { title: 'Reservas — Admin' }
@@ -106,14 +107,10 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                     <div className="space-y-1">
                       <StatusBadge status={b.status} />
                       {b.status === 'paid' && b.payment_proof_url && (
-                        <a
-                          href={b.payment_proof_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-xs text-[#00C4CC] hover:underline"
-                        >
-                          Ver comprobante
-                        </a>
+                        <ViewProofButton
+                          bookingId={b.id}
+                          storagePath={b.payment_proof_url}
+                        />
                       )}
                     </div>
                   </td>

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { getCoaches, getPlayerBookings } from '@/actions/bookings'
 import { BookingRequestForm } from '@/components/bookings/booking-request-form'
+import { PaymentCard } from '@/components/bookings/payment-card'
 import { PaymentProofForm } from '@/components/bookings/payment-proof-form'
 import { CancelBookingButton } from '@/components/bookings/confirm-booking-form'
 import { StatusBadge } from '@/components/bookings/status-badge'
@@ -68,34 +69,21 @@ export default async function PlayerBookingsPage() {
                     <StatusBadge status={b.status} />
                   </div>
 
-                  {/* Comprobante de pago — solo cuando está pendiente */}
+                  {/* Datos de pago + subir comprobante — solo cuando está pendiente */}
                   {b.status === 'pending' && (
                     <>
                       <Separator />
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">
-                          Sube el comprobante de pago para que el admin pueda confirmar tu reserva.
-                        </p>
-                        <PaymentProofForm bookingId={b.id} />
-                      </div>
+                      <PaymentCard bookingId={b.id} price={b.price} />
+                      <PaymentProofForm bookingId={b.id} />
                     </>
                   )}
 
                   {/* Comprobante ya enviado */}
-                  {b.status === 'paid' && b.payment_proof_url && (
+                  {b.status === 'paid' && (
                     <>
                       <Separator />
                       <p className="text-xs text-muted-foreground">
-                        Comprobante enviado:{' '}
-                        <a
-                          href={b.payment_proof_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#00C4CC] hover:underline"
-                        >
-                          Ver comprobante
-                        </a>
-                        {' '}· Pendiente de verificación por el administrador.
+                        Comprobante enviado · Pendiente de verificación por el administrador.
                       </p>
                     </>
                   )}
