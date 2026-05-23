@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Calendar,
   UsersRound,
+  BookOpen,
   LogOut,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: 'Dashboard',  href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Reservas',   href: '/admin/bookings',  icon: Calendar },
     { label: 'Grupos',     href: '/admin/groups',    icon: UsersRound },
+    { label: 'Biblioteca', href: '/admin/library',   icon: BookOpen },
     { label: 'Usuarios',   href: '/admin/users',     icon: Users },
     { label: 'Finanzas',   href: '/admin/finances',  icon: CreditCard },
     { label: 'Torneos',    href: '/admin/tournaments', icon: Trophy },
@@ -40,6 +42,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: 'Dashboard',    href: '/coach/dashboard',  icon: LayoutDashboard },
     { label: 'Mis Clases',   href: '/coach/bookings',   icon: Calendar },
     { label: 'Mis Grupos',   href: '/coach/groups',     icon: UsersRound },
+    { label: 'Biblioteca',   href: '/coach/library',    icon: BookOpen },
     { label: 'Jugadores',    href: '/coach/players',    icon: Users },
     { label: 'Entrenamientos', href: '/coach/trainings', icon: Dumbbell },
     { label: 'Evaluaciones', href: '/coach/evaluations', icon: ClipboardList },
