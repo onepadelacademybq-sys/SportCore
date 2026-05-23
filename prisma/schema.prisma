@@ -298,7 +298,44 @@ model Profile {
   // Módulo 13
   coachRatingsGiven CoachRating[]
 
+  // E-wallet
+  classWallet        ClassWallet?
+  walletTransactions WalletTransaction[]
+
   @@map("profiles")
+}
+
+// ─────────────────────────────────────────────
+// E-WALLET DE CLASES
+// ─────────────────────────────────────────────
+
+model ClassWallet {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playerId         String   @unique @map("player_id") @db.Uuid
+  totalClasses     Int      @default(0) @map("total_classes")
+  usedClasses      Int      @default(0) @map("used_classes")
+  availableClasses Int      @default(dbgenerated("(total_classes - used_classes)")) @map("available_classes")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  player Profile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("class_wallet")
+}
+
+model WalletTransaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playerId    String   @map("player_id") @db.Uuid
+  bookingId   String?  @map("booking_id") @db.Uuid
+  type        String
+  classes     Int
+  description String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  player  Profile  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@map("wallet_transactions")
 }
 
 // ─────────────────────────────────────────────
@@ -358,6 +395,7 @@ model Booking {
   recurrenceRule  String?       @map("recurrence_rule")
   price           Decimal       @default(0) @db.Decimal(10, 2)
   peopleCount     Int           @default(1) @map("people_count") @db.SmallInt
+  moduleClasses   Int?          @map("module_classes") @db.SmallInt
   notes           String?
   paymentProofUrl String?       @map("payment_proof_url")
   expiresAt       DateTime?     @map("expires_at") @db.Timestamptz(6)
@@ -369,7 +407,8 @@ model Booking {
   player  Profile?       @relation("PlayerBookings", fields: [playerId], references: [id])
   group   TrainingGroup? @relation(fields: [groupId], references: [id])
   creator Profile        @relation("CreatedByBookings", fields: [createdBy], references: [id])
-  session TrainingSession? @relation(fields: [sessionId], references: [id])
+  session            TrainingSession?    @relation(fields: [sessionId], references: [id])
+  walletTransactions WalletTransaction[]
 
   @@map("bookings")
 }

@@ -67,11 +67,12 @@ function formatCOP(n: number): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
-  coaches:  CoachOption[]
-  userRole: 'player' | 'admin' | 'coach'
+  coaches:          CoachOption[]
+  userRole:         'player' | 'admin' | 'coach'
+  availableClasses?: number
 }
 
-export function BookingRequestForm({ coaches, userRole }: Props) {
+export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: Props) {
   const [state, action, isPending] = useActionState(requestBookingAction, { error: null })
 
   const [coachId,      setCoachId]      = useState('')
@@ -80,6 +81,7 @@ export function BookingRequestForm({ coaches, userRole }: Props) {
   const [endTime,      setEndTime]      = useState(HOURS[13])
   const [peopleCount,    setPeopleCount]    = useState<1 | 2 | 3 | 4>(1)
   const [selectedModule, setSelectedModule] = useState<null | 8 | 16>(null)
+  const [paymentMethod,  setPaymentMethod]  = useState<'transfer' | 'wallet'>('transfer')
 
   const earliestBookable = new Date(Date.now() + (ADVANCE_HOURS[userRole] ?? 48) * 60 * 60 * 1000)
   const minDate = earliestBookable.toISOString().split('T')[0]
@@ -266,9 +268,46 @@ export function BookingRequestForm({ coaches, userRole }: Props) {
         </div>
       )}
 
-      {/* Hidden pricing fields — used by the server action */}
-      <input type="hidden" name="peopleCount" value={peopleCount} />
-      <input type="hidden" name="price"       value={effectivePrice} />
+      {/* Hidden fields */}
+      <input type="hidden" name="peopleCount"   value={peopleCount} />
+      <input type="hidden" name="price"         value={paymentMethod === 'wallet' ? 0 : effectivePrice} />
+      <input type="hidden" name="moduleClasses" value={selectedModule ?? 0} />
+      <input type="hidden" name="paymentMethod" value={paymentMethod} />
+
+      {/* Payment method selector — shown once a date is chosen */}
+      {date && (
+        <div className="space-y-2">
+          <Label>Método de pago</Label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('transfer')}
+              className={`flex-1 py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
+                paymentMethod === 'transfer'
+                  ? 'border-[#00C4CC] bg-[#00C4CC]/10 font-medium'
+                  : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+              }`}
+            >
+              <p className="text-sm">Transferencia bancaria</p>
+              <p className="text-[10px] text-muted-foreground">Sube el comprobante después de reservar</p>
+            </button>
+            {availableClasses > 0 && (
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('wallet')}
+                className={`flex-1 py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
+                  paymentMethod === 'wallet'
+                    ? 'border-[#00C4CC] bg-[#00C4CC]/10 font-medium'
+                    : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                }`}
+              >
+                <p className="text-sm">Usar mis clases</p>
+                <p className="text-[10px] text-emerald-500">{availableClasses} clase{availableClasses !== 1 ? 's' : ''} disponible{availableClasses !== 1 ? 's' : ''}</p>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="notes">Notas (opcional)</Label>

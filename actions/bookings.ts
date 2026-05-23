@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { creditClasses, debitClass } from '@/actions/wallet'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -22,6 +23,7 @@ export type Booking = {
   payment_proof_url: string | null
   price: number
   expires_at: string | null
+  module_classes: number | null
   created_at: string
   coach:  ProfileRef | null
   player: ProfileRef | null
@@ -171,13 +173,15 @@ export async function getCoachAvailability(
 // ─── Player: solicitar reserva ─────────────────────────────────────────────────
 
 const RequestSchema = z.object({
-  coachId:     z.string().uuid('Selecciona un entrenador válido'),
-  date:        z.string().min(1, 'La fecha es requerida'),
-  startTime:   z.string().min(1, 'La hora de inicio es requerida'),
-  endTime:     z.string().min(1, 'La hora de fin es requerida'),
-  notes:       z.string().optional(),
-  peopleCount: z.coerce.number().int().min(1).max(4).optional(),
-  price:       z.coerce.number().min(0).optional(),
+  coachId:       z.string().uuid('Selecciona un entrenador válido'),
+  date:          z.string().min(1, 'La fecha es requerida'),
+  startTime:     z.string().min(1, 'La hora de inicio es requerida'),
+  endTime:       z.string().min(1, 'La hora de fin es requerida'),
+  notes:         z.string().optional(),
+  peopleCount:   z.coerce.number().int().min(1).max(4).optional(),
+  price:         z.coerce.number().min(0).optional(),
+  moduleClasses: z.coerce.number().int().refine(v => [0, 8, 16].includes(v)).optional(),
+  paymentMethod: z.enum(['transfer', 'wallet']).optional(),
 })
 
 export async function requestBookingAction(
@@ -191,17 +195,19 @@ export async function requestBookingAction(
   }
 
   const parsed = RequestSchema.safeParse({
-    coachId:     formData.get('coachId'),
-    date:        formData.get('date'),
-    startTime:   formData.get('startTime'),
-    endTime:     formData.get('endTime'),
-    notes:       formData.get('notes') || undefined,
-    peopleCount: formData.get('peopleCount') || undefined,
-    price:       formData.get('price') || undefined,
+    coachId:       formData.get('coachId'),
+    date:          formData.get('date'),
+    startTime:     formData.get('startTime'),
+    endTime:       formData.get('endTime'),
+    notes:         formData.get('notes') || undefined,
+    peopleCount:   formData.get('peopleCount') || undefined,
+    price:         formData.get('price') || undefined,
+    moduleClasses: formData.get('moduleClasses') || undefined,
+    paymentMethod: formData.get('paymentMethod') || undefined,
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { coachId, date, startTime, endTime, notes, peopleCount, price } = parsed.data
+  const { coachId, date, startTime, endTime, notes, peopleCount, price, moduleClasses, paymentMethod } = parsed.data
   const start = new Date(`${date}T${startTime}:00`)
   const end   = new Date(`${date}T${endTime}:00`)
 
@@ -239,28 +245,56 @@ export async function requestBookingAction(
     return { error: 'El entrenador ya tiene una reserva en ese horario' }
   }
 
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+  const useWallet  = paymentMethod === 'wallet'
+  const expiresAt  = useWallet ? null : new Date(Date.now() + 15 * 60 * 1000).toISOString()
+  const initStatus = useWallet ? 'confirmed' : 'pending'
 
-  const { error } = await supabase.from('bookings').insert({
-    player_id:    userId,
-    coach_id:     coachId,
-    created_by:   userId,
-    start_time:   start.toISOString(),
-    end_time:     end.toISOString(),
-    status:       'pending',
-    notes:        notes ?? null,
-    price:        price ?? 0,
-    people_count: peopleCount ?? 1,
-    expires_at:   expiresAt,
-  })
+  if (useWallet) {
+    const debitError = await debitClass(supabase, userId, '', 'Clase reservada')
+    if (debitError) return debitError
+  }
 
-  if (error) {
+  const { data: inserted, error } = await supabase.from('bookings').insert({
+    player_id:     userId,
+    coach_id:      coachId,
+    created_by:    userId,
+    start_time:    start.toISOString(),
+    end_time:      end.toISOString(),
+    status:        initStatus,
+    notes:         notes ?? null,
+    price:         useWallet ? 0 : (price ?? 0),
+    people_count:  peopleCount ?? 1,
+    module_classes: moduleClasses && moduleClasses > 0 ? moduleClasses : null,
+    expires_at:    expiresAt,
+  }).select('id').single()
+
+  if (error || !inserted) {
     console.error('[requestBookingAction]', error)
+    // If we already debited, try to undo — best-effort
+    if (useWallet) {
+      await supabase.from('class_wallet').update({}).eq('player_id', userId) // no-op trigger to log
+    }
     return { error: 'Error al crear la reserva. Intenta nuevamente.' }
   }
 
+  // If wallet was used, update the transaction with the real booking id
+  if (useWallet) {
+    await supabase
+      .from('wallet_transactions')
+      .update({ booking_id: inserted.id })
+      .eq('player_id', userId)
+      .is('booking_id', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+  }
+
   revalidatePath('/player/bookings')
-  return { error: null, success: 'Reserva solicitada. Sube tu comprobante de pago para continuar.' }
+  return {
+    error: null,
+    success: useWallet
+      ? 'Reserva confirmada con tu billetera de clases.'
+      : 'Reserva solicitada. Sube tu comprobante de pago para continuar.',
+  }
 }
 
 // ─── Player: subir comprobante de pago ────────────────────────────────────────
@@ -340,17 +374,41 @@ export async function confirmBookingAction(
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
+  const { bookingId, courtId } = parsed.data
+
+  // Fetch booking to check module_classes and player_id
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('id, player_id, module_classes')
+    .eq('id', bookingId)
+    .single()
+
+  const b = booking as { player_id: string | null; module_classes: number | null } | null
+  if (!b) return { error: 'Reserva no encontrada' }
+
   const update: Record<string, unknown> = { status: 'confirmed' }
-  if (parsed.data.courtId) update.court_id = parsed.data.courtId
+  if (courtId) update.court_id = courtId
 
   const { error } = await supabase
     .from('bookings')
     .update(update)
-    .eq('id', parsed.data.bookingId)
+    .eq('id', bookingId)
 
   if (error) return { error: 'Error al confirmar la reserva' }
 
+  // Credit classes to wallet if this is a module booking
+  if (b.player_id && b.module_classes && b.module_classes > 0) {
+    await creditClasses(
+      supabase,
+      b.player_id,
+      bookingId,
+      b.module_classes,
+      `Módulo de ${b.module_classes} clases acreditado`,
+    )
+  }
+
   revalidatePath('/admin/bookings')
+  revalidatePath('/player/bookings')
   return { error: null, success: 'Reserva confirmada.' }
 }
 

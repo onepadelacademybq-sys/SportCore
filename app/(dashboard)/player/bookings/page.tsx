@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { getCoaches, getPlayerBookings } from '@/actions/bookings'
+import { getPlayerWallet, getWalletTransactions } from '@/actions/wallet'
 import { BookingRequestForm } from '@/components/bookings/booking-request-form'
 import { PaymentCard } from '@/components/bookings/payment-card'
 import { PaymentProofForm } from '@/components/bookings/payment-proof-form'
@@ -9,11 +10,17 @@ import { StatusBadge } from '@/components/bookings/status-badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { formatBookingDateTime } from '@/lib/format'
+import { Wallet, TrendingUp, TrendingDown } from 'lucide-react'
 
 export const metadata: Metadata = { title: 'Mis Reservas' }
 
 export default async function PlayerBookingsPage() {
-  const [coaches, bookings] = await Promise.all([getCoaches(), getPlayerBookings()])
+  const [coaches, bookings, wallet, transactions] = await Promise.all([
+    getCoaches(),
+    getPlayerBookings(),
+    getPlayerWallet(),
+    getWalletTransactions(5),
+  ])
 
   const active   = bookings.filter((b) => !['cancelled', 'completed'].includes(b.status))
   const archived = bookings.filter((b) => ['cancelled', 'completed'].includes(b.status))
@@ -28,13 +35,62 @@ export default async function PlayerBookingsPage() {
         </p>
       </div>
 
+      {/* E-wallet card */}
+      {wallet && (
+        <Card className="border-[#00C4CC]/30 bg-[#00C4CC]/5">
+          <CardContent className="pt-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-[#00C4CC]" />
+                <span className="font-semibold">Mis clases</span>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-[#00C4CC]">{wallet.available_classes}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {wallet.used_classes} usadas · {wallet.total_classes} totales
+                </p>
+              </div>
+            </div>
+
+            {transactions.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">
+                    Últimas transacciones
+                  </p>
+                  {transactions.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        {t.type === 'credit'
+                          ? <TrendingUp  className="h-3 w-3 text-emerald-500 shrink-0" />
+                          : <TrendingDown className="h-3 w-3 text-red-400 shrink-0" />
+                        }
+                        <span className="text-muted-foreground">{t.description}</span>
+                      </div>
+                      <span className={`font-medium tabular-nums ${t.type === 'credit' ? 'text-emerald-500' : 'text-red-400'}`}>
+                        {t.type === 'credit' ? '+' : '-'}{t.classes}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Request form */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Solicitar nueva reserva</CardTitle>
         </CardHeader>
         <CardContent>
-          <BookingRequestForm coaches={coaches} userRole="player" />
+          <BookingRequestForm
+            coaches={coaches}
+            userRole="player"
+            availableClasses={wallet?.available_classes ?? 0}
+          />
         </CardContent>
       </Card>
 
