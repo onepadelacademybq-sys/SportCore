@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Plus, Calendar, Users, ChevronRight } from 'lucide-react'
-import { getMesocycles } from '@/actions/training'
-import { MesoStatusBadge } from '@/components/training/status-badge'
-import { Button } from '@/components/ui/button'
+import { Users, UserCircle2, ChevronRight, Calendar } from 'lucide-react'
+import { getAssignmentTargets } from '@/actions/training'
 
 export const metadata: Metadata = { title: 'Planificación — Admin' }
 
@@ -15,86 +13,86 @@ const LEVEL_LABELS: Record<string, string> = {
 }
 
 export default async function AdminPlanningPage() {
-  const mesocycles = await getMesocycles()
+  const { players, groups } = await getAssignmentTargets()
 
-  const byStatus = {
-    active:    mesocycles.filter((m) => m.status === 'active'),
-    draft:     mesocycles.filter((m) => m.status === 'draft'),
-    completed: mesocycles.filter((m) => m.status === 'completed'),
-    archived:  mesocycles.filter((m) => m.status === 'archived'),
-  }
+  const hasContent = players.length > 0 || groups.length > 0
 
   return (
-    <div className="p-8 space-y-6 max-w-4xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Planificación</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Mesociclos, microciclos y sesiones de entrenamiento
-          </p>
-        </div>
-        <Link href="/admin/planning/new">
-          <Button className="gap-2 shrink-0">
-            <Plus className="h-4 w-4" />
-            Nuevo mesociclo
-          </Button>
-        </Link>
+    <div className="p-8 space-y-8 max-w-4xl">
+      <div>
+        <h1 className="text-2xl font-bold">Planificación</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Seleccioná un jugador o grupo para gestionar su planificación de entrenamiento.
+        </p>
       </div>
 
-      {mesocycles.length === 0 ? (
+      {!hasContent ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
-          <p className="text-muted-foreground">No hay mesociclos creados aún.</p>
-          <Link href="/admin/planning/new" className="mt-4">
-            <Button size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Crear el primero
-            </Button>
-          </Link>
+          <p className="text-muted-foreground">No hay jugadores ni grupos activos.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Creá jugadores en <Link href="/admin/players" className="underline">Jugadores</Link> y grupos en <Link href="/admin/groups" className="underline">Grupos</Link>.
+          </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {(['active', 'draft', 'completed', 'archived'] as const).map((status) => {
-            const items = byStatus[status]
-            if (items.length === 0) return null
-            return (
-              <section key={status}>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  <MesoStatusBadge status={status} />
-                  <span className="ml-2">{items.length}</span>
-                </h2>
-                <div className="space-y-2">
-                  {items.map((m) => (
-                    <Link
-                      key={m.id}
-                      href={`/admin/planning/${m.id}`}
-                      className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-colors"
-                    >
-                      <div className="min-w-0 space-y-0.5">
-                        <p className="font-semibold truncate">{m.name}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{m.general_objective}</p>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                          <span>{LEVEL_LABELS[m.level] ?? m.level}</span>
-                          <span>·</span>
-                          <span>{m.duration_weeks} semanas</span>
-                          {m.assignments.length > 0 && (
-                            <>
-                              <span>·</span>
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                {m.assignments.length} asignación{m.assignments.length !== 1 ? 'es' : ''}
-                              </span>
-                            </>
-                          )}
-                        </div>
+        <div className="space-y-8">
+          {groups.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Grupos ({groups.length})
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {groups.map((g) => (
+                  <Link
+                    key={g.id}
+                    href={`/admin/planning/group/${g.id}`}
+                    className="flex items-center justify-between gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Users className="h-4 w-4 text-primary" />
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )
-          })}
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{g.name}</p>
+                        <p className="text-xs text-muted-foreground">{LEVEL_LABELS[g.level] ?? g.level}</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {players.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <UserCircle2 className="h-4 w-4" />
+                Jugadores ({players.length})
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {players.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/admin/planning/player/${p.id}`}
+                    className="flex items-center justify-between gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0 text-sm font-semibold text-foreground/60">
+                        {p.full_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{p.full_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{p.email}</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>

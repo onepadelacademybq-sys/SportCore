@@ -12,10 +12,9 @@ import {
 import type { SessionBlock } from '@/actions/training'
 
 const BLOCK_LABELS: Record<string, { title: string; number: string; color: string }> = {
-  calentamiento:     { number: '1', title: 'Calentamiento',      color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
-  central_1_defensa: { number: '2', title: 'Central 1 — Defensa', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
-  central_2_ataque:  { number: '3', title: 'Central 2 — Ataque',  color: 'text-violet-400 bg-violet-500/10 border-violet-500/20' },
-  vuelta_a_la_calma: { number: '4', title: 'Vuelta a la calma',   color: 'text-[#00C4CC] bg-[#00C4CC]/10 border-[#00C4CC]/20' },
+  calentamiento:     { number: '1', title: 'Calentamiento',    color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
+  central:           { number: '2', title: 'Central',          color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+  vuelta_a_la_calma: { number: '3', title: 'Vuelta a la calma', color: 'text-[#00C4CC] bg-[#00C4CC]/10 border-[#00C4CC]/20' },
 }
 
 interface AvailableExercise {
@@ -158,11 +157,9 @@ export function BlockPanel({ block, availableExercises, readOnly = false }: Prop
     number: '?', title: block.block_type, color: 'text-muted-foreground bg-muted border-border',
   }
 
+  const isCentral = block.block_type === 'central'
   const existingIds = new Set(block.exercises.map((e) => e.exercise.id))
-
-  const totalMin = block.exercises.reduce(
-    (sum, e) => sum + (e.exercise.estimated_duration_min ?? 0), 0,
-  )
+  const totalMin = block.exercises.reduce((sum, e) => sum + (e.exercise.estimated_duration_min ?? 0), 0)
 
   return (
     <div className={`rounded-xl border p-4 space-y-3 ${cfg.color}`}>
@@ -173,38 +170,43 @@ export function BlockPanel({ block, availableExercises, readOnly = false }: Prop
             {cfg.number}
           </span>
           <h3 className="font-semibold text-sm">{cfg.title}</h3>
+          <span className="text-xs text-muted-foreground">{block.duration_min} min</span>
         </div>
-        <span className="text-xs text-muted-foreground">{totalMin} min</span>
-      </div>
-
-      {/* Exercises */}
-      <div className="space-y-1">
-        {block.exercises.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic">Sin ejercicios asignados</p>
-        ) : (
-          <ul className="space-y-1">
-            {block.exercises.map((be) => (
-              <li
-                key={be.id}
-                className="group flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-background/60 text-sm"
-              >
-                <div className="min-w-0">
-                  <span className="font-medium truncate block">{be.exercise.name}</span>
-                  {be.repetitions && (
-                    <span className="text-xs text-muted-foreground">{be.repetitions}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-muted-foreground">
-                    {be.exercise.estimated_duration_min} min
-                  </span>
-                  {!readOnly && <RemoveExerciseButton blockExerciseId={be.id} />}
-                </div>
-              </li>
-            ))}
-          </ul>
+        {isCentral && totalMin > 0 && (
+          <span className="text-xs text-muted-foreground">{totalMin} min en ejercicios</span>
         )}
       </div>
+
+      {/* Exercises — only for central block */}
+      {isCentral && (
+        <div className="space-y-1">
+          {block.exercises.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">Sin ejercicios asignados</p>
+          ) : (
+            <ul className="space-y-1">
+              {block.exercises.map((be) => (
+                <li
+                  key={be.id}
+                  className="group flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-background/60 text-sm"
+                >
+                  <div className="min-w-0">
+                    <span className="font-medium truncate block">{be.exercise.name}</span>
+                    {be.repetitions && (
+                      <span className="text-xs text-muted-foreground">{be.repetitions}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">
+                      {be.exercise.estimated_duration_min} min
+                    </span>
+                    {!readOnly && <RemoveExerciseButton blockExerciseId={be.id} />}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Notes */}
       {!readOnly && (
@@ -214,8 +216,8 @@ export function BlockPanel({ block, availableExercises, readOnly = false }: Prop
         <p className="text-xs text-muted-foreground italic border-t border-current/20 pt-2">{block.notes}</p>
       )}
 
-      {/* Add exercise */}
-      {!readOnly && (
+      {/* Add exercise — only for central block */}
+      {!readOnly && isCentral && (
         <AddExercisePicker
           blockId={block.id}
           availableExercises={availableExercises}

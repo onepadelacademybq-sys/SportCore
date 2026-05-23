@@ -11,10 +11,9 @@ import { Button } from '@/components/ui/button'
 export const metadata: Metadata = { title: 'Sesión — Entrenador' }
 
 const BLOCK_THEMES: Record<string, string[]> = {
-  calentamiento:     ['calentamiento'],
-  central_1_defensa: ['tecnica', 'tactica'],
-  central_2_ataque:  ['tecnica', 'tactica'],
-  vuelta_a_la_calma: ['vuelta_a_la_calma'],
+  calentamiento:     [],
+  central:           ['tecnica', 'tactica'],
+  vuelta_a_la_calma: [],
 }
 
 interface PageProps {

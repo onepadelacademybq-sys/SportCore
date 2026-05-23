@@ -80,8 +80,7 @@ enum MesocycleStatus {
 
 enum SessionBlockType {
   calentamiento
-  central_1_defensa
-  central_2_ataque
+  central
   vuelta_a_la_calma
 }
 

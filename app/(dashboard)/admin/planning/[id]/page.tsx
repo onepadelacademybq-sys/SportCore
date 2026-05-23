@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, Plus, Calendar, CheckCircle2, XCircle, Clock } from 'lucide-react'
-import { getMesocycleById, getAssignmentTargets, changeMesocycleStatusAction } from '@/actions/training'
+import { getMesocycleById, getAssignmentTargets, changeMesocycleStatusAction, updateMicrocycleAction, getConfirmedBookingsForAssignment } from '@/actions/training'
 import { MesoStatusBadge, SessionStatusBadge } from '@/components/training/status-badge'
 import { AssignForm } from '@/components/training/assign-form'
 import { SessionForm } from '@/components/training/session-form'
+import { MicrocycleTypePicker } from '@/components/training/microcycle-type-picker'
 import { Button } from '@/components/ui/button'
 
 export const metadata: Metadata = { title: 'Mesociclo — Admin' }
@@ -38,6 +39,11 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
   ])
 
   if (!mesocycle) notFound()
+
+  const playerIds = mesocycle.assignments.flatMap((a) => a.player_id ? [a.player_id] : [])
+  const groupIds  = mesocycle.assignments.flatMap((a) => a.group_id  ? [a.group_id]  : [])
+  const confirmedBookings = await getConfirmedBookingsForAssignment(playerIds, groupIds)
+  const hasPlayerAssignment = playerIds.length > 0
 
   const showAssign = tab === 'assign'
 
@@ -150,7 +156,21 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
                 </span>
               </summary>
 
-              <div className="border-t border-border px-5 py-4 space-y-3">
+              <div className="border-t border-border px-5 py-4 space-y-4">
+                {/* Microcycle type picker */}
+                <details className="rounded-lg border border-border">
+                  <summary className="px-4 py-2.5 cursor-pointer text-sm font-medium list-none hover:bg-muted/40 transition-colors">
+                    Tipo de microciclo{mc.weekly_objective ? ` — ${mc.weekly_objective}` : ''}
+                  </summary>
+                  <div className="px-4 py-3 border-t border-border">
+                    <MicrocycleTypePicker
+                      microcycleId={mc.id}
+                      currentObjective={mc.weekly_objective ?? null}
+                      action={updateMicrocycleAction}
+                    />
+                  </div>
+                </details>
+
                 {/* Sessions list */}
                 {mc.sessions.map((s) => (
                   <Link
@@ -186,7 +206,7 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
                     Nueva sesión en semana {mc.week_number}
                   </summary>
                   <div className="px-4 py-3 border-t border-border">
-                    <SessionForm microcycleId={mc.id} />
+                    <SessionForm microcycleId={mc.id} confirmedBookings={confirmedBookings} hasPlayerAssignment={hasPlayerAssignment} />
                   </div>
                 </details>
               </div>

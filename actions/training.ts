@@ -25,11 +25,18 @@ export type BlockExercise = {
 
 export type SessionBlock = {
   id:          string
-  block_type:  'calentamiento' | 'central_1_defensa' | 'central_2_ataque' | 'vuelta_a_la_calma'
+  block_type:  'calentamiento' | 'central' | 'vuelta_a_la_calma'
   order:       number
   duration_min: number
   notes:       string | null
   exercises:   BlockExercise[]
+}
+
+export type ConfirmedBooking = {
+  id:         string
+  start_time: string
+  end_time:   string
+  court_name: string | null
 }
 
 export type TrainingSession = {
@@ -226,6 +233,106 @@ export async function getMyMesocycles(): Promise<Mesocycle[]> {
   return ((data ?? []) as any[]).map(normalizeMesocycle)
 }
 
+/** Mesociclos asignados a un jugador específico. */
+export async function getMesocyclesByPlayer(playerId: string): Promise<Mesocycle[]> {
+  const { supabase } = await requireCoachOrAdmin()
+
+  const { data: assignments } = await supabase
+    .from('mesocycle_assignments')
+    .select('mesocycle_id')
+    .eq('player_id', playerId)
+
+  const ids = ((assignments ?? []) as { mesocycle_id: string }[]).map((a) => a.mesocycle_id)
+  if (ids.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('mesocycles')
+    .select(`
+      id, created_by, name, general_objective, level,
+      duration_weeks, status, start_date, end_date, created_at,
+      creator:profiles!created_by(id, full_name),
+      assignments:mesocycle_assignments(
+        id, mesocycle_id, player_id, group_id, assigned_at,
+        player:profiles!player_id(id, full_name),
+        group:training_groups!group_id(id, name)
+      ),
+      microcycles(
+        id, mesocycle_id, week_number, weekly_objective,
+        sessions:training_sessions(
+          id, microcycle_id, scheduled_at, duration_min, status, coach_notes,
+          blocks:session_blocks(
+            id, session_id, block_type, order, duration_min, notes,
+            exercises:session_block_exercises(
+              id, order, repetitions, notes,
+              exercise:exercises!exercise_id(
+                id, name, theme, estimated_duration_min, objective
+              )
+            )
+          )
+        )
+      )
+    `)
+    .in('id', ids)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[getMesocyclesByPlayer]', error)
+    return []
+  }
+
+  return ((data ?? []) as any[]).map(normalizeMesocycle)
+}
+
+/** Mesociclos asignados a un grupo específico. */
+export async function getMesocyclesByGroup(groupId: string): Promise<Mesocycle[]> {
+  const { supabase } = await requireCoachOrAdmin()
+
+  const { data: assignments } = await supabase
+    .from('mesocycle_assignments')
+    .select('mesocycle_id')
+    .eq('group_id', groupId)
+
+  const ids = ((assignments ?? []) as { mesocycle_id: string }[]).map((a) => a.mesocycle_id)
+  if (ids.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('mesocycles')
+    .select(`
+      id, created_by, name, general_objective, level,
+      duration_weeks, status, start_date, end_date, created_at,
+      creator:profiles!created_by(id, full_name),
+      assignments:mesocycle_assignments(
+        id, mesocycle_id, player_id, group_id, assigned_at,
+        player:profiles!player_id(id, full_name),
+        group:training_groups!group_id(id, name)
+      ),
+      microcycles(
+        id, mesocycle_id, week_number, weekly_objective,
+        sessions:training_sessions(
+          id, microcycle_id, scheduled_at, duration_min, status, coach_notes,
+          blocks:session_blocks(
+            id, session_id, block_type, order, duration_min, notes,
+            exercises:session_block_exercises(
+              id, order, repetitions, notes,
+              exercise:exercises!exercise_id(
+                id, name, theme, estimated_duration_min, objective
+              )
+            )
+          )
+        )
+      )
+    `)
+    .in('id', ids)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[getMesocyclesByGroup]', error)
+    return []
+  }
+
+  return ((data ?? []) as any[]).map(normalizeMesocycle)
+}
+
 /** Jugadores y grupos disponibles para asignar un mesociclo. */
 export async function getAssignmentTargets(): Promise<{
   players: { id: string; full_name: string; email: string }[]
@@ -251,6 +358,39 @@ export async function getAssignmentTargets(): Promise<{
     players: (players ?? []) as { id: string; full_name: string; email: string }[],
     groups:  (groups  ?? []) as { id: string; name: string; level: string }[],
   }
+}
+
+/** Reservas confirmadas para los jugadores/grupos asignados a un mesociclo. */
+export async function getConfirmedBookingsForAssignment(
+  playerIds: string[],
+  groupIds: string[],
+): Promise<ConfirmedBooking[]> {
+  const { supabase } = await requireCoachOrAdmin()
+
+  if (playerIds.length === 0 && groupIds.length === 0) return []
+
+  const conditions: string[] = []
+  if (playerIds.length > 0) conditions.push(`player_id.in.(${playerIds.join(',')})`)
+  if (groupIds.length > 0) conditions.push(`group_id.in.(${groupIds.join(',')})`)
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, start_time, end_time, court:courts!court_id(name)')
+    .eq('status', 'confirmed')
+    .or(conditions.join(','))
+    .order('start_time', { ascending: true })
+
+  if (error) {
+    console.error('[getConfirmedBookingsForAssignment]', error)
+    return []
+  }
+
+  return ((data ?? []) as any[]).map((b) => ({
+    id:         b.id,
+    start_time: b.start_time,
+    end_time:   b.end_time,
+    court_name: (b.court as { name: string } | null)?.name ?? null,
+  }))
 }
 
 // ─── Normalizers ──────────────────────────────────────────────────────────────
@@ -314,7 +454,7 @@ const SessionSchema = z.object({
 
 // ─── Mesociclo actions ────────────────────────────────────────────────────────
 
-/** Crear mesociclo + microciclos automáticos. */
+/** Crear mesociclo + microciclos automáticos + asignación opcional. */
 export async function createMesocycleAction(
   _prev: TrainingState,
   formData: FormData,
@@ -332,6 +472,10 @@ export async function createMesocycleAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const { name, generalObjective, level, durationWeeks, startDate } = parsed.data
+
+  // Optional auto-assignment targets
+  const playerId = (formData.get('playerId') as string)?.trim() || null
+  const groupId  = (formData.get('groupId')  as string)?.trim() || null
 
   const startDateParsed = startDate ? new Date(startDate) : null
   const endDateParsed   = startDateParsed
@@ -369,12 +513,29 @@ export async function createMesocycleAction(
   const { error: mcErr } = await supabase.from('microcycles').insert(microcycles)
   if (mcErr) {
     console.error('[createMesocycleAction] microcycles:', mcErr)
-    // No bloquear — el mesociclo ya fue creado
+  }
+
+  // Auto-asignar si se especificó jugador o grupo
+  if (playerId || groupId) {
+    const { error: assignErr } = await supabase
+      .from('mesocycle_assignments')
+      .insert({ mesocycle_id: mesocycleId, player_id: playerId, group_id: groupId, assigned_by: userId })
+    if (assignErr) {
+      console.error('[createMesocycleAction] assignment:', assignErr)
+    }
   }
 
   revalidatePath('/admin/planning')
   revalidatePath('/coach/planning')
-  return { error: null, success: `Mesociclo "${name}" creado con ${durationWeeks} microciclos.`, id: mesocycleId }
+  if (playerId) {
+    revalidatePath(`/admin/planning/player/${playerId}`)
+    revalidatePath(`/coach/planning/player/${playerId}`)
+  }
+  if (groupId) {
+    revalidatePath(`/admin/planning/group/${groupId}`)
+    revalidatePath(`/coach/planning/group/${groupId}`)
+  }
+  return { error: null, success: `Mesociclo "${name}" creado.`, id: mesocycleId }
 }
 
 /** Actualizar campos del mesociclo. */
@@ -567,10 +728,9 @@ export async function updateMicrocycleAction(
 // ─── Sesión actions ───────────────────────────────────────────────────────────
 
 const BLOCK_DEFAULTS: { block_type: string; order: number; duration_min: number }[] = [
-  { block_type: 'calentamiento',    order: 1, duration_min: 15 },
-  { block_type: 'central_1_defensa', order: 2, duration_min: 30 },
-  { block_type: 'central_2_ataque', order: 3, duration_min: 30 },
-  { block_type: 'vuelta_a_la_calma', order: 4, duration_min: 15 },
+  { block_type: 'calentamiento',    order: 1, duration_min: 10 },
+  { block_type: 'central',          order: 2, duration_min: 35 },
+  { block_type: 'vuelta_a_la_calma', order: 3, duration_min: 15 },
 ]
 
 /** Crear sesión con sus 4 bloques fijos. */
@@ -632,7 +792,7 @@ export async function createSessionAction(
 
   revalidatePath('/admin/planning')
   revalidatePath('/coach/planning')
-  return { error: null, success: 'Sesión creada con 4 bloques.', id: sessionId }
+  return { error: null, success: 'Sesión creada con 3 bloques.', id: sessionId }
 }
 
 /** Actualizar datos de una sesión. */
