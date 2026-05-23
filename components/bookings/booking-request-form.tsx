@@ -78,7 +78,8 @@ export function BookingRequestForm({ coaches, userRole }: Props) {
   const [date,         setDate]         = useState('')
   const [startTime,    setStartTime]    = useState(HOURS[12])
   const [endTime,      setEndTime]      = useState(HOURS[13])
-  const [peopleCount,  setPeopleCount]  = useState<1 | 2 | 3 | 4>(1)
+  const [peopleCount,    setPeopleCount]    = useState<1 | 2 | 3 | 4>(1)
+  const [selectedModule, setSelectedModule] = useState<null | 8 | 16>(null)
 
   const earliestBookable = new Date(Date.now() + (ADVANCE_HOURS[userRole] ?? 48) * 60 * 60 * 1000)
   const minDate = earliestBookable.toISOString().split('T')[0]
@@ -86,12 +87,14 @@ export function BookingRequestForm({ coaches, userRole }: Props) {
   function handleStartChange(value: string) {
     setStartTime(value)
     setEndTime(nextHour(value))
+    setSelectedModule(null)
   }
 
   function handleSlotSelect(selectedDate: string, selectedStart: string, selectedEnd: string) {
     setDate(selectedDate)
     setStartTime(selectedStart)
     setEndTime(selectedEnd)
+    setSelectedModule(null)
   }
 
   // Derived pricing
@@ -99,6 +102,11 @@ export function BookingRequestForm({ coaches, userRole }: Props) {
   const sizeCategory = getSizeCategory(peopleCount)
   const singlePrice  = date ? SINGLE_PRICES[timeCategory][sizeCategory] : null
   const showModules  = date && timeCategory !== 'weekend' && sizeCategory === 'duo'
+
+  // Effective price sent to the server — module price when one is selected, single class otherwise
+  const effectivePrice = (showModules && selectedModule && singlePrice !== null)
+    ? MODULE_PRICES[selectedModule][timeCategory as 'am' | 'pm']
+    : (singlePrice ?? 0)
 
   if (state.success) {
     return (
@@ -225,20 +233,32 @@ export function BookingRequestForm({ coaches, userRole }: Props) {
                 Módulos con descuento
               </p>
               {([8, 16] as const).map((n) => {
-                const tc         = timeCategory as 'am' | 'pm'
+                const tc          = timeCategory as 'am' | 'pm'
                 const modulePrice = MODULE_PRICES[n][tc]
                 const savings     = singlePrice * n - modulePrice
                 const pct         = n === 8 ? 7 : 15
+                const isActive    = selectedModule === n
                 return (
-                  <div key={n} className="flex items-center justify-between px-3 py-2.5 rounded-md bg-muted/40">
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setSelectedModule(isActive ? null : n)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border transition-colors text-left ${
+                      isActive
+                        ? 'border-[#00C4CC] bg-[#00C4CC]/10'
+                        : 'border-border bg-muted/40 hover:border-[#00C4CC]/50 hover:bg-muted/60'
+                    }`}
+                  >
                     <div>
                       <p className="text-sm font-medium">{n} clases</p>
                       <p className="text-[10px] text-emerald-500">
                         {pct}% descuento · ahorrás {formatCOP(savings)}
                       </p>
                     </div>
-                    <span className="text-base font-bold">{formatCOP(modulePrice)}</span>
-                  </div>
+                    <span className={`text-base font-bold ${isActive ? 'text-[#00C4CC]' : ''}`}>
+                      {formatCOP(modulePrice)}
+                    </span>
+                  </button>
                 )
               })}
             </div>
@@ -248,7 +268,7 @@ export function BookingRequestForm({ coaches, userRole }: Props) {
 
       {/* Hidden pricing fields — used by the server action */}
       <input type="hidden" name="peopleCount" value={peopleCount} />
-      <input type="hidden" name="price"       value={singlePrice ?? 0} />
+      <input type="hidden" name="price"       value={effectivePrice} />
 
       <div className="space-y-2">
         <Label htmlFor="notes">Notas (opcional)</Label>
