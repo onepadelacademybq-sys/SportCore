@@ -32,7 +32,7 @@ export default async function PlayerBookingsPage() {
           <CardTitle className="text-base">Solicitar nueva reserva</CardTitle>
         </CardHeader>
         <CardContent>
-          <BookingRequestForm coaches={coaches} />
+          <BookingRequestForm coaches={coaches} userRole="player" />
         </CardContent>
       </Card>
 

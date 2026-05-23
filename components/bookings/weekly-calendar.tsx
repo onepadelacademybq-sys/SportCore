@@ -5,10 +5,17 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { getCoachAvailability } from '@/actions/bookings'
 import { Button } from '@/components/ui/button'
 
-// Slots de 1 hora: 05:00 – 20:00 (cada uno termina una hora después)
+// Slots de 1 hora: 05:00 – 20:00
 const SLOT_HOURS = Array.from({ length: 16 }, (_, i) => i + 5)
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+// Anticipación mínima en horas según rol
+const ADVANCE_HOURS: Record<string, number> = {
+  player: 48,
+  admin:  1,
+  coach:  1,
+}
 
 function getMondayOfWeek(date: Date): Date {
   const d = new Date(date)
@@ -29,18 +36,24 @@ function toLocalDateStr(d: Date): string {
 interface BusySlot { start_time: string; end_time: string }
 
 interface Props {
-  coachId: string
-  selectedDate: string
+  coachId:       string
+  selectedDate:  string
   selectedStart: string
-  onSelectSlot: (date: string, start: string, end: string) => void
+  onSelectSlot:  (date: string, start: string, end: string) => void
+  userRole:      'player' | 'admin' | 'coach'
 }
 
-export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectSlot }: Props) {
+export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectSlot, userRole }: Props) {
   const [weekOffset, setWeekOffset] = useState(0)
-  const [busySlots, setBusySlots] = useState<BusySlot[]>([])
+  const [busySlots, setBusySlots]   = useState<BusySlot[]>([])
   const [isFetching, setIsFetching] = useState(false)
 
-  // Derive week days from offset (computed in render — stable since weekOffset is a number)
+  // Earliest bookable moment — computed fresh on each render (won't auto-update
+  // while open, but that's acceptable for a booking form)
+  const earliestBookable = new Date(
+    Date.now() + (ADVANCE_HOURS[userRole] ?? 48) * 60 * 60 * 1000,
+  )
+
   const baseMonday = getMondayOfWeek(new Date())
   baseMonday.setDate(baseMonday.getDate() + weekOffset * 7)
 
@@ -63,15 +76,13 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
     setBusySlots([])
 
     getCoachAvailability(coachId, weekStartISO, weekEndISO)
-      .then(slots  => { if (!cancelled) setBusySlots(slots) })
-      .catch(()    => { if (!cancelled) setBusySlots([]) })
-      .finally(()  => { if (!cancelled) setIsFetching(false) })
+      .then(slots => { if (!cancelled) setBusySlots(slots) })
+      .catch(()   => { if (!cancelled) setBusySlots([]) })
+      .finally(() => { if (!cancelled) setIsFetching(false) })
 
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coachId, weekOffset])
-
-  const now = new Date()
 
   function isBusy(day: Date, hour: number): boolean {
     const slotStart = new Date(day); slotStart.setHours(hour, 0, 0, 0)
@@ -79,9 +90,13 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
     return busySlots.some(b => new Date(b.start_time) < slotEnd && new Date(b.end_time) > slotStart)
   }
 
-  function isPast(day: Date, hour: number): boolean {
-    const slotStart = new Date(day); slotStart.setHours(hour, 0, 0, 0)
-    return slotStart <= now
+  // A slot is blocked when it starts before the earliest bookable moment.
+  // Uses exact datetime — not just the day — so today's future slots remain available
+  // when the user's advance window allows it (e.g. admin can book 1h ahead).
+  function isTooSoon(day: Date, hour: number): boolean {
+    const slotStart = new Date(day)
+    slotStart.setHours(hour, 0, 0, 0)
+    return slotStart < earliestBookable
   }
 
   function isSelected(day: Date, hour: number): boolean {
@@ -96,13 +111,27 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
     onSelectSlot(toLocalDateStr(day), `${h}:00`, `${endH}:00`)
   }
 
-  // Week range label
   const startLabel = weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
   const endLabel   = weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
   const weekLabel  = `${startLabel} – ${endLabel}`
 
+  // Disable the "back" button when the entire previous week would be blocked
+  const prevWeekMonday = new Date(baseMonday)
+  prevWeekMonday.setDate(prevWeekMonday.getDate() - 7)
+  const prevWeekLastSlot = new Date(prevWeekMonday)
+  prevWeekLastSlot.setDate(prevWeekLastSlot.getDate() + 6)
+  prevWeekLastSlot.setHours(SLOT_HOURS[SLOT_HOURS.length - 1], 0, 0, 0)
+  const canGoBack = prevWeekLastSlot >= earliestBookable
+
   return (
     <div className="rounded-lg border border-border p-3 space-y-3">
+      {/* Advance window notice */}
+      <p className="text-[10px] text-muted-foreground">
+        {userRole === 'admin'
+          ? 'Reservas disponibles desde 1 hora en adelante.'
+          : 'Reservas disponibles con mínimo 48 horas de anticipación.'}
+      </p>
+
       {/* Week navigation */}
       <div className="flex items-center justify-between gap-2">
         <Button
@@ -110,6 +139,7 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
           variant="ghost"
           size="sm"
           className="h-7 w-7 p-0 shrink-0"
+          disabled={!canGoBack}
           onClick={() => setWeekOffset(w => w - 1)}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -131,7 +161,7 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
         <div className="min-w-[500px]">
           {/* Day headers */}
           <div className="grid grid-cols-[40px_repeat(7,1fr)] mb-1.5">
-            <div /> {/* spacer */}
+            <div />
             {weekDays.map((d, i) => (
               <div key={i} className="text-center leading-tight">
                 <p className="text-[10px] text-muted-foreground">{DAY_LABELS[i]}</p>
@@ -144,17 +174,15 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
           <div className="space-y-px">
             {SLOT_HOURS.map(hour => (
               <div key={hour} className="grid grid-cols-[40px_repeat(7,1fr)] gap-px">
-                {/* Time label */}
                 <div className="text-[10px] text-muted-foreground flex items-center justify-end pr-1.5 tabular-nums">
                   {String(hour).padStart(2, '0')}:00
                 </div>
 
-                {/* Day cells */}
                 {weekDays.map((day, di) => {
                   const busy     = isBusy(day, hour)
-                  const past     = isPast(day, hour)
+                  const tooSoon  = isTooSoon(day, hour)
                   const selected = isSelected(day, hour)
-                  const disabled = busy || past
+                  const disabled = busy || tooSoon
 
                   return (
                     <button
@@ -163,9 +191,9 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
                       disabled={disabled}
                       onClick={() => !disabled && handleClick(day, hour)}
                       title={
-                        selected ? 'Seleccionado'
+                        selected  ? 'Seleccionado'
                         : busy    ? 'Ocupado'
-                        : past    ? 'Pasado'
+                        : tooSoon ? 'No disponible aún'
                         : `Reservar ${String(hour).padStart(2, '0')}:00`
                       }
                       className={`
@@ -174,7 +202,7 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
                           ? 'bg-[#00C4CC]'
                           : busy
                             ? 'bg-muted cursor-not-allowed'
-                            : past
+                            : tooSoon
                               ? 'bg-muted/25 cursor-default'
                               : 'bg-[#00C4CC]/20 hover:bg-[#00C4CC]/50 cursor-pointer'
                         }

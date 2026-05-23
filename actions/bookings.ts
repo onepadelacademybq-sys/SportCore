@@ -186,8 +186,18 @@ export async function requestBookingAction(
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return { error: 'Fecha u hora inválida' }
   }
-  if (start <= new Date()) return { error: 'La reserva debe ser en el futuro' }
-  if (end <= start)        return { error: 'La hora de fin debe ser posterior a la de inicio' }
+
+  const advanceMs = role === 'admin' ? 1 * 60 * 60 * 1000 : 48 * 60 * 60 * 1000
+  const earliestBookable = new Date(Date.now() + advanceMs)
+  if (start < earliestBookable) {
+    return {
+      error: role === 'admin'
+        ? 'El administrador puede reservar con mínimo 1 hora de anticipación'
+        : 'Los jugadores deben reservar con mínimo 48 horas de anticipación',
+    }
+  }
+
+  if (end <= start) return { error: 'La hora de fin debe ser posterior a la de inicio' }
 
   const durationMin = (end.getTime() - start.getTime()) / 60_000
   if (durationMin < 30)  return { error: 'La duración mínima es 30 minutos' }

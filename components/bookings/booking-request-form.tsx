@@ -25,11 +25,18 @@ function nextHour(time: string): string {
   return HOURS[Math.min(idx + 1, HOURS.length - 1)]
 }
 
-interface Props {
-  coaches: CoachOption[]
+const ADVANCE_HOURS: Record<string, number> = {
+  player: 48,
+  admin:   1,
+  coach:   1,
 }
 
-export function BookingRequestForm({ coaches }: Props) {
+interface Props {
+  coaches:  CoachOption[]
+  userRole: 'player' | 'admin' | 'coach'
+}
+
+export function BookingRequestForm({ coaches, userRole }: Props) {
   const [state, action, isPending] = useActionState(requestBookingAction, { error: null })
 
   const [coachId,   setCoachId]   = useState('')
@@ -37,10 +44,9 @@ export function BookingRequestForm({ coaches }: Props) {
   const [startTime, setStartTime] = useState(HOURS[12]) // 17:00
   const [endTime,   setEndTime]   = useState(HOURS[13]) // 18:00
 
-  // Fecha mínima: mañana
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const minDate = tomorrow.toISOString().split('T')[0]
+  // Earliest bookable date based on role's advance window
+  const earliestBookable = new Date(Date.now() + (ADVANCE_HOURS[userRole] ?? 48) * 60 * 60 * 1000)
+  const minDate = earliestBookable.toISOString().split('T')[0]
 
   function handleStartChange(value: string) {
     setStartTime(value)
@@ -97,6 +103,7 @@ export function BookingRequestForm({ coaches }: Props) {
           selectedDate={date}
           selectedStart={startTime}
           onSelectSlot={handleSlotSelect}
+          userRole={userRole}
         />
       )}
 
