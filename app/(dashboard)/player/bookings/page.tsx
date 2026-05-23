@@ -3,6 +3,7 @@ import { getCoaches, getPlayerBookings } from '@/actions/bookings'
 import { BookingRequestForm } from '@/components/bookings/booking-request-form'
 import { PaymentCard } from '@/components/bookings/payment-card'
 import { PaymentProofForm } from '@/components/bookings/payment-proof-form'
+import { BookingCountdown } from '@/components/bookings/booking-countdown'
 import { CancelBookingButton } from '@/components/bookings/confirm-booking-form'
 import { StatusBadge } from '@/components/bookings/status-badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -73,6 +74,7 @@ export default async function PlayerBookingsPage() {
                   {b.status === 'pending' && (
                     <>
                       <Separator />
+                      {b.expires_at && <BookingCountdown expiresAt={b.expires_at} />}
                       <PaymentCard bookingId={b.id} price={b.price} />
                       <PaymentProofForm bookingId={b.id} />
                     </>

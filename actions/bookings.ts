@@ -21,6 +21,7 @@ export type Booking = {
   notes: string | null
   payment_proof_url: string | null
   price: number
+  expires_at: string | null
   created_at: string
   coach:  ProfileRef | null
   player: ProfileRef | null
@@ -47,6 +48,19 @@ async function requireAuth() {
   if (!profile) redirect('/login')
 
   return { supabase, userId: user.id, role: profile.role, fullName: profile.full_name }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>
+
+async function cancelExpiredBookings(supabase: SupabaseClient) {
+  await supabase
+    .from('bookings')
+    .update({ status: 'cancelled' })
+    .eq('status', 'pending')
+    .not('expires_at', 'is', null)
+    .lt('expires_at', new Date().toISOString())
 }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -77,10 +91,11 @@ export async function getCourts(): Promise<CourtOption[]> {
 /** Reservas del jugador autenticado, ordenadas por fecha descendente */
 export async function getPlayerBookings(): Promise<Booking[]> {
   const { supabase, userId } = await requireAuth()
+  await cancelExpiredBookings(supabase)
   const { data } = await supabase
     .from('bookings')
     .select(`
-      id, start_time, end_time, status, notes, payment_proof_url, price, created_at,
+      id, start_time, end_time, status, notes, payment_proof_url, price, expires_at, created_at,
       coach:profiles!coach_id(id, full_name, email),
       court:courts!court_id(id, name)
     `)
@@ -112,10 +127,12 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
   const { supabase, role } = await requireAuth()
   if (role !== 'admin') redirect('/admin/dashboard')
 
+  await cancelExpiredBookings(supabase)
+
   let query = supabase
     .from('bookings')
     .select(`
-      id, start_time, end_time, status, notes, payment_proof_url, price, created_at,
+      id, start_time, end_time, status, notes, payment_proof_url, price, expires_at, created_at,
       coach:profiles!coach_id(id, full_name, email),
       player:profiles!player_id(id, full_name, email),
       court:courts!court_id(id, name)
@@ -222,6 +239,8 @@ export async function requestBookingAction(
     return { error: 'El entrenador ya tiene una reserva en ese horario' }
   }
 
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+
   const { error } = await supabase.from('bookings').insert({
     player_id:    userId,
     coach_id:     coachId,
@@ -232,6 +251,7 @@ export async function requestBookingAction(
     notes:        notes ?? null,
     price:        price ?? 0,
     people_count: peopleCount ?? 1,
+    expires_at:   expiresAt,
   })
 
   if (error) {
