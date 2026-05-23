@@ -1,0 +1,889 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type TrainingState = { error: string | null; success?: string; id?: string }
+
+export type BlockExercise = {
+  id:          string
+  order:       number
+  repetitions: string | null
+  notes:       string | null
+  exercise: {
+    id:                    string
+    name:                  string
+    theme:                 string
+    estimated_duration_min: number
+    objective:             string
+  }
+}
+
+export type SessionBlock = {
+  id:          string
+  block_type:  'calentamiento' | 'central_1_defensa' | 'central_2_ataque' | 'vuelta_a_la_calma'
+  order:       number
+  duration_min: number
+  notes:       string | null
+  exercises:   BlockExercise[]
+}
+
+export type TrainingSession = {
+  id:           string
+  microcycle_id: string
+  scheduled_at: string
+  duration_min: number
+  status:       'scheduled' | 'completed' | 'cancelled'
+  coach_notes:  string | null
+  blocks:       SessionBlock[]
+}
+
+export type Microcycle = {
+  id:              string
+  mesocycle_id:    string
+  week_number:     number
+  weekly_objective: string | null
+  sessions:        TrainingSession[]
+}
+
+export type Mesocycle = {
+  id:               string
+  created_by:       string
+  name:             string
+  general_objective: string
+  level:            string
+  duration_weeks:   number
+  status:           'draft' | 'active' | 'completed' | 'archived'
+  start_date:       string | null
+  end_date:         string | null
+  created_at:       string
+  creator:          { id: string; full_name: string } | null
+  microcycles:      Microcycle[]
+  assignments:      MesocycleAssignment[]
+}
+
+export type MesocycleAssignment = {
+  id:          string
+  mesocycle_id: string
+  player_id:   string | null
+  group_id:    string | null
+  assigned_at: string
+  player:      { id: string; full_name: string } | null
+  group:       { id: string; name: string } | null
+}
+
+// ─── Auth guards ──────────────────────────────────────────────────────────────
+
+async function requireAuth() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', user.id)
+    .single()
+
+  const profile = data as { id: string; role: string } | null
+  if (!profile) redirect('/login')
+  return { supabase, userId: user.id, role: profile.role }
+}
+
+async function requireCoachOrAdmin() {
+  const ctx = await requireAuth()
+  if (ctx.role === 'player') redirect('/player/dashboard')
+  return ctx
+}
+
+// ─── Queries ──────────────────────────────────────────────────────────────────
+
+/** Lista de mesociclos. Admin ve todos; coach solo los suyos. */
+export async function getMesocycles(): Promise<Mesocycle[]> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  let query = supabase
+    .from('mesocycles')
+    .select(`
+      id, created_by, name, general_objective, level,
+      duration_weeks, status, start_date, end_date, created_at,
+      creator:profiles!created_by(id, full_name),
+      assignments:mesocycle_assignments(
+        id, mesocycle_id, player_id, group_id, assigned_at,
+        player:profiles!player_id(id, full_name),
+        group:training_groups!group_id(id, name)
+      )
+    `)
+    .order('created_at', { ascending: false })
+
+  if (role !== 'admin') {
+    query = query.eq('created_by', userId)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    console.error('[getMesocycles]', error)
+    return []
+  }
+
+  return ((data ?? []) as any[]).map(normalizeMesocycle)
+}
+
+/** Detalle completo de un mesociclo con todos sus niveles. */
+export async function getMesocycleById(id: string): Promise<Mesocycle | null> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const { data, error } = await supabase
+    .from('mesocycles')
+    .select(`
+      id, created_by, name, general_objective, level,
+      duration_weeks, status, start_date, end_date, created_at,
+      creator:profiles!created_by(id, full_name),
+      assignments:mesocycle_assignments(
+        id, mesocycle_id, player_id, group_id, assigned_at,
+        player:profiles!player_id(id, full_name),
+        group:training_groups!group_id(id, name)
+      ),
+      microcycles(
+        id, mesocycle_id, week_number, weekly_objective,
+        sessions:training_sessions(
+          id, microcycle_id, scheduled_at, duration_min, status, coach_notes,
+          blocks:session_blocks(
+            id, session_id, block_type, order, duration_min, notes,
+            exercises:session_block_exercises(
+              id, order, repetitions, notes,
+              exercise:exercises!exercise_id(
+                id, name, theme, estimated_duration_min, objective
+              )
+            )
+          )
+        )
+      )
+    `)
+    .eq('id', id)
+    .order('week_number', { referencedTable: 'microcycles', ascending: true })
+    .single()
+
+  if (error || !data) return null
+
+  const m = data as any
+  if (role !== 'admin' && m.created_by !== userId) return null
+
+  return normalizeMesocycle(m)
+}
+
+/** Mesociclos asignados al jugador autenticado. */
+export async function getMyMesocycles(): Promise<Mesocycle[]> {
+  const { supabase, userId } = await requireAuth()
+
+  const { data: assignments } = await supabase
+    .from('mesocycle_assignments')
+    .select('mesocycle_id')
+    .eq('player_id', userId)
+
+  const ids = ((assignments ?? []) as { mesocycle_id: string }[]).map((a) => a.mesocycle_id)
+  if (ids.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('mesocycles')
+    .select(`
+      id, created_by, name, general_objective, level,
+      duration_weeks, status, start_date, end_date, created_at,
+      creator:profiles!created_by(id, full_name),
+      assignments:mesocycle_assignments(
+        id, mesocycle_id, player_id, group_id, assigned_at,
+        player:profiles!player_id(id, full_name),
+        group:training_groups!group_id(id, name)
+      ),
+      microcycles(
+        id, mesocycle_id, week_number, weekly_objective,
+        sessions:training_sessions(
+          id, microcycle_id, scheduled_at, duration_min, status, coach_notes,
+          blocks:session_blocks(
+            id, session_id, block_type, order, duration_min, notes,
+            exercises:session_block_exercises(
+              id, order, repetitions, notes,
+              exercise:exercises!exercise_id(
+                id, name, theme, estimated_duration_min, objective
+              )
+            )
+          )
+        )
+      )
+    `)
+    .in('id', ids)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[getMyMesocycles]', error)
+    return []
+  }
+
+  return ((data ?? []) as any[]).map(normalizeMesocycle)
+}
+
+/** Jugadores y grupos disponibles para asignar un mesociclo. */
+export async function getAssignmentTargets(): Promise<{
+  players: { id: string; full_name: string; email: string }[]
+  groups:  { id: string; name: string; level: string }[]
+}> {
+  const { supabase } = await requireCoachOrAdmin()
+
+  const [{ data: players }, { data: groups }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('role', 'player')
+      .eq('is_active', true)
+      .order('full_name'),
+    supabase
+      .from('training_groups')
+      .select('id, name, level')
+      .eq('status', 'active')
+      .order('name'),
+  ])
+
+  return {
+    players: (players ?? []) as { id: string; full_name: string; email: string }[],
+    groups:  (groups  ?? []) as { id: string; name: string; level: string }[],
+  }
+}
+
+// ─── Normalizers ──────────────────────────────────────────────────────────────
+
+function normalizeMesocycle(m: any): Mesocycle {
+  return {
+    ...m,
+    microcycles: ((m.microcycles ?? []) as any[])
+      .sort((a: any, b: any) => a.week_number - b.week_number)
+      .map((mc: any) => ({
+        ...mc,
+        sessions: ((mc.sessions ?? []) as any[])
+          .sort((a: any, b: any) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+          .map((s: any) => ({
+            ...s,
+            blocks: ((s.blocks ?? []) as any[])
+              .sort((a: any, b: any) => a.order - b.order)
+              .map((b: any) => ({
+                ...b,
+                exercises: ((b.exercises ?? []) as any[])
+                  .sort((a: any, b: any) => a.order - b.order),
+              })),
+          })),
+      })),
+    assignments: (m.assignments ?? []) as MesocycleAssignment[],
+  }
+}
+
+// ─── Validation schemas ───────────────────────────────────────────────────────
+
+const LEVELS = [
+  '5ta_masculino', '6ta_masculino', '7ma_masculino',
+  'femenino_d', 'femenino_c',
+  'juvenil_s18', 'juvenil_s16', 'juvenil_s14',
+  'prejuvenil', 'baby_padel',
+] as const
+
+const STATUSES = ['draft', 'active', 'completed', 'archived'] as const
+
+const MesocycleSchema = z.object({
+  name:             z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  generalObjective: z.string().min(5, 'El objetivo debe tener al menos 5 caracteres'),
+  level:            z.enum(LEVELS, { error: 'Nivel inválido' }),
+  durationWeeks:    z.coerce.number().int().min(1).max(52),
+  startDate:        z.string().optional(),
+  status:           z.enum(STATUSES).optional(),
+})
+
+const MicrocycleSchema = z.object({
+  mesocycleId:     z.string().uuid('ID de mesociclo inválido'),
+  weekNumber:      z.coerce.number().int().min(1),
+  weeklyObjective: z.string().optional(),
+})
+
+const SessionSchema = z.object({
+  microcycleId: z.string().uuid('ID de microciclo inválido'),
+  scheduledAt:  z.string().min(1, 'La fecha/hora es requerida'),
+  durationMin:  z.coerce.number().int().min(15).max(240).optional(),
+  coachNotes:   z.string().optional(),
+})
+
+// ─── Mesociclo actions ────────────────────────────────────────────────────────
+
+/** Crear mesociclo + microciclos automáticos. */
+export async function createMesocycleAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId } = await requireCoachOrAdmin()
+
+  const parsed = MesocycleSchema.safeParse({
+    name:             formData.get('name'),
+    generalObjective: formData.get('generalObjective'),
+    level:            formData.get('level'),
+    durationWeeks:    formData.get('durationWeeks'),
+    startDate:        formData.get('startDate') || undefined,
+    status:           formData.get('status') || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { name, generalObjective, level, durationWeeks, startDate } = parsed.data
+
+  const startDateParsed = startDate ? new Date(startDate) : null
+  const endDateParsed   = startDateParsed
+    ? new Date(startDateParsed.getTime() + durationWeeks * 7 * 24 * 60 * 60 * 1000)
+    : null
+
+  const { data: meso, error: mesoErr } = await supabase
+    .from('mesocycles')
+    .insert({
+      created_by:        userId,
+      name,
+      general_objective: generalObjective,
+      level,
+      duration_weeks:    durationWeeks,
+      start_date:        startDateParsed?.toISOString().split('T')[0] ?? null,
+      end_date:          endDateParsed?.toISOString().split('T')[0]   ?? null,
+      status:            'draft',
+    })
+    .select('id')
+    .single()
+
+  if (mesoErr || !meso) {
+    console.error('[createMesocycleAction]', mesoErr)
+    return { error: mesoErr?.message ?? 'Error al crear el mesociclo.' }
+  }
+
+  const mesocycleId = (meso as { id: string }).id
+
+  // Crear microciclos automáticamente (1 por semana)
+  const microcycles = Array.from({ length: durationWeeks }, (_, i) => ({
+    mesocycle_id: mesocycleId,
+    week_number:  i + 1,
+  }))
+
+  const { error: mcErr } = await supabase.from('microcycles').insert(microcycles)
+  if (mcErr) {
+    console.error('[createMesocycleAction] microcycles:', mcErr)
+    // No bloquear — el mesociclo ya fue creado
+  }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: `Mesociclo "${name}" creado con ${durationWeeks} microciclos.`, id: mesocycleId }
+}
+
+/** Actualizar campos del mesociclo. */
+export async function updateMesocycleAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const mesocycleId = (formData.get('mesocycleId') as string)?.trim()
+  if (!mesocycleId) return { error: 'ID de mesociclo requerido' }
+
+  const { data: existing } = await supabase
+    .from('mesocycles')
+    .select('id, created_by')
+    .eq('id', mesocycleId)
+    .single()
+
+  const ex = existing as { id: string; created_by: string } | null
+  if (!ex) return { error: 'Mesociclo no encontrado' }
+  if (role !== 'admin' && ex.created_by !== userId) return { error: 'Sin permisos' }
+
+  const parsed = MesocycleSchema.safeParse({
+    name:             formData.get('name'),
+    generalObjective: formData.get('generalObjective'),
+    level:            formData.get('level'),
+    durationWeeks:    formData.get('durationWeeks'),
+    startDate:        formData.get('startDate') || undefined,
+    status:           formData.get('status') || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { name, generalObjective, level, durationWeeks, startDate, status } = parsed.data
+
+  const startDateParsed = startDate ? new Date(startDate) : null
+  const endDateParsed   = startDateParsed
+    ? new Date(startDateParsed.getTime() + durationWeeks * 7 * 24 * 60 * 60 * 1000)
+    : null
+
+  const { error } = await supabase
+    .from('mesocycles')
+    .update({
+      name,
+      general_objective: generalObjective,
+      level,
+      duration_weeks:    durationWeeks,
+      start_date:        startDateParsed?.toISOString().split('T')[0] ?? null,
+      end_date:          endDateParsed?.toISOString().split('T')[0]   ?? null,
+      ...(status ? { status } : {}),
+    })
+    .eq('id', mesocycleId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  revalidatePath(`/admin/planning/${mesocycleId}`)
+  revalidatePath(`/coach/planning/${mesocycleId}`)
+  return { error: null, success: 'Mesociclo actualizado.' }
+}
+
+/** Cambiar estado del mesociclo (draft → active → completed → archived). */
+export async function updateMesocycleStatusAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const mesocycleId = (formData.get('mesocycleId') as string)?.trim()
+  const newStatus   = (formData.get('status') as string)?.trim()
+
+  if (!mesocycleId || !newStatus) return { error: 'Datos incompletos' }
+  if (!STATUSES.includes(newStatus as any)) return { error: 'Estado inválido' }
+
+  const { data: existing } = await supabase
+    .from('mesocycles')
+    .select('id, created_by')
+    .eq('id', mesocycleId)
+    .single()
+
+  const ex = existing as { id: string; created_by: string } | null
+  if (!ex) return { error: 'Mesociclo no encontrado' }
+  if (role !== 'admin' && ex.created_by !== userId) return { error: 'Sin permisos' }
+
+  const { error } = await supabase
+    .from('mesocycles')
+    .update({ status: newStatus })
+    .eq('id', mesocycleId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  revalidatePath(`/admin/planning/${mesocycleId}`)
+  revalidatePath(`/coach/planning/${mesocycleId}`)
+  return { error: null, success: 'Estado actualizado.' }
+}
+
+// ─── Asignación ───────────────────────────────────────────────────────────────
+
+/** Asignar mesociclo a un jugador o grupo. */
+export async function assignMesocycleAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId } = await requireCoachOrAdmin()
+
+  const mesocycleId = (formData.get('mesocycleId') as string)?.trim()
+  const playerId    = (formData.get('playerId') as string)?.trim() || null
+  const groupId     = (formData.get('groupId') as string)?.trim() || null
+
+  if (!mesocycleId) return { error: 'ID de mesociclo requerido' }
+  if (!playerId && !groupId) return { error: 'Debes seleccionar un jugador o grupo' }
+  if (playerId && groupId)   return { error: 'Selecciona solo un jugador o un grupo, no ambos' }
+
+  const { error } = await supabase
+    .from('mesocycle_assignments')
+    .insert({ mesocycle_id: mesocycleId, player_id: playerId, group_id: groupId, assigned_by: userId })
+
+  if (error) {
+    if (error.code === '23505') return { error: 'Este mesociclo ya está asignado a ese jugador/grupo' }
+    return { error: error.message }
+  }
+
+  revalidatePath(`/admin/planning/${mesocycleId}`)
+  revalidatePath(`/coach/planning/${mesocycleId}`)
+  return { error: null, success: 'Mesociclo asignado correctamente.' }
+}
+
+/** Quitar asignación de un mesociclo. */
+export async function removeAssignmentAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase } = await requireCoachOrAdmin()
+
+  const assignmentId = (formData.get('assignmentId') as string)?.trim()
+  if (!assignmentId) return { error: 'ID de asignación requerido' }
+
+  const { error } = await supabase
+    .from('mesocycle_assignments')
+    .delete()
+    .eq('id', assignmentId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: 'Asignación eliminada.' }
+}
+
+// ─── Microciclo actions ───────────────────────────────────────────────────────
+
+/** Actualizar objetivo semanal de un microciclo. */
+export async function updateMicrocycleAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const microcycleId   = (formData.get('microcycleId') as string)?.trim()
+  const weeklyObjective = (formData.get('weeklyObjective') as string)?.trim() || null
+
+  if (!microcycleId) return { error: 'ID de microciclo requerido' }
+
+  // Verificar que el coach sea dueño del mesociclo
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('microcycles')
+      .select('mesocycle:mesocycles!mesocycle_id(created_by)')
+      .eq('id', microcycleId)
+      .single()
+
+    const owner = (data as any)?.mesocycle?.created_by
+    if (owner !== userId) return { error: 'Sin permisos' }
+  }
+
+  const { error } = await supabase
+    .from('microcycles')
+    .update({ weekly_objective: weeklyObjective })
+    .eq('id', microcycleId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: 'Objetivo semanal actualizado.' }
+}
+
+// ─── Sesión actions ───────────────────────────────────────────────────────────
+
+const BLOCK_DEFAULTS: { block_type: string; order: number; duration_min: number }[] = [
+  { block_type: 'calentamiento',    order: 1, duration_min: 15 },
+  { block_type: 'central_1_defensa', order: 2, duration_min: 30 },
+  { block_type: 'central_2_ataque', order: 3, duration_min: 30 },
+  { block_type: 'vuelta_a_la_calma', order: 4, duration_min: 15 },
+]
+
+/** Crear sesión con sus 4 bloques fijos. */
+export async function createSessionAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const parsed = SessionSchema.safeParse({
+    microcycleId: formData.get('microcycleId'),
+    scheduledAt:  formData.get('scheduledAt'),
+    durationMin:  formData.get('durationMin') || undefined,
+    coachNotes:   formData.get('coachNotes')  || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { microcycleId, scheduledAt, durationMin, coachNotes } = parsed.data
+
+  // Verificar permisos
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('microcycles')
+      .select('mesocycle:mesocycles!mesocycle_id(created_by)')
+      .eq('id', microcycleId)
+      .single()
+
+    const owner = (data as any)?.mesocycle?.created_by
+    if (owner !== userId) return { error: 'Sin permisos' }
+  }
+
+  const { data: session, error: sessionErr } = await supabase
+    .from('training_sessions')
+    .insert({
+      microcycle_id: microcycleId,
+      scheduled_at:  new Date(scheduledAt).toISOString(),
+      duration_min:  durationMin ?? 90,
+      coach_notes:   coachNotes ?? null,
+      status:        'scheduled',
+    })
+    .select('id')
+    .single()
+
+  if (sessionErr || !session) {
+    console.error('[createSessionAction]', sessionErr)
+    return { error: sessionErr?.message ?? 'Error al crear la sesión.' }
+  }
+
+  const sessionId = (session as { id: string }).id
+
+  // Crear los 4 bloques automáticamente
+  const { error: blocksErr } = await supabase
+    .from('session_blocks')
+    .insert(BLOCK_DEFAULTS.map((b) => ({ ...b, session_id: sessionId })))
+
+  if (blocksErr) {
+    console.error('[createSessionAction] blocks:', blocksErr)
+  }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: 'Sesión creada con 4 bloques.', id: sessionId }
+}
+
+/** Actualizar datos de una sesión. */
+export async function updateSessionAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const sessionId  = (formData.get('sessionId') as string)?.trim()
+  const scheduledAt = (formData.get('scheduledAt') as string)?.trim()
+  const durationMin = formData.get('durationMin')
+  const coachNotes  = (formData.get('coachNotes') as string)?.trim() || null
+
+  if (!sessionId) return { error: 'ID de sesión requerido' }
+
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('training_sessions')
+      .select('microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by))')
+      .eq('id', sessionId)
+      .single()
+
+    const owner = (data as any)?.microcycle?.mesocycle?.created_by
+    if (owner !== userId) return { error: 'Sin permisos' }
+  }
+
+  const updates: Record<string, unknown> = { coach_notes: coachNotes }
+  if (scheduledAt) updates.scheduled_at = new Date(scheduledAt).toISOString()
+  if (durationMin)  updates.duration_min = Number(durationMin)
+
+  const { error } = await supabase
+    .from('training_sessions')
+    .update(updates)
+    .eq('id', sessionId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: 'Sesión actualizada.' }
+}
+
+/** Marcar sesión como completada / cancelada / programada. */
+export async function updateSessionStatusAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const sessionId = (formData.get('sessionId') as string)?.trim()
+  const status    = (formData.get('status') as string)?.trim()
+
+  if (!sessionId || !status) return { error: 'Datos incompletos' }
+  if (!['scheduled', 'completed', 'cancelled'].includes(status)) return { error: 'Estado inválido' }
+
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('training_sessions')
+      .select('microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by))')
+      .eq('id', sessionId)
+      .single()
+
+    const owner = (data as any)?.microcycle?.mesocycle?.created_by
+    if (owner !== userId) return { error: 'Sin permisos' }
+  }
+
+  const { error } = await supabase
+    .from('training_sessions')
+    .update({ status })
+    .eq('id', sessionId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: 'Estado de sesión actualizado.' }
+}
+
+// ─── Bloques — ejercicios ─────────────────────────────────────────────────────
+
+/** Agregar un ejercicio de la biblioteca a un bloque. */
+export async function addExerciseToBlockAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const blockId     = (formData.get('blockId') as string)?.trim()
+  const exerciseId  = (formData.get('exerciseId') as string)?.trim()
+  const repetitions = (formData.get('repetitions') as string)?.trim() || null
+  const notes       = (formData.get('notes') as string)?.trim() || null
+
+  if (!blockId || !exerciseId) return { error: 'blockId y exerciseId son requeridos' }
+
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('session_blocks')
+      .select('session:training_sessions!session_id(microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by)))')
+      .eq('id', blockId)
+      .single()
+
+    const owner = (data as any)?.session?.microcycle?.mesocycle?.created_by
+    if (owner !== userId) return { error: 'Sin permisos' }
+  }
+
+  // Calcular el siguiente orden
+  const { data: existing } = await supabase
+    .from('session_block_exercises')
+    .select('order')
+    .eq('block_id', blockId)
+    .order('order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const nextOrder = ((existing as any)?.order ?? 0) + 1
+
+  const { error } = await supabase
+    .from('session_block_exercises')
+    .insert({ block_id: blockId, exercise_id: exerciseId, order: nextOrder, repetitions, notes })
+
+  if (error) {
+    if (error.code === '23505') return { error: 'Este ejercicio ya está en el bloque' }
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: 'Ejercicio agregado al bloque.' }
+}
+
+/** Quitar un ejercicio de un bloque. */
+export async function removeExerciseFromBlockAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const blockExerciseId = (formData.get('blockExerciseId') as string)?.trim()
+  if (!blockExerciseId) return { error: 'ID requerido' }
+
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('session_block_exercises')
+      .select('block:session_blocks!block_id(session:training_sessions!session_id(microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by))))')
+      .eq('id', blockExerciseId)
+      .single()
+
+    const owner = (data as any)?.block?.session?.microcycle?.mesocycle?.created_by
+    if (owner !== userId) return { error: 'Sin permisos' }
+  }
+
+  const { error } = await supabase
+    .from('session_block_exercises')
+    .delete()
+    .eq('id', blockExerciseId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: 'Ejercicio quitado del bloque.' }
+}
+
+/** Actualizar notas de un bloque. */
+export async function updateBlockNotesAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const blockId = (formData.get('blockId') as string)?.trim()
+  const notes   = (formData.get('notes') as string)?.trim() || null
+
+  if (!blockId) return { error: 'ID de bloque requerido' }
+
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('session_blocks')
+      .select('session:training_sessions!session_id(microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by)))')
+      .eq('id', blockId)
+      .single()
+
+    const owner = (data as any)?.session?.microcycle?.mesocycle?.created_by
+    if (owner !== userId) return { error: 'Sin permisos' }
+  }
+
+  const { error } = await supabase
+    .from('session_blocks')
+    .update({ notes })
+    .eq('id', blockId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: 'Notas actualizadas.' }
+}
+
+// ─── Direct-submit wrappers (for <form action> in Server Components) ──────────
+// useActionState actions return TrainingState which TS rejects as form action.
+// These thin wrappers discard the return value so the type is void.
+
+export async function changeMesocycleStatusAction(formData: FormData): Promise<void> {
+  await updateMesocycleStatusAction({ error: null }, formData)
+}
+
+export async function changeSessionStatusAction(formData: FormData): Promise<void> {
+  await updateSessionStatusAction({ error: null }, formData)
+}
+
+// ─── Asistencia ───────────────────────────────────────────────────────────────
+
+/** Registrar asistencia de uno o varios jugadores a una sesión. */
+export async function recordAttendanceAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase } = await requireCoachOrAdmin()
+
+  const sessionId    = (formData.get('sessionId') as string)?.trim()
+  const attendanceJson = (formData.get('attendanceJson') as string)?.trim()
+
+  if (!sessionId || !attendanceJson) return { error: 'Datos incompletos' }
+
+  let records: { playerId: string; status: string; notes?: string }[]
+  try {
+    records = JSON.parse(attendanceJson)
+  } catch {
+    return { error: 'Formato de asistencia inválido' }
+  }
+
+  const VALID_STATUSES = ['present', 'absent', 'justified']
+  const rows = records
+    .filter((r) => r.playerId && VALID_STATUSES.includes(r.status))
+    .map((r) => ({
+      session_id: sessionId,
+      player_id:  r.playerId,
+      status:     r.status,
+      notes:      r.notes ?? null,
+    }))
+
+  if (rows.length === 0) return { error: 'Sin registros válidos de asistencia' }
+
+  const { error } = await supabase
+    .from('session_attendance')
+    .upsert(rows, { onConflict: 'session_id,player_id' })
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: `Asistencia registrada para ${rows.length} jugadores.` }
+}
