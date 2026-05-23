@@ -153,11 +153,13 @@ export async function getCoachAvailability(
 // ─── Player: solicitar reserva ─────────────────────────────────────────────────
 
 const RequestSchema = z.object({
-  coachId:   z.string().uuid('Selecciona un entrenador válido'),
-  date:      z.string().min(1, 'La fecha es requerida'),
-  startTime: z.string().min(1, 'La hora de inicio es requerida'),
-  endTime:   z.string().min(1, 'La hora de fin es requerida'),
-  notes:     z.string().optional(),
+  coachId:     z.string().uuid('Selecciona un entrenador válido'),
+  date:        z.string().min(1, 'La fecha es requerida'),
+  startTime:   z.string().min(1, 'La hora de inicio es requerida'),
+  endTime:     z.string().min(1, 'La hora de fin es requerida'),
+  notes:       z.string().optional(),
+  peopleCount: z.coerce.number().int().min(1).max(4).optional(),
+  price:       z.coerce.number().min(0).optional(),
 })
 
 export async function requestBookingAction(
@@ -171,15 +173,17 @@ export async function requestBookingAction(
   }
 
   const parsed = RequestSchema.safeParse({
-    coachId:   formData.get('coachId'),
-    date:      formData.get('date'),
-    startTime: formData.get('startTime'),
-    endTime:   formData.get('endTime'),
-    notes:     formData.get('notes') || undefined,
+    coachId:     formData.get('coachId'),
+    date:        formData.get('date'),
+    startTime:   formData.get('startTime'),
+    endTime:     formData.get('endTime'),
+    notes:       formData.get('notes') || undefined,
+    peopleCount: formData.get('peopleCount') || undefined,
+    price:       formData.get('price') || undefined,
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { coachId, date, startTime, endTime, notes } = parsed.data
+  const { coachId, date, startTime, endTime, notes, peopleCount, price } = parsed.data
   const start = new Date(`${date}T${startTime}:00`)
   const end   = new Date(`${date}T${endTime}:00`)
 
@@ -218,14 +222,15 @@ export async function requestBookingAction(
   }
 
   const { error } = await supabase.from('bookings').insert({
-    player_id:  userId,
-    coach_id:   coachId,
-    created_by: userId,
-    start_time: start.toISOString(),
-    end_time:   end.toISOString(),
-    status:     'pending',
-    notes:      notes ?? null,
-    price:      0,
+    player_id:    userId,
+    coach_id:     coachId,
+    created_by:   userId,
+    start_time:   start.toISOString(),
+    end_time:     end.toISOString(),
+    status:       'pending',
+    notes:        notes ?? null,
+    price:        price ?? 0,
+    people_count: peopleCount ?? 1,
   })
 
   if (error) {

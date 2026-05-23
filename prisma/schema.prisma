@@ -357,6 +357,7 @@ model Booking {
   isRecurring     Boolean       @default(false) @map("is_recurring")
   recurrenceRule  String?       @map("recurrence_rule")
   price           Decimal       @default(0) @db.Decimal(10, 2)
+  peopleCount     Int           @default(1) @map("people_count") @db.SmallInt
   notes           String?
   paymentProofUrl String?       @map("payment_proof_url")
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
