@@ -717,6 +717,128 @@ export async function getDashboardData(evaluationId: string): Promise<DashboardD
   }
 }
 
+// ─── Player evolution dashboard ───────────────────────────────────────────────
+
+export type PlayerEvolutionPoint = {
+  evaluationId:     string
+  title:            string
+  date:             string
+  techTotal:        number | null
+  techFondo:        number | null
+  techVoleas:       number | null
+  techBandejas:     number | null
+  techSmash:        number | null
+  bestCMJ:          number | null
+  bestVel10m:       number | null
+  bestBolasLateral: number | null
+}
+
+export type PlayerEvolutionData = {
+  player: { id: string; full_name: string }
+  points: PlayerEvolutionPoint[]
+}
+
+export async function getPlayerEvolution(playerId: string): Promise<PlayerEvolutionData | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { data: playerData } = await db
+    .from('profiles')
+    .select('id, full_name')
+    .eq('id', playerId)
+    .single()
+
+  if (!playerData) return null
+
+  const { data: evals } = await db
+    .from('evaluations')
+    .select('id, title, evaluated_at')
+    .eq('player_id', playerId)
+    .order('evaluated_at', { ascending: true })
+
+  if (!evals || evals.length === 0) {
+    return { player: playerData as { id: string; full_name: string }, points: [] }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const evalIds = (evals as any[]).map((e) => e.id as string)
+
+  const [shotsRes, physRes] = await Promise.all([
+    db.from('eval_technical_shots')
+      .select('evaluation_id, stroke_group, pct')
+      .in('evaluation_id', evalIds),
+    db.from('eval_physical')
+      .select('evaluation_id, cmj_1, cmj_2, cmj_3, vel_10m_1, vel_10m_2, vel_10m_3, bolas_lateral_1, bolas_lateral_2, bolas_lateral_3')
+      .in('evaluation_id', evalIds),
+  ])
+
+  type ShotRow  = { evaluation_id: string; stroke_group: string; pct: string }
+  type PhysRow  = {
+    evaluation_id: string
+    cmj_1: number | null; cmj_2: number | null; cmj_3: number | null
+    vel_10m_1: number | null; vel_10m_2: number | null; vel_10m_3: number | null
+    bolas_lateral_1: number | null; bolas_lateral_2: number | null; bolas_lateral_3: number | null
+  }
+
+  const shotsByEval: Record<string, ShotRow[]> = {}
+  for (const s of (shotsRes.data ?? []) as ShotRow[]) {
+    if (!shotsByEval[s.evaluation_id]) shotsByEval[s.evaluation_id] = []
+    shotsByEval[s.evaluation_id].push(s)
+  }
+
+  const physByEval: Record<string, PhysRow> = {}
+  for (const p of (physRes.data ?? []) as PhysRow[]) {
+    physByEval[p.evaluation_id] = p
+  }
+
+  const avgOf = (nums: number[]): number | null =>
+    nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length * 10) / 10 : null
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const points: PlayerEvolutionPoint[] = (evals as any[]).map((e) => {
+    const shots = shotsByEval[e.id] ?? []
+
+    const byGroup: Record<string, number[]> = {}
+    for (const s of shots) {
+      if (!byGroup[s.stroke_group]) byGroup[s.stroke_group] = []
+      byGroup[s.stroke_group].push(Number(s.pct))
+    }
+
+    const techFondo    = avgOf(byGroup['golpes_fondo'] ?? [])
+    const techVoleas   = avgOf(byGroup['voleas']       ?? [])
+    const techBandejas = avgOf(byGroup['bandejas']     ?? [])
+    const techSmash    = avgOf(byGroup['smash']        ?? [])
+
+    const groupAvgs = [techFondo, techVoleas, techBandejas, techSmash].filter((v): v is number => v !== null)
+    const techTotal = avgOf(groupAvgs)
+
+    const phys = physByEval[e.id] ?? null
+
+    return {
+      evaluationId: e.id as string,
+      title:        e.title as string,
+      date:         e.evaluated_at as string,
+      techTotal,
+      techFondo,
+      techVoleas,
+      techBandejas,
+      techSmash,
+      bestCMJ:          phys ? bestMax(phys.cmj_1, phys.cmj_2, phys.cmj_3)                         : null,
+      bestVel10m:       phys ? bestMin(phys.vel_10m_1, phys.vel_10m_2, phys.vel_10m_3)             : null,
+      bestBolasLateral: phys ? bestMin(phys.bolas_lateral_1, phys.bolas_lateral_2, phys.bolas_lateral_3) : null,
+    }
+  })
+
+  return {
+    player: playerData as { id: string; full_name: string },
+    points,
+  }
+}
+
 // ─── Players list for selector ────────────────────────────────────────────────
 
 export type PlayerOption = { id: string; full_name: string }

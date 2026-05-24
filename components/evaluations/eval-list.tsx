@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Plus, ClipboardList } from 'lucide-react'
+import { Plus, ClipboardList, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { EvaluationSummary } from '@/actions/evaluations'
@@ -64,12 +64,22 @@ export function EvalList({ evaluations, role, players }: Props) {
               <span className="text-sm font-semibold">{name}</span>
               <span className="text-xs text-muted-foreground">({evals.length})</span>
             </div>
-            <Link href={`/${role}/evaluations/new?player=${playerId}`}>
-              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5">
-                <Plus className="h-3 w-3" />
-                Evaluar
-              </Button>
-            </Link>
+            <div className="flex items-center gap-1">
+              {role === 'admin' && (
+                <Link href={`/admin/evaluations/player/${playerId}`}>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-[#00C4CC] hover:text-[#00C4CC] hover:bg-[#00C4CC]/10">
+                    <TrendingUp className="h-3 w-3" />
+                    Evolución
+                  </Button>
+                </Link>
+              )}
+              <Link href={`/${role}/evaluations/new?player=${playerId}`}>
+                <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5">
+                  <Plus className="h-3 w-3" />
+                  Evaluar
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Evaluations for this player */}
