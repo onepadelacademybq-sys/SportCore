@@ -408,18 +408,32 @@ export async function shareEvaluation(
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function getAllEvaluations(): Promise<EvaluationSummary[]> {
+export async function getAllEvaluations(coachId?: string): Promise<EvaluationSummary[]> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (supabase as any)
+  const db = supabase as any
+  let query = db
     .from('evaluations')
-    .select('id, title, evaluated_at, is_shared, notes, player:player_id(id, full_name), coach:coach_id(id, full_name)')
+    .select('id, title, evaluated_at, is_shared, notes, player:profiles!player_id(id, full_name), coach:profiles!coach_id(id, full_name)')
     .order('evaluated_at', { ascending: false })
 
-  return (data ?? []) as EvaluationSummary[]
+  if (coachId) query = query.eq('coach_id', coachId)
+
+  const { data } = await query
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((e) => ({
+    id:          e.id,
+    title:       e.title,
+    evaluatedAt: e.evaluated_at,
+    isShared:    e.is_shared,
+    notes:       e.notes,
+    player:      e.player,
+    coach:       e.coach,
+  }))
 }
 
 export async function getPlayerEvaluations(playerId?: string): Promise<EvaluationSummary[]> {
@@ -432,11 +446,20 @@ export async function getPlayerEvaluations(playerId?: string): Promise<Evaluatio
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from('evaluations')
-    .select('id, title, evaluated_at, is_shared, notes, player:player_id(id, full_name), coach:coach_id(id, full_name)')
+    .select('id, title, evaluated_at, is_shared, notes, player:profiles!player_id(id, full_name), coach:profiles!coach_id(id, full_name)')
     .eq('player_id', targetId)
     .order('evaluated_at', { ascending: false })
 
-  return (data ?? []) as EvaluationSummary[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((e) => ({
+    id:          e.id,
+    title:       e.title,
+    evaluatedAt: e.evaluated_at,
+    isShared:    e.is_shared,
+    notes:       e.notes,
+    player:      e.player,
+    coach:       e.coach,
+  }))
 }
 
 export async function getEvaluation(id: string): Promise<EvaluationDetail | null> {
@@ -449,7 +472,7 @@ export async function getEvaluation(id: string): Promise<EvaluationDetail | null
 
   const { data: rawHeader } = await db
     .from('evaluations')
-    .select('id, title, notes, evaluated_at, is_shared, player:player_id(id, full_name), coach:coach_id(id, full_name)')
+    .select('id, title, notes, evaluated_at, is_shared, player:profiles!player_id(id, full_name), coach:profiles!coach_id(id, full_name)')
     .eq('id', id)
     .single()
 

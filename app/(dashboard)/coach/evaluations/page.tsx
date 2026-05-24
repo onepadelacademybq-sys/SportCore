@@ -1,11 +1,17 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { getAllEvaluations, getPlayers } from '@/actions/evaluations'
 import { EvalList } from '@/components/evaluations/eval-list'
 
 export const metadata: Metadata = { title: 'Evaluaciones' }
 
 export default async function CoachEvaluationsPage() {
-  const [evaluations, players] = await Promise.all([getAllEvaluations(), getPlayers()])
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const [evaluations, players] = await Promise.all([getAllEvaluations(user.id), getPlayers()])
 
   return (
     <div className="p-8 space-y-6 max-w-3xl">
