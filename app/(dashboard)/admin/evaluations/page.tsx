@@ -4,7 +4,7 @@ import { EvalList } from '@/components/evaluations/eval-list'
 
 export const metadata: Metadata = { title: 'Evaluaciones' }
 
-export default async function CoachEvaluationsPage() {
+export default async function AdminEvaluationsPage() {
   const [evaluations, players] = await Promise.all([getAllEvaluations(), getPlayers()])
 
   return (
@@ -16,7 +16,7 @@ export default async function CoachEvaluationsPage() {
         </p>
       </div>
 
-      <EvalList evaluations={evaluations} role="coach" players={players} />
+      <EvalList evaluations={evaluations} role="admin" players={players} />
     </div>
   )
 }

@@ -748,7 +748,121 @@ model Evaluation {
   template EvaluationTemplate? @relation(fields: [templateId], references: [id])
   results  EvaluationResult[]
 
+  technicalShots EvalTechnicalShot[]
+  tacticalGames  EvalTacticalGame[]
+  anthropometric EvalAnthropometric?
+  physical       EvalPhysical?
+
   @@map("evaluations")
+}
+
+// ─── Protocolo V3 — tablas especializadas ─────────────────────────────────────
+
+model EvalTechnicalShot {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evaluationId String   @map("evaluation_id") @db.Uuid
+  strokeGroup  String   @map("stroke_group")
+  strokeName   String   @map("stroke_name")
+  s1           Boolean  @default(false)
+  s2           Boolean  @default(false)
+  s3           Boolean  @default(false)
+  s4           Boolean  @default(false)
+  s5           Boolean  @default(false)
+  hits         Int?     // GENERATED ALWAYS AS (s1::int+s2::int+s3::int+s4::int+s5::int) STORED
+  pct          Decimal? @db.Decimal(5, 2) // GENERATED ALWAYS AS (hits/5*100) STORED
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@unique([evaluationId, strokeName])
+  @@map("eval_technical_shots")
+}
+
+model EvalTacticalGame {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evaluationId String   @map("evaluation_id") @db.Uuid
+  gameNumber   Int      @map("game_number") @db.SmallInt
+  ptsPlayer    Int?     @map("pts_player") @db.SmallInt
+  ptsRival     Int?     @map("pts_rival") @db.SmallInt
+  driveStats   Json     @default("{}") @map("drive_stats")
+  revesStats   Json     @default("{}") @map("reves_stats")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@unique([evaluationId, gameNumber])
+  @@map("eval_tactical_games")
+}
+
+model EvalAnthropometric {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evaluationId       String   @unique @map("evaluation_id") @db.Uuid
+  peso               Decimal? @db.Decimal(5, 2)
+  talla              Decimal? @db.Decimal(5, 2)
+  pctAdiposo         Decimal? @map("pct_adiposo") @db.Decimal(5, 2)
+  pctMusculo         Decimal? @map("pct_musculo") @db.Decimal(5, 2)
+  edadBiologica      Decimal? @map("edad_biologica") @db.Decimal(4, 1)
+  grasaVisceral      Decimal? @map("grasa_visceral") @db.Decimal(5, 2)
+  tricipital         Decimal? @db.Decimal(5, 2)
+  bicipital          Decimal? @db.Decimal(5, 2)
+  subescapular       Decimal? @db.Decimal(5, 2)
+  iliocrestal        Decimal? @db.Decimal(5, 2)
+  supraespinal       Decimal? @db.Decimal(5, 2)
+  abdominal          Decimal? @db.Decimal(5, 2)
+  musloPliegue       Decimal? @map("muslo_pliegue") @db.Decimal(5, 2)
+  pantorrillaPliegue Decimal? @map("pantorrilla_pliegue") @db.Decimal(5, 2)
+  pechoMinimo        Decimal? @map("pecho_minimo") @db.Decimal(5, 2)
+  cintura            Decimal? @db.Decimal(5, 2)
+  cadera             Decimal? @db.Decimal(5, 2)
+  bicepsDRel         Decimal? @map("biceps_d_rel") @db.Decimal(5, 2)
+  bicepsDCon         Decimal? @map("biceps_d_con") @db.Decimal(5, 2)
+  bicepsIRel         Decimal? @map("biceps_i_rel") @db.Decimal(5, 2)
+  bicepsICon         Decimal? @map("biceps_i_con") @db.Decimal(5, 2)
+  antebrazoD         Decimal? @map("antebrazo_d") @db.Decimal(5, 2)
+  antebrazoI         Decimal? @map("antebrazo_i") @db.Decimal(5, 2)
+  musloD             Decimal? @map("muslo_d") @db.Decimal(5, 2)
+  musloI             Decimal? @map("muslo_i") @db.Decimal(5, 2)
+  pantorrillaD       Decimal? @map("pantorrilla_d") @db.Decimal(5, 2)
+  pantorrillaI       Decimal? @map("pantorrilla_i") @db.Decimal(5, 2)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@map("eval_anthropometric")
+}
+
+model EvalPhysical {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evaluationId   String   @unique @map("evaluation_id") @db.Uuid
+  sj1            Decimal? @map("sj_1") @db.Decimal(5, 2)
+  sj2            Decimal? @map("sj_2") @db.Decimal(5, 2)
+  sj3            Decimal? @map("sj_3") @db.Decimal(5, 2)
+  cmj1           Decimal? @map("cmj_1") @db.Decimal(5, 2)
+  cmj2           Decimal? @map("cmj_2") @db.Decimal(5, 2)
+  cmj3           Decimal? @map("cmj_3") @db.Decimal(5, 2)
+  abalakov1      Decimal? @map("abalakov_1") @db.Decimal(5, 2)
+  abalakov2      Decimal? @map("abalakov_2") @db.Decimal(5, 2)
+  abalakov3      Decimal? @map("abalakov_3") @db.Decimal(5, 2)
+  vel10m1        Decimal? @map("vel_10m_1") @db.Decimal(5, 3)
+  vel10m2        Decimal? @map("vel_10m_2") @db.Decimal(5, 3)
+  vel10m3        Decimal? @map("vel_10m_3") @db.Decimal(5, 3)
+  bolasLateral1  Decimal? @map("bolas_lateral_1") @db.Decimal(6, 3)
+  bolasLateral2  Decimal? @map("bolas_lateral_2") @db.Decimal(6, 3)
+  bolasLateral3  Decimal? @map("bolas_lateral_3") @db.Decimal(6, 3)
+  bolasFrontal1  Decimal? @map("bolas_frontal_1") @db.Decimal(6, 3)
+  bolasFrontal2  Decimal? @map("bolas_frontal_2") @db.Decimal(6, 3)
+  bolasFrontal3  Decimal? @map("bolas_frontal_3") @db.Decimal(6, 3)
+  desplazLatD    Decimal? @map("desplaz_lat_d") @db.Decimal(6, 3)
+  desplazLatI    Decimal? @map("desplaz_lat_i") @db.Decimal(6, 3)
+  zigzag1        Decimal? @map("zigzag_1") @db.Decimal(6, 3)
+  zigzag2        Decimal? @map("zigzag_2") @db.Decimal(6, 3)
+  zigzag3        Decimal? @map("zigzag_3") @db.Decimal(6, 3)
+  resistencia5k  Decimal? @map("resistencia_5k") @db.Decimal(7, 2)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@map("eval_physical")
 }
 
 model EvaluationResult {
