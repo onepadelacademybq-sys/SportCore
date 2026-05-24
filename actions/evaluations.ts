@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import type { ShotGroup } from '@/lib/eval-strokes'
+import { STROKE_GROUPS, type ShotGroup } from '@/lib/eval-strokes'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -733,9 +733,49 @@ export type PlayerEvolutionPoint = {
   bestBolasLateral: number | null
 }
 
+// ─ new KPI + anthro types ─────────────────────────────────────────────────────
+
+export type ShotKPI = {
+  strokeName: string
+  overallAvg: number | null
+  firstPct:   number | null
+  lastPct:    number | null
+  delta:      number | null
+  priority:   'alta' | 'media' | 'buena' | null
+}
+
+export type GroupKPI = {
+  group:     ShotGroup
+  label:     string
+  lastAvg:   number | null
+  priority:  'alta' | 'media' | 'buena' | null
+  weakest:   ShotKPI | null
+  strongest: ShotKPI | null
+  allShots:  ShotKPI[]
+}
+
+export type AnthroPoint = {
+  evaluationId: string
+  date:         string
+  peso:         number | null
+  pctAdiposo:   number | null
+  pctMusculo:   number | null
+}
+
 export type PlayerEvolutionData = {
-  player: { id: string; full_name: string }
-  points: PlayerEvolutionPoint[]
+  player:       { id: string; full_name: string }
+  points:       PlayerEvolutionPoint[]
+  groupKPIs:    GroupKPI[]
+  anthroPoints: AnthroPoint[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function shotPriority(pct: number | null): 'alta' | 'media' | 'buena' | null {
+  if (pct === null) return null
+  if (pct < 40) return 'alta'
+  if (pct < 70) return 'media'
+  return 'buena'
 }
 
 export async function getPlayerEvolution(playerId: string): Promise<PlayerEvolutionData | null> {
@@ -761,27 +801,34 @@ export async function getPlayerEvolution(playerId: string): Promise<PlayerEvolut
     .order('evaluated_at', { ascending: true })
 
   if (!evals || evals.length === 0) {
-    return { player: playerData as { id: string; full_name: string }, points: [] }
+    return { player: playerData as { id: string; full_name: string }, points: [], groupKPIs: [], anthroPoints: [] }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const evalIds = (evals as any[]).map((e) => e.id as string)
 
-  const [shotsRes, physRes] = await Promise.all([
+  const [shotsRes, physRes, anthroRes] = await Promise.all([
     db.from('eval_technical_shots')
-      .select('evaluation_id, stroke_group, pct')
+      .select('evaluation_id, stroke_group, stroke_name, pct')
       .in('evaluation_id', evalIds),
     db.from('eval_physical')
       .select('evaluation_id, cmj_1, cmj_2, cmj_3, vel_10m_1, vel_10m_2, vel_10m_3, bolas_lateral_1, bolas_lateral_2, bolas_lateral_3')
       .in('evaluation_id', evalIds),
+    db.from('eval_anthropometric')
+      .select('evaluation_id, peso, pct_adiposo, pct_musculo')
+      .in('evaluation_id', evalIds),
   ])
 
-  type ShotRow  = { evaluation_id: string; stroke_group: string; pct: string }
+  type ShotRow  = { evaluation_id: string; stroke_group: string; stroke_name: string; pct: string }
   type PhysRow  = {
     evaluation_id: string
     cmj_1: number | null; cmj_2: number | null; cmj_3: number | null
     vel_10m_1: number | null; vel_10m_2: number | null; vel_10m_3: number | null
     bolas_lateral_1: number | null; bolas_lateral_2: number | null; bolas_lateral_3: number | null
+  }
+  type AnthroRow = {
+    evaluation_id: string
+    peso: number | null; pct_adiposo: number | null; pct_musculo: number | null
   }
 
   const shotsByEval: Record<string, ShotRow[]> = {}
@@ -795,9 +842,15 @@ export async function getPlayerEvolution(playerId: string): Promise<PlayerEvolut
     physByEval[p.evaluation_id] = p
   }
 
+  const anthroByEval: Record<string, AnthroRow> = {}
+  for (const a of (anthroRes.data ?? []) as AnthroRow[]) {
+    anthroByEval[a.evaluation_id] = a
+  }
+
   const avgOf = (nums: number[]): number | null =>
     nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length * 10) / 10 : null
 
+  // ── Evolution points (charts) ──────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const points: PlayerEvolutionPoint[] = (evals as any[]).map((e) => {
     const shots = shotsByEval[e.id] ?? []
@@ -827,15 +880,97 @@ export async function getPlayerEvolution(playerId: string): Promise<PlayerEvolut
       techVoleas,
       techBandejas,
       techSmash,
-      bestCMJ:          phys ? bestMax(phys.cmj_1, phys.cmj_2, phys.cmj_3)                         : null,
-      bestVel10m:       phys ? bestMin(phys.vel_10m_1, phys.vel_10m_2, phys.vel_10m_3)             : null,
-      bestBolasLateral: phys ? bestMin(phys.bolas_lateral_1, phys.bolas_lateral_2, phys.bolas_lateral_3) : null,
+      bestCMJ:          phys ? bestMax(phys.cmj_1, phys.cmj_2, phys.cmj_3)                              : null,
+      bestVel10m:       phys ? bestMin(phys.vel_10m_1, phys.vel_10m_2, phys.vel_10m_3)                  : null,
+      bestBolasLateral: phys ? bestMin(phys.bolas_lateral_1, phys.bolas_lateral_2, phys.bolas_lateral_3): null,
     }
   })
 
+  // ── Group KPIs (per-shot analysis) ────────────────────────────────────────
+  const GROUP_META: { group: ShotGroup; label: string }[] = [
+    { group: 'golpes_fondo', label: 'Golpes de Fondo' },
+    { group: 'voleas',       label: 'Voleas'          },
+    { group: 'bandejas',     label: 'Bandejas'        },
+    { group: 'smash',        label: 'Smash'           },
+  ]
+
+  const groupKPIs: GroupKPI[] = GROUP_META.map(({ group, label }) => {
+    const groupInfo  = STROKE_GROUPS.find(g => g.group === group)
+    const strokeList = groupInfo?.strokes ?? []
+
+    // Evaluations with data for this group, in chronological order
+    const evalsWithGroup = evalIds.filter(eid =>
+      (shotsByEval[eid] ?? []).some(s => s.stroke_group === group),
+    )
+
+    if (evalsWithGroup.length === 0) {
+      return { group, label, lastAvg: null, priority: null, weakest: null, strongest: null, allShots: [] }
+    }
+
+    const firstEvalId = evalsWithGroup[0]
+    const lastEvalId  = evalsWithGroup[evalsWithGroup.length - 1]
+    const multiEval   = firstEvalId !== lastEvalId
+
+    // Last eval's group avg
+    const lastEvalShots = (shotsByEval[lastEvalId] ?? []).filter(s => s.stroke_group === group)
+    const lastAvg = avgOf(lastEvalShots.map(s => Number(s.pct)))
+
+    // Per-stroke KPIs
+    const allShots: ShotKPI[] = strokeList.flatMap(strokeName => {
+      const allPcts: number[] = []
+      let firstPct: number | null = null
+      let lastPct:  number | null = null
+
+      for (const eid of evalsWithGroup) {
+        const shot = (shotsByEval[eid] ?? []).find(
+          s => s.stroke_name === strokeName && s.stroke_group === group,
+        )
+        if (shot) {
+          const pct = Number(shot.pct)
+          allPcts.push(pct)
+          if (eid === firstEvalId) firstPct = pct
+          if (eid === lastEvalId)  lastPct  = pct
+        }
+      }
+
+      if (allPcts.length === 0) return []
+
+      const overallAvg = avgOf(allPcts)
+      const delta = multiEval && firstPct !== null && lastPct !== null
+        ? Math.round((lastPct - firstPct) * 10) / 10
+        : null
+
+      return [{ strokeName, overallAvg, firstPct, lastPct, delta, priority: shotPriority(overallAvg) }]
+    })
+
+    // Sort: weakest first (ascending overallAvg)
+    allShots.sort((a, b) => (a.overallAvg ?? 0) - (b.overallAvg ?? 0))
+
+    const weakest   = allShots[0]   ?? null
+    const strongest = allShots[allShots.length - 1] ?? null
+
+    return { group, label, lastAvg, priority: shotPriority(lastAvg), weakest, strongest, allShots }
+  }).filter(g => g.allShots.length > 0)
+
+  // ── Anthropometric points ─────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anthroPoints: AnthroPoint[] = (evals as any[]).flatMap((e) => {
+    const a = anthroByEval[e.id] ?? null
+    if (!a || (a.peso === null && a.pct_adiposo === null && a.pct_musculo === null)) return []
+    return [{
+      evaluationId: e.id as string,
+      date:         e.evaluated_at as string,
+      peso:         a.peso,
+      pctAdiposo:   a.pct_adiposo,
+      pctMusculo:   a.pct_musculo,
+    }]
+  })
+
   return {
-    player: playerData as { id: string; full_name: string },
+    player:       playerData as { id: string; full_name: string },
     points,
+    groupKPIs,
+    anthroPoints,
   }
 }
 

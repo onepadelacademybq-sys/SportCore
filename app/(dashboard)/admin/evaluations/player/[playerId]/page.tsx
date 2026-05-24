@@ -5,6 +5,8 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getPlayerEvolution } from '@/actions/evaluations'
 import { PlayerEvolutionCharts } from '@/components/evaluations/player-evolution-charts'
+import { PlayerKPIs } from '@/components/evaluations/player-kpis'
+import { PlayerAnthroEvolution } from '@/components/evaluations/player-anthro-evolution'
 import type { PlayerEvolutionPoint } from '@/actions/evaluations'
 
 export const metadata: Metadata = { title: 'Evolución del jugador' }
@@ -47,7 +49,7 @@ export default async function PlayerEvolutionPage({ params }: Props) {
   const data = await getPlayerEvolution(playerId)
   if (!data) notFound()
 
-  const { player, points } = data
+  const { player, points, groupKPIs, anthroPoints } = data
   const { latest, best, delta, total } = evalStats(points)
 
   return (
@@ -86,6 +88,19 @@ export default async function PlayerEvolutionPage({ params }: Props) {
         </div>
       ) : (
         <PlayerEvolutionCharts points={points} />
+      )}
+
+      {/* ── KPIs por categoría técnica ───────────────────────────── */}
+      {groupKPIs.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold">KPIs por Categoría Técnica</h2>
+          <PlayerKPIs groupKPIs={groupKPIs} />
+        </div>
+      )}
+
+      {/* ── Evolución antropométrica ──────────────────────────────── */}
+      {anthroPoints.length > 0 && (
+        <PlayerAnthroEvolution points={anthroPoints} />
       )}
 
       {/* ── Evaluation table ─────────────────────────────────────── */}
