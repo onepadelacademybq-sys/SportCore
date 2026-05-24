@@ -24,14 +24,23 @@ export type WalletTransaction = {
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function getPlayerWallet(playerId?: string): Promise<WalletData | null> {
+const EMPTY_WALLET: WalletData = {
+  id: '',
+  total_classes: 0,
+  used_classes: 0,
+  available_classes: 0,
+  updated_at: '',
+}
+
+export async function getPlayerWallet(playerId?: string): Promise<WalletData> {
   const supabase = await createClient()
 
-  const targetId = playerId ?? (await (async () => {
+  let targetId = playerId
+  if (!targetId) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
-    return user.id
-  })())
+    targetId = user.id
+  }
 
   const { data } = await supabase
     .from('class_wallet')
@@ -39,7 +48,7 @@ export async function getPlayerWallet(playerId?: string): Promise<WalletData | n
     .eq('player_id', targetId)
     .single()
 
-  return data as WalletData | null
+  return data ? (data as WalletData) : EMPTY_WALLET
 }
 
 export async function getWalletTransactions(limit = 10): Promise<WalletTransaction[]> {

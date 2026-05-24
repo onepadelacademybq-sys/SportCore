@@ -291,7 +291,8 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
               <p className="text-sm">Transferencia bancaria</p>
               <p className="text-[10px] text-muted-foreground">Sube el comprobante después de reservar</p>
             </button>
-            {availableClasses > 0 && (
+
+            {availableClasses > 0 ? (
               <button
                 type="button"
                 onClick={() => setPaymentMethod('wallet')}
@@ -302,8 +303,17 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
                 }`}
               >
                 <p className="text-sm">Usar mis clases</p>
-                <p className="text-[10px] text-emerald-500">{availableClasses} clase{availableClasses !== 1 ? 's' : ''} disponible{availableClasses !== 1 ? 's' : ''}</p>
+                <p className="text-[10px] text-emerald-500">
+                  {availableClasses} clase{availableClasses !== 1 ? 's' : ''} disponible{availableClasses !== 1 ? 's' : ''}
+                </p>
               </button>
+            ) : (
+              <div className="flex-1 py-2.5 px-3 rounded-md border border-border bg-muted/20 opacity-50 cursor-not-allowed">
+                <p className="text-sm text-muted-foreground">Usar mis clases</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Compra un paquete de clases para habilitar esta opción
+                </p>
+              </div>
             )}
           </div>
         </div>

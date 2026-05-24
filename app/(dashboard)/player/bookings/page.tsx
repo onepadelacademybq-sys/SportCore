@@ -36,23 +36,27 @@ export default async function PlayerBookingsPage() {
       </div>
 
       {/* E-wallet card */}
-      {wallet && (
-        <Card className="border-[#00C4CC]/30 bg-[#00C4CC]/5">
-          <CardContent className="pt-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-[#00C4CC]" />
-                <span className="font-semibold">Mis clases</span>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-[#00C4CC]">{wallet.available_classes}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {wallet.used_classes} usadas · {wallet.total_classes} totales
-                </p>
-              </div>
+      <Card className="border-[#00C4CC]/30 bg-[#00C4CC]/5">
+        <CardContent className="pt-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-[#00C4CC]" />
+              <span className="font-semibold">Mis clases</span>
             </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-[#00C4CC]">{wallet.available_classes}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {wallet.used_classes} usadas · {wallet.total_classes} totales
+              </p>
+            </div>
+          </div>
 
-            {transactions.length > 0 && (
+          {wallet.available_classes === 0 && transactions.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-1">
+              Aún no tienes clases disponibles. Compra un paquete para empezar.
+            </p>
+          ) : (
+            transactions.length > 0 && (
               <>
                 <Separator />
                 <div className="space-y-1.5">
@@ -75,10 +79,10 @@ export default async function PlayerBookingsPage() {
                   ))}
                 </div>
               </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            )
+          )}
+        </CardContent>
+      </Card>
 
       {/* Request form */}
       <Card>
