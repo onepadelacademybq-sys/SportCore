@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { creditClasses, debitClass } from '@/actions/wallet'
+import { recordBookingFinancials } from '@/actions/finances'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -286,6 +287,9 @@ export async function requestBookingAction(
       .is('booking_id', null)
       .order('created_at', { ascending: false })
       .limit(1)
+
+    // Reserva con wallet queda confirmada al instante → registrar costos (cancha + coach)
+    await recordBookingFinancials(supabase, (inserted as { id: string }).id, userId)
   }
 
   revalidatePath('/player/bookings')
@@ -365,7 +369,7 @@ export async function confirmBookingAction(
   _prev: BookingState,
   formData: FormData,
 ): Promise<BookingState> {
-  const { supabase, role } = await requireAuth()
+  const { supabase, userId, role } = await requireAuth()
   if (role !== 'admin') return { error: 'Sin permisos' }
 
   const parsed = ConfirmSchema.safeParse({
@@ -406,6 +410,9 @@ export async function confirmBookingAction(
       `Módulo de ${b.module_classes} clases acreditado`,
     )
   }
+
+  // Registrar ingresos/egresos automáticos de la reserva confirmada
+  await recordBookingFinancials(supabase, bookingId, userId)
 
   revalidatePath('/admin/bookings')
   revalidatePath('/player/bookings')

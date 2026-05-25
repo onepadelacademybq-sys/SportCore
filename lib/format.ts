@@ -1,3 +1,12 @@
+/** Pesos colombianos sin decimales: "$ 35.000" */
+export function formatCOP(amount: number): string {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
 /** Formato de fecha corta en español: "lun, 23 may" */
 export function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('es-ES', {

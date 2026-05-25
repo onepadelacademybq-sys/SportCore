@@ -13,9 +13,9 @@
 - `README.md`
 
 ### Base de datos
-- Prisma 7 schema (`prisma/schema.prisma`) — 30 modelos, enums del Protocolo V3 y reservas
+- Prisma 7 schema (`prisma/schema.prisma`) — 32 modelos, enums del Protocolo V3, reservas y finanzas
 - Base de datos: Supabase PostgreSQL 16 en `aws-1-sa-east-1`
-- Migraciones aplicadas (11):
+- Migraciones aplicadas (12):
   - `20260522165058_init_one_padel` — todas las tablas iniciales
   - `20260522180000_add_profile_document_address` — `document_id` y `address` en `profiles`
   - `20260522190000_fix_updated_at_defaults`
@@ -27,6 +27,7 @@
   - `20260523150000_add_module_classes_to_bookings`
   - `20260523160000_create_wallet_tables` — E-wallet de clases
   - `20260524100000_create_eval_specialized_tables` — tablas especializadas de evaluación V3
+  - `20260525120000_create_finances_module` — `financial_transactions`, `bank_accounts`, enums financieros y tarifas por franja en `coach_profiles`
 
 ### Infraestructura de proyecto
 - Next.js 15.5 con App Router, TypeScript 5, Turbopack
@@ -60,8 +61,8 @@
   - E-wallet como método de pago; selección de paquetes/módulos de clases
   - Cancelación automática de reservas no pagadas en 15 min (contador regresivo, `expires_at`)
 
-- **E-wallet de clases** (`actions/wallet.ts`, `components/finances/`)
-  - Saldo siempre visible (0 por defecto), transacciones, `creditClasses` / `debitClass`
+- **E-wallet de clases** (`actions/wallet.ts`)
+  - Saldo siempre visible (0 por defecto), transacciones, `creditClasses` / `debitClass` (UI integrada en el flujo de reservas)
 
 - **Planificación** (`actions/training.ts`, `components/training/`)
   - Mesociclo → Microciclo → Sesión → bloques (ahora **3 bloques**: calentamiento 10 / central 35 / vuelta a la calma 15)
@@ -83,6 +84,14 @@
   - **Dashboard de progreso del jugador** (`player/my-evaluations`): resumen general, evolución técnica (gráficos SVG), KPIs por categoría técnica con prioridad, evolución física, evolución antropométrica y lista de evaluaciones compartidas
   - Vista de evolución por jugador para coach/admin (`evaluations/player/[playerId]`)
 
+- **Finanzas** (`actions/finances.ts`, `lib/finances/`, `components/finances/`, `admin/finances`)
+  - Libro unificado `financial_transactions` (ledger): ingresos y egresos con categoría, FK a reserva/grupo/cuenta
+  - Ingresos automáticos: reservas confirmadas (`booking_income`) y pagos de grupos por delta (`group_income`)
+  - Egresos automáticos al confirmar reserva: costo de cancha $70.000/h (`court_cost`) y pago al entrenador prorrateado por franja AM/PM/fin de semana (`coach_payment`)
+  - Ingresos/egresos manuales; cuentas bancarias con saldo (`bank_accounts`, CRUD)
+  - UI admin con 4 pestañas: Dashboard (KPIs del mes + flujo de caja semanal + desglose por categoría), Ingresos, Egresos (+ egreso manual), Cuentas bancarias
+  - Hooks en `confirmBookingAction`, rama wallet de `requestBookingAction` y `recordPaymentAction`
+
 ---
 
 ## Pendiente
@@ -91,7 +100,6 @@
 - [ ] Gestión de usuarios — `admin/users` (página vacía)
 - [ ] Torneos — `admin/tournaments` (`actions/tournaments.ts` vacío)
 - [ ] Reportes y analytics — `admin/reports`
-- [ ] Finanzas (admin) — `admin/finances` (`actions/finances.ts` vacío)
 - [ ] Trainings del coach — `coach/trainings` (página vacía)
 - [ ] `actions/trainings.ts` está vacío (duplicado de `training.ts`); decidir si eliminar
 
@@ -150,12 +158,18 @@ El componente `Form` de shadcn no está disponible con `base-nova`. Las páginas
 ### Registro — perfil vs. trigger
 `registerAction` inserta el perfil manualmente porque el trigger `on_auth_user_created` aún no existe. Cuando se cree, la inserción del action se vuelve redundante.
 
+### Finanzas — ledger y tarifas del entrenador
+- `financial_transactions` es un libro unificado (no se usan los modelos `Payment`/`Expense`). El dashboard, listados y flujo de caja leen de esta tabla.
+- Tarifas del entrenador por franja en `coach_profiles` (`hourly_rate_am` 35k / `hourly_rate_pm` 70k / `hourly_rate_weekend` 60k); el pago se prorratea en `lib/finances/pricing.ts` cuando la reserva cruza las 16:00. Bandas calculadas en hora local (consistente con cómo se crean las reservas).
+- La compra de un módulo de clases solo registra `booking_income`; el costo de cancha y entrenador se registra cuando cada clase se redime vía wallet, para no duplicar el egreso.
+- `recordBookingFinancials` es idempotente (no duplica si la reserva se confirma dos veces); el ingreso de grupo se registra por **delta** del pago para evitar doble conteo en pagos parciales.
+
 ---
 
 ## Siguiente paso sugerido
 
-Los seis módulos núcleo (reservas, E-wallet, planificación, biblioteca, grupos, evaluaciones) están operativos. Las decisiones de prioridad para lo que sigue:
+Siete módulos núcleo (reservas, E-wallet, planificación, biblioteca, grupos, evaluaciones, finanzas) están operativos. Las decisiones de prioridad para lo que sigue:
 
 1. **Limpieza técnica de base de datos** — triggers, RLS y generación de tipos reales eliminan deuda que afecta a todos los módulos.
-2. **Completar módulos en stub** — Usuarios (admin), Torneos, Reportes, Finanzas, Trainings del coach.
+2. **Completar módulos en stub** — Usuarios (admin), Torneos, Reportes, Trainings del coach.
 3. **Integraciones de producción** — Stripe, Resend, Sentry y deploy en Vercel.

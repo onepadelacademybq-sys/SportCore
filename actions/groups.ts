@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { recordGroupIncome } from '@/actions/finances'
 
 // ─── Shared types ──────────────────────────────────────────────────────────────
 
@@ -631,7 +632,7 @@ export async function recordPaymentAction(
   _prev: GroupActionState,
   formData: FormData,
 ): Promise<GroupActionState> {
-  const { supabase } = await requireAdmin()
+  const { supabase, userId } = await requireAdmin()
 
   const parsed = RecordPaymentSchema.safeParse({
     groupId:     formData.get('groupId'),
@@ -650,7 +651,7 @@ export async function recordPaymentAction(
   // Buscar registro existente o crear uno nuevo
   const { data: existing } = await supabase
     .from('group_payments')
-    .select('id, amount_due')
+    .select('id, amount_due, amount_paid')
     .eq('group_id', groupId)
     .eq('player_id', playerId)
     .eq('period_year', periodYear)
@@ -658,6 +659,10 @@ export async function recordPaymentAction(
     .maybeSingle()
 
   const today = new Date().toISOString().split('T')[0]
+  const txDate = paymentDate || today
+  // Delta del pago → ingreso de grupo (evita doble conteo en pagos parciales)
+  const previousPaid = existing ? Number((existing as any).amount_paid) : 0
+  const incomeDelta  = amountPaid - previousPaid
 
   if (existing) {
     const due    = Number((existing as any).amount_due)
@@ -704,6 +709,16 @@ export async function recordPaymentAction(
       return { error: 'Error al registrar el pago.' }
     }
   }
+
+  // Registrar el ingreso de grupo por el incremento del pago
+  await recordGroupIncome(supabase, {
+    groupId,
+    amount: incomeDelta,
+    periodYear,
+    periodMonth,
+    date: txDate,
+    userId,
+  })
 
   revalidatePath('/admin/groups')
   revalidatePath(`/admin/groups/${groupId}`)
