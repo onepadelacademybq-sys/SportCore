@@ -1,6 +1,6 @@
 # One Padel — Estado del Proyecto
 
-> Última actualización: 2026-05-22
+> Última actualización: 2026-05-25
 
 ---
 
@@ -9,20 +9,31 @@
 ### Documentación
 - `ARCHITECTURE.md` — Stack completo, estructura de directorios, flujo de auth, ADRs, entornos
 - `MODULES.md` — 13 módulos con permisos por rol (admin / coach / player)
-- `DATABASE.md` — 30 tablas, 29 enums, RLS, índices, triggers planeados
+- `DATABASE.md` — tablas, enums, RLS, índices, triggers planeados
+- `README.md`
 
 ### Base de datos
-- Prisma 7 schema (`prisma/schema.prisma`) — 30 modelos, 29 enums
-- Migración inicial aplicada: `20260522165058_init_one_padel` (914 líneas SQL — todas las tablas)
-- Migración #2 aplicada: `20260522180000_add_profile_document_address` — añade `document_id` y `address` a `profiles`
+- Prisma 7 schema (`prisma/schema.prisma`) — 30 modelos, enums del Protocolo V3 y reservas
 - Base de datos: Supabase PostgreSQL 16 en `aws-1-sa-east-1`
+- Migraciones aplicadas (11):
+  - `20260522165058_init_one_padel` — todas las tablas iniciales
+  - `20260522180000_add_profile_document_address` — `document_id` y `address` en `profiles`
+  - `20260522190000_fix_updated_at_defaults`
+  - `20260522200000_bookings_coach_payment`
+  - `20260522210000_update_padel_level_enum` — niveles oficiales One Padel
+  - `20260523120000_change_session_block_type_3_blocks` — sesiones pasan de 4 a 3 bloques
+  - `20260523130000_add_people_count_to_bookings`
+  - `20260523140000_add_expires_at_to_bookings` — soporte de cancelación automática
+  - `20260523150000_add_module_classes_to_bookings`
+  - `20260523160000_create_wallet_tables` — E-wallet de clases
+  - `20260524100000_create_eval_specialized_tables` — tablas especializadas de evaluación V3
 
 ### Infraestructura de proyecto
 - Next.js 15.5 con App Router, TypeScript 5, Turbopack
 - Tailwind CSS 4 + shadcn/ui (estilo `base-nova`)
-- Componentes shadcn instalados: Button, Card, Input, Label, Alert, Separator
 - Librerías: react-hook-form 7, zod 4, @supabase/ssr, Prisma 7
-- `.env.local` con credenciales reales, `.env.example` como plantilla, `.gitignore` configurado
+- `.env.local` con credenciales reales, `.env.example` como plantilla
+- `tsc --noEmit` pasa limpio
 
 ### Supabase — Clientes
 - `lib/supabase/client.ts` — `createBrowserClient` (Client Components)
@@ -30,58 +41,75 @@
 - `lib/supabase/middleware.ts` — helper del middleware (refresca JWT, retorna `{supabase, response, user}`)
 
 ### Autenticación y middleware
-- `middleware.ts` — autenticación con 3 roles, protección de rutas
-  - Rutas públicas: `/login`, `/register`, `/forgot-password`
-  - Autenticado sin rol asignado → pasa (perfil aún no creado)
-  - Autenticado en ruta pública → redirige a su dashboard
-  - Rol incorrecto en prefijo ajeno (`/admin`, `/coach`, `/player`) → redirige a su dashboard
-  - Cache de rol en cookie `x-user-role` (httpOnly, 1h TTL) para evitar queries DB en cada request
+- `middleware.ts` — autenticación con 3 roles, protección de rutas, cache de rol en cookie `x-user-role` (httpOnly, 1h TTL)
+- `app/(auth)/layout.tsx` + `login`, `register`, `forgot-password`
+- `actions/auth.ts` — `loginAction`, `registerAction`, `forgotPasswordAction`
+- `app/page.tsx` — redirige a `/login` o al dashboard del rol según sesión
 
-- `app/(auth)/layout.tsx` — layout centrado con branding "One Padel"
-- `app/(auth)/login/page.tsx` — email + contraseña, link a registro y recuperación
-- `app/(auth)/register/page.tsx` — 7 campos, rol fijo `player`, manejo de confirmación de email
-- `app/(auth)/forgot-password/page.tsx` — envío de email, pantalla de confirmación post-envío
-- `actions/auth.ts` — Server Actions: `loginAction`, `registerAction`, `forgotPasswordAction`
+### Shell de dashboard y dashboards por rol
+- `app/(dashboard)/layout.tsx` con sidebar de navegación por rol
+- Branding "One Padel Academy"
+- Dashboards de inicio: `admin/dashboard`, `coach/dashboard`, `player/dashboard`
+
+### Módulos funcionando
+
+- **Reservas de pistas** (`actions/bookings.ts`, `components/bookings/`)
+  - 3 vistas por rol, calendario semanal de disponibilidad por coach
+  - Selector de personas y precios en tiempo real
+  - Pago con datos bancarios + subida de comprobante como imagen
+  - E-wallet como método de pago; selección de paquetes/módulos de clases
+  - Cancelación automática de reservas no pagadas en 15 min (contador regresivo, `expires_at`)
+
+- **E-wallet de clases** (`actions/wallet.ts`, `components/finances/`)
+  - Saldo siempre visible (0 por defecto), transacciones, `creditClasses` / `debitClass`
+
+- **Planificación** (`actions/training.ts`, `components/training/`)
+  - Mesociclo → Microciclo → Sesión → bloques (ahora **3 bloques**: calentamiento 10 / central 35 / vuelta a la calma 15)
+  - Mesociclos predefinidos, vinculación a reservas confirmadas
+  - Asignación por jugador y por grupo
+  - Vistas en admin y coach (`planning/`, `planning/group`, `planning/player`, `session`)
+
+- **Biblioteca de ejercicios** (`actions/exercises.ts`, `components/exercises/`)
+  - 19 ejercicios seed de One Padel (`scripts/seed-exercises.ts`)
+  - CRUD en admin y coach
+
+- **Grupos de entrenamiento** (`actions/groups.ts`, `components/groups/`)
+  - Niveles oficiales One Padel; vistas admin/coach/player
+
+- **Evaluaciones — Protocolo V3** (`actions/evaluations.ts`, `components/evaluations/`)
+  - 4 módulos de captura: técnico (checkboxes por golpe), táctico, antropométrico, físico
+  - Crear/editar evaluación, notas, compartir con jugador (`shareEvaluation`)
+  - Dashboard de evaluación (`eval-dashboard`) con semáforo por grupo técnico
+  - **Dashboard de progreso del jugador** (`player/my-evaluations`): resumen general, evolución técnica (gráficos SVG), KPIs por categoría técnica con prioridad, evolución física, evolución antropométrica y lista de evaluaciones compartidas
+  - Vista de evolución por jugador para coach/admin (`evaluations/player/[playerId]`)
 
 ---
 
 ## Pendiente
 
-### Inmediato — para que el flujo funcione end-to-end
-- [ ] `app/page.tsx` — reemplazar default de create-next-app; simplemente redirigir a `/login`
-- [ ] `app/(dashboard)/layout.tsx` — shell con sidebar/nav según rol (actualmente passthrough vacío)
-- [ ] Dashboards por rol — al menos la página de inicio de cada rol para poder probar el login completo
-  - `app/(dashboard)/admin/dashboard/page.tsx`
-  - `app/(dashboard)/coach/dashboard/page.tsx`
-  - `app/(dashboard)/player/dashboard/page.tsx`
+### Módulos aún en stub (`return null`) — sin Server Actions
+- [ ] Gestión de usuarios — `admin/users` (página vacía)
+- [ ] Torneos — `admin/tournaments` (`actions/tournaments.ts` vacío)
+- [ ] Reportes y analytics — `admin/reports`
+- [ ] Finanzas (admin) — `admin/finances` (`actions/finances.ts` vacío)
+- [ ] Trainings del coach — `coach/trainings` (página vacía)
+- [ ] `actions/trainings.ts` está vacío (duplicado de `training.ts`); decidir si eliminar
+
+### Módulos del roadmap aún no iniciados
+- [ ] Notificaciones
+- [ ] Comunicación
+- [ ] Asistencia
+- [ ] Perfil del entrenador
 
 ### Base de datos
-- [ ] Triggers de base de datos (crear como migración separada):
-  - `on_auth_user_created` — crea fila en `profiles` automáticamente al registrar usuario en Supabase Auth
-  - `create_session_blocks` — crea los 4 bloques al insertar una `TrainingSession`
-  - `update_eval_scores` — recalcula `overall_score` y `normalized_score` al actualizar evaluaciones
+- [ ] Triggers: `on_auth_user_created`, `create_session_blocks`, `update_eval_scores`
 - [ ] RLS policies — habilitar y configurar para todas las tablas
-- [ ] Supabase custom access token hook — función PostgreSQL que inyecta `role` en `app_metadata` del JWT (habilita la resolución tier-1 en el middleware)
-- [ ] `npx supabase gen types typescript --project-id <id>` — reemplazar el stub permisivo en `types/database.types.ts` con tipos reales generados
-
-### Módulos (todos son placeholders vacíos)
-- [ ] Módulo 1: Gestión de usuarios (admin)
-- [ ] Módulo 2: Reservas de pistas
-- [ ] Módulo 3: Pagos (Stripe)
-- [ ] Módulo 4: Planificación (Mesociclo → Microciclo → Sesión → 4 bloques)
-- [ ] Módulo 5: Evaluaciones con KPIs
-- [ ] Módulo 6: Torneos
-- [ ] Módulo 7: Notificaciones
-- [ ] Módulo 8: Reportes y analytics
-- [ ] Módulo 9: Asistencia
-- [ ] Módulo 10: Comunicación
-- [ ] Módulo 11: Biblioteca de ejercicios
-- [ ] Módulo 12: Grupos de entrenamiento
-- [ ] Módulo 13: Perfil del entrenador
+- [ ] Supabase custom access token hook — inyecta `role` en `app_metadata` del JWT (habilita resolución tier-1 en middleware)
+- [ ] `npx supabase gen types typescript` — reemplazar el stub permisivo en `types/database.types.ts` con tipos reales (actualmente se castea `supabase as any` en varias actions)
 
 ### Integraciones
-- [ ] Stripe — webhooks, pagos de grupos, Stripe Customer Portal
-- [ ] Resend — emails transaccionales (confirmación, reset, notificaciones)
+- [ ] Stripe — webhooks, pagos de grupos, Customer Portal
+- [ ] Resend — emails transaccionales
 - [ ] Sentry — error monitoring
 - [ ] Vercel — deploy y variables de entorno en producción
 
@@ -90,39 +118,44 @@
 ## Decisiones técnicas importantes
 
 ### Prisma 7 — URL fuera del schema
-En Prisma 7, `url` y `directUrl` ya no van en `schema.prisma`. Van en `prisma.config.ts` bajo `datasource.url`. El schema solo tiene `provider = "postgresql"`.
+`url` y `directUrl` van en `prisma.config.ts` bajo `datasource.url`, no en `schema.prisma`. El schema solo tiene `provider = "postgresql"`.
 
 ### DIRECT_URL vs DATABASE_URL
-- `DATABASE_URL` puerto 6543 — pgBouncer pooled, para queries de runtime (Prisma Client en producción)
-- `DIRECT_URL` puerto 5432 — conexión directa, para migraciones (configurado en `prisma.config.ts`)
+- `DATABASE_URL` puerto 6543 — pgBouncer pooled, para queries de runtime
+- `DIRECT_URL` puerto 5432 — conexión directa, para migraciones (en `prisma.config.ts`)
 
-### Migraciones con advisory lock
-`prisma migrate dev` y `prisma migrate resolve` fallan con timeout en este proyecto de Supabase al intentar adquirir `pg_advisory_lock`. **Workaround establecido:** aplicar el SQL directamente con `psql $DIRECT_URL` e insertar el registro manualmente en `_prisma_migrations` via psql. No usar `prisma migrate dev` para futuras migraciones — en su lugar, escribir el SQL manualmente, aplicarlo con psql, e insertar en `_prisma_migrations`.
+### Migraciones con advisory lock — aplicar SQL manualmente
+`prisma migrate dev` y `prisma migrate resolve` fallan con timeout al adquirir `pg_advisory_lock` en este proyecto de Supabase. **Workaround:** escribir el SQL manualmente, aplicarlo con `psql $DIRECT_URL` e insertar el registro en `_prisma_migrations` vía psql. Las migraciones SQL se escriben idempotentes (ver `change_session_block_type_3_blocks`) para que sean seguras de re-ejecutar.
+
+### Sesiones de entrenamiento — 3 bloques
+La estructura pasó de 4 a 3 bloques: `calentamiento` (10 min) / `central` (35 min) / `vuelta_a_la_calma` (15 min). El enum `SessionBlockType` se reemplazó en `20260523120000`; `central_1_defensa` se mapeó a `central` y `central_2_ataque` se eliminó.
+
+### Reservas — pago y cancelación
+- Pago con transferencia bancaria: el jugador sube comprobante como imagen; el coach/admin confirma.
+- E-wallet de clases como método de pago alternativo; saldo siempre visible (default 0).
+- Reservas sin pagar expiran en 15 min (`expires_at`), con contador regresivo y cancelación automática.
 
 ### Resolución de rol — 3 niveles
-```
-JWT app_metadata.role  →  cookie x-user-role (1h TTL)  →  query profiles.role
-```
-El nivel 1 (JWT) está inactivo hasta configurar el custom access token hook en Supabase. Por ahora opera en nivel 3 (DB) la primera vez y nivel 2 (cookie) en requests siguientes.
+`JWT app_metadata.role → cookie x-user-role (1h TTL) → query profiles.role`. El nivel 1 (JWT) está inactivo hasta configurar el custom access token hook. Por ahora opera en nivel 3 (DB) la primera vez y nivel 2 (cookie) en requests siguientes.
 
-### Zod v4 instalado
-La propiedad de errores es `.issues`, no `.errors`. `ZodError.errors` no existe en Zod 4.
+### Tipos de Supabase aún sin generar
+`types/database.types.ts` es un stub permisivo. Varias Server Actions castean `supabase as any` para evitar errores de tipo. Se resolverá al correr `supabase gen types`.
+
+### Zod v4
+La propiedad de errores es `.issues`, no `.errors`.
 
 ### shadcn form component no disponible
-El componente `Form` de shadcn no está disponible con el estilo `base-nova`. Las páginas de auth usan `useActionState` de React 19 con Server Actions — patrón nativo de Next.js 15, sin dependencia del componente Form.
+El componente `Form` de shadcn no está disponible con `base-nova`. Las páginas usan `useActionState` de React 19 con Server Actions.
 
 ### Registro — perfil vs. trigger
-El `registerAction` inserta el perfil manualmente porque el trigger `on_auth_user_created` aún no está creado. Cuando se cree el trigger, la inserción del Server Action se volverá redundante (Supabase la ignorará con `ON CONFLICT DO NOTHING` o se puede eliminar del action).
+`registerAction` inserta el perfil manualmente porque el trigger `on_auth_user_created` aún no existe. Cuando se cree, la inserción del action se vuelve redundante.
 
 ---
 
-## Siguiente paso exacto
+## Siguiente paso sugerido
 
-**Construir el shell del dashboard** — es el paso que desbloquea poder probar el flujo completo de login → dashboard.
+Los seis módulos núcleo (reservas, E-wallet, planificación, biblioteca, grupos, evaluaciones) están operativos. Las decisiones de prioridad para lo que sigue:
 
-Orden concreto:
-1. Reemplazar `app/page.tsx` con un redirect a `/login`
-2. Crear `app/(dashboard)/layout.tsx` con sidebar funcional — navegación diferente por rol (admin / coach / player)
-3. Crear las 3 páginas de dashboard mínimas (con un `<h1>` real) para que el middleware tenga a dónde redirigir tras el login
-
-Con eso el flujo completo estará operativo: registro → confirmación email → login → middleware → dashboard de rol.
+1. **Limpieza técnica de base de datos** — triggers, RLS y generación de tipos reales eliminan deuda que afecta a todos los módulos.
+2. **Completar módulos en stub** — Usuarios (admin), Torneos, Reportes, Finanzas, Trainings del coach.
+3. **Integraciones de producción** — Stripe, Resend, Sentry y deploy en Vercel.
