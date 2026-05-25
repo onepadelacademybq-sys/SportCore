@@ -974,6 +974,15 @@ export async function getPlayerEvolution(playerId: string): Promise<PlayerEvolut
   }
 }
 
+// ─── Current player's own evolution ──────────────────────────────────────────
+
+export async function getMyEvolution(): Promise<PlayerEvolutionData | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  return getPlayerEvolution(user.id)
+}
+
 // ─── Players list for selector ────────────────────────────────────────────────
 
 export type PlayerOption = { id: string; full_name: string }
