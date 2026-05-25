@@ -8,12 +8,15 @@ export function formatCOP(amount: number): string {
 }
 
 /** Formato de fecha corta en español: "lun, 23 may" */
-export function formatDate(iso: string): string {
+export function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat('es-ES', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
-  }).format(new Date(iso))
+  }).format(d)
 }
 
 /** Rango de hora en formato 24h: "10:00 – 11:00" */

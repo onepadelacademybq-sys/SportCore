@@ -42,6 +42,18 @@ export type PaymentBehavior = {
 
 export type UserWallet = { total_classes: number; used_classes: number; available_classes: number }
 
+export type CoachTaughtClass = { id: string; start_time: string; end_time: string; status: string; price: number }
+export type CoachMesocycle   = { id: string; name: string; status: string; duration_weeks: number; start_date: string | null }
+export type CoachUpcoming    = { id: string; start_time: string; end_time: string }
+export type CoachPlayer      = { id: string; full_name: string; email: string; padel_level: string | null; group_name: string }
+
+export type CoachData = {
+  taughtClasses:   CoachTaughtClass[]
+  mesocycles:      CoachMesocycle[]
+  upcomingClasses: CoachUpcoming[]
+  assignedPlayers: CoachPlayer[]
+}
+
 export type UserProfileFull = {
   profile: {
     id: string
@@ -62,6 +74,7 @@ export type UserProfileFull = {
   assignments: UserAssignment[]
   payment: PaymentBehavior
   wallet: UserWallet
+  coach?: CoachData
 }
 
 export type UserFilters = { role?: UserRole; search?: string }
@@ -124,6 +137,85 @@ export async function getUserProfile(id: string): Promise<UserProfileFull | null
   if (!profileRow) return null
   const profile = profileRow as UserProfileFull['profile']
 
+  // ─── Coach: vista diferente ───────────────────────────────────────────────
+  if (profile.role === 'coach') {
+    const now = new Date().toISOString()
+    const [taughtRes, mesoRes, upcomingRes, groupsRes] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('id, start_time, end_time, status, price')
+        .eq('coach_id', id)
+        .in('status', ['confirmed', 'completed'])
+        .order('start_time', { ascending: false })
+        .limit(5),
+      supabase
+        .from('mesocycles')
+        .select('id, name, status, duration_weeks, start_date')
+        .eq('created_by', id)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('bookings')
+        .select('id, start_time, end_time')
+        .eq('coach_id', id)
+        .eq('status', 'confirmed')
+        .gte('start_time', now)
+        .order('start_time', { ascending: true })
+        .limit(5),
+      supabase
+        .from('training_groups')
+        .select('id, name')
+        .eq('coach_id', id)
+        .eq('status', 'active'),
+    ])
+
+    const taughtClasses: CoachTaughtClass[] = ((taughtRes.data ?? []) as CoachTaughtClass[]).map((b) => ({ ...b, price: num(b.price) }))
+    const mesocycles: CoachMesocycle[] = (mesoRes.data ?? []) as CoachMesocycle[]
+    const upcomingClasses: CoachUpcoming[] = (upcomingRes.data ?? []) as CoachUpcoming[]
+
+    const groupRows = (groupsRes.data ?? []) as { id: string; name: string }[]
+    let assignedPlayers: CoachPlayer[] = []
+    if (groupRows.length > 0) {
+      const { data: memberRows } = await supabase
+        .from('group_members')
+        .select('player_id, group_id')
+        .in('group_id', groupRows.map((g) => g.id))
+        .eq('status', 'active')
+
+      const members = (memberRows ?? []) as { player_id: string; group_id: string }[]
+      if (members.length > 0) {
+        const uniquePlayerIds = [...new Set(members.map((m) => m.player_id))]
+        const { data: playerRows } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, padel_level')
+          .in('id', uniquePlayerIds)
+
+        const groupById = new Map(groupRows.map((g) => [g.id, g.name]))
+        const playerById = new Map(
+          ((playerRows ?? []) as { id: string; full_name: string; email: string; padel_level: string | null }[])
+            .map((p) => [p.id, p])
+        )
+        const seen = new Set<string>()
+        assignedPlayers = members
+          .filter((m) => { if (seen.has(m.player_id)) return false; seen.add(m.player_id); return true })
+          .map((m) => {
+            const p = playerById.get(m.player_id)
+            return p ? { id: p.id, full_name: p.full_name, email: p.email, padel_level: p.padel_level, group_name: groupById.get(m.group_id) ?? '—' } : null
+          })
+          .filter((p): p is CoachPlayer => p !== null)
+      }
+    }
+
+    return {
+      profile,
+      bookings: [], groups: [], evaluations: [], assignments: [],
+      payment: { total: 0, paid: 0, pending: 0, cancelled: 0 },
+      wallet: { total_classes: 0, used_classes: 0, available_classes: 0 },
+      coach: { taughtClasses, mesocycles, upcomingClasses, assignedPlayers },
+    }
+  }
+
+  // ─── Player / Admin ───────────────────────────────────────────────────────
   const [
     bookingsRes,
     statusesRes,
