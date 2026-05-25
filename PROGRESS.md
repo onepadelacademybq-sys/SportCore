@@ -42,7 +42,7 @@
 - `lib/supabase/middleware.ts` — helper del middleware (refresca JWT, retorna `{supabase, response, user}`)
 
 ### Autenticación y middleware
-- `middleware.ts` — autenticación con 3 roles, protección de rutas, cache de rol en cookie `x-user-role` (httpOnly, 1h TTL)
+- `middleware.ts` — autenticación con 3 roles, protección de rutas, rol resuelto desde la DB (sin caché de cookie)
 - `app/(auth)/layout.tsx` + `login`, `register`, `forgot-password`
 - `actions/auth.ts` — `loginAction`, `registerAction`, `forgotPasswordAction`
 - `app/page.tsx` — redirige a `/login` o al dashboard del rol según sesión
@@ -143,8 +143,10 @@ La estructura pasó de 4 a 3 bloques: `calentamiento` (10 min) / `central` (35 m
 - E-wallet de clases como método de pago alternativo; saldo siempre visible (default 0).
 - Reservas sin pagar expiran en 15 min (`expires_at`), con contador regresivo y cancelación automática.
 
-### Resolución de rol — 3 niveles
-`JWT app_metadata.role → cookie x-user-role (1h TTL) → query profiles.role`. El nivel 1 (JWT) está inactivo hasta configurar el custom access token hook. Por ahora opera en nivel 3 (DB) la primera vez y nivel 2 (cookie) en requests siguientes.
+### Resolución de rol — 2 niveles (sin caché de cookie)
+`JWT app_metadata.role → query profiles.role`. El nivel 1 (JWT) está inactivo hasta configurar el custom access token hook, así que hoy opera siempre contra la DB.
+
+**Por qué se eliminó la cookie `x-user-role`:** cacheaba el rol 1h y el middleware la confiaba sin verificar. Cuando cambiaba `profiles.role`, la cookie quedaba obsoleta y el middleware enrutaba con el rol viejo, mientras el layout (que siempre lee la DB) mostraba el rol correcto — provocando un sidebar de un rol con contenido de otro. El middleware ahora lee la DB por request (igual que el layout) y borra la cookie obsoleta si existe. El logout en `actions/auth.ts` también la borra.
 
 ### Tipos de Supabase aún sin generar
 `types/database.types.ts` es un stub permisivo. Varias Server Actions castean `supabase as any` para evitar errores de tipo. Se resolverá al correr `supabase gen types`.

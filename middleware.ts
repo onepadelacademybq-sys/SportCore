@@ -19,7 +19,6 @@ const ROLE_PREFIX: Record<Role, string> = {
 
 // Returns undefined when no valid role found
 async function resolveRole(
-  request: NextRequest,
   userId: string,
   supabase: Awaited<ReturnType<typeof createClient>>['supabase']
 ): Promise<Role | undefined> {
@@ -28,11 +27,11 @@ async function resolveRole(
   const jwtRole = session?.user?.app_metadata?.role as Role | undefined
   if (jwtRole && jwtRole in ROLE_DASHBOARD) return jwtRole
 
-  // Tier 2: x-user-role cookie cache (avoids a DB hit on every request)
-  const cached = request.cookies.get('x-user-role')?.value as Role | undefined
-  if (cached && cached in ROLE_DASHBOARD) return cached
-
-  // Tier 3: profiles table lookup
+  // Tier 2: profiles table lookup (authoritative).
+  // No cookie cache: un caché de rol queda obsoleto cuando cambia profiles.role,
+  // enrutando con el rol viejo hasta que expira. El layout ya consulta la DB por
+  // request, así que esto mantiene la coherencia. Tier 1 (JWT) evita esta query
+  // cuando el hook de Supabase esté activo.
   const { data } = await supabase
     .from('profiles')
     .select('role')
@@ -69,14 +68,14 @@ export async function middleware(request: NextRequest) {
 
   // Authenticated users hitting public auth pages → send to their dashboard
   if (isPublic) {
-    const role = await resolveRole(request, user.id, supabase)
+    const role = await resolveRole(user.id, supabase)
     if (!role) return response // profile not created yet, let through
     const dashboardUrl = request.nextUrl.clone()
     dashboardUrl.pathname = ROLE_DASHBOARD[role]
     return withSessionCookies(NextResponse.redirect(dashboardUrl), response)
   }
 
-  const role = await resolveRole(request, user.id, supabase)
+  const role = await resolveRole(user.id, supabase)
 
   // Profile not yet created (race condition right after sign-up)
   if (!role) return response
@@ -98,14 +97,11 @@ export async function middleware(request: NextRequest) {
     return withSessionCookies(NextResponse.redirect(dashboardUrl), response)
   }
 
-  // Cache role in a short-lived cookie to skip the DB on the next request
-  response.cookies.set('x-user-role', role, {
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 3600,
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-  })
+  // Limpia la cookie de rol de versiones anteriores: ya no se usa caché de rol
+  // (causaba roles obsoletos). Borrarla evita que vuelva a leerse si se reintroduce.
+  if (request.cookies.has('x-user-role')) {
+    response.cookies.delete('x-user-role')
+  }
 
   return response
 }
