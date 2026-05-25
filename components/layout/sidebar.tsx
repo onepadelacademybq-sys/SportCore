@@ -16,6 +16,7 @@ import {
   BookOpen,
   LayoutList,
   LogOut,
+  UserCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -51,6 +52,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: 'Jugadores',     href: '/coach/players',   icon: Users },
     { label: 'Entrenamientos', href: '/coach/trainings', icon: Dumbbell },
     { label: 'Evaluaciones', href: '/coach/evaluations', icon: ClipboardList },
+    { label: 'Mi Perfil',    href: '/coach/profile',     icon: UserCircle },
   ],
   player: [
     { label: 'Dashboard',        href: '/player/dashboard',    icon: LayoutDashboard },

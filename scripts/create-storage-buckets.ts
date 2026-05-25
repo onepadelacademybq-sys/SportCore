@@ -6,27 +6,51 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-async function main() {
-  const { data: existing } = await supabase.storage.listBuckets()
-  const bucketIds = (existing ?? []).map((b) => b.id)
-
-  if (bucketIds.includes('payment-proofs')) {
-    console.log('✓ Bucket "payment-proofs" ya existe')
-    return
-  }
-
-  const { error } = await supabase.storage.createBucket('payment-proofs', {
+const BUCKETS = [
+  {
+    id: 'payment-proofs',
     public: false,
-    fileSizeLimit: 5 * 1024 * 1024, // 5 MB
+    fileSizeLimit: 5 * 1024 * 1024,
     allowedMimeTypes: ['image/jpeg', 'image/png', 'application/pdf'],
-  })
+    description: 'privado, máx 5 MB',
+  },
+  {
+    id: 'avatars',
+    public: true,
+    fileSizeLimit: 5 * 1024 * 1024,
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    description: 'público, máx 5 MB',
+  },
+]
 
-  if (error) {
-    console.error('✗ Error al crear bucket:', error.message)
+async function main() {
+  const { data: existing, error: listError } = await supabase.storage.listBuckets()
+  if (listError) {
+    console.error('✗ No se pudo listar buckets:', listError.message)
     process.exit(1)
   }
 
-  console.log('✓ Bucket "payment-proofs" creado (privado, máx 5 MB)')
+  const existingIds = new Set((existing ?? []).map((b) => b.id))
+
+  for (const bucket of BUCKETS) {
+    if (existingIds.has(bucket.id)) {
+      console.log(`✓ Bucket "${bucket.id}" ya existe`)
+      continue
+    }
+
+    const { error } = await supabase.storage.createBucket(bucket.id, {
+      public: bucket.public,
+      fileSizeLimit: bucket.fileSizeLimit,
+      allowedMimeTypes: bucket.allowedMimeTypes,
+    })
+
+    if (error) {
+      console.error(`✗ Error al crear "${bucket.id}":`, error.message)
+      process.exit(1)
+    }
+
+    console.log(`✓ Bucket "${bucket.id}" creado (${bucket.description})`)
+  }
 }
 
 main()
