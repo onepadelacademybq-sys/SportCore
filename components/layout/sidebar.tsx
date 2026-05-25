@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useTransition } from 'react'
 import {
   LayoutDashboard,
   Users,
@@ -80,7 +81,9 @@ interface SidebarProps {
 
 export function Sidebar({ fullName, email, role }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const navItems = NAV[role] ?? []
+  const [isPending, startTransition] = useTransition()
 
   return (
     <aside className="w-60 shrink-0 border-r bg-card flex flex-col h-screen sticky top-0">
@@ -130,17 +133,19 @@ export function Sidebar({ fullName, email, role }: SidebarProps) {
             {ROLE_LABEL[role]}
           </span>
         </div>
-        <form action={logoutAction}>
-          <Button
-            variant="outline"
-            size="sm"
-            type="submit"
-            className="w-full justify-start gap-2 text-muted-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            Cerrar sesión
-          </Button>
-        </form>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isPending}
+          onClick={() => startTransition(async () => {
+            await logoutAction()
+            router.replace('/login')
+          })}
+          className="w-full justify-start gap-2 text-muted-foreground"
+        >
+          <LogOut className="h-4 w-4" />
+          {isPending ? 'Saliendo…' : 'Cerrar sesión'}
+        </Button>
       </div>
     </aside>
   )

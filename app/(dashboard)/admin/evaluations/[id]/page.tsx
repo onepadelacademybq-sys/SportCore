@@ -36,7 +36,7 @@ export default async function AdminEvaluationDetailPage({ params }: Props) {
           </Link>
           <h1 className="text-2xl font-bold">{evaluation.title}</h1>
           <p className="text-sm text-muted-foreground">
-            {evaluation.player.full_name} · {formatDate(evaluation.evaluatedAt)} · Coach: {evaluation.coach.full_name}
+            {evaluation.player.full_name} · {formatDate(evaluation.evaluatedAt)} · Coach: {evaluation.coach?.full_name ?? '—'}
           </p>
         </div>
         <div className="flex items-center gap-2">

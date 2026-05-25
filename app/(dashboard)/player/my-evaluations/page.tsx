@@ -41,7 +41,7 @@ export default async function PlayerMyEvaluationsPage() {
           evaluationId={evaluation.id}
           title={evaluation.title}
           evaluatedAt={evaluation.evaluatedAt}
-          coachName={evaluation.coach.full_name}
+          coachName={evaluation.coach?.full_name ?? 'Entrenador'}
           notes={evaluation.notes}
         />
       ))}

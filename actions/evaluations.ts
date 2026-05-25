@@ -84,7 +84,7 @@ export type EvaluationSummary = {
   isShared:    boolean
   notes:       string | null
   player:      { id: string; full_name: string }
-  coach:       { id: string; full_name: string }
+  coach:       { id: string; full_name: string } | null
 }
 
 export type ShotRow = {
