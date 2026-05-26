@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 
 interface Props {
   groupId: string
-  myStatus: 'active' | 'waitlist' | null
+  myStatus: 'active' | 'waitlist' | 'pending_payment' | null
 }
 
 export function JoinGroupButton({ groupId, myStatus }: Props) {
@@ -22,6 +22,14 @@ export function JoinGroupButton({ groupId, myStatus }: Props) {
     return (
       <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-[#00C4CC]/15 text-[#00C4CC]">
         Inscrito
+      </span>
+    )
+  }
+
+  if (myStatus === 'pending_payment') {
+    return (
+      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-orange-500/15 text-orange-400">
+        Pago pendiente
       </span>
     )
   }

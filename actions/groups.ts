@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -43,7 +44,9 @@ export type GroupMember = {
   group_id: string
   player_id: string
   player: ProfileRef & { padel_level: string | null }
-  status: 'active' | 'waitlist' | 'inactive'
+  status: 'active' | 'waitlist' | 'inactive' | 'pending_payment'
+  payment_status: 'pending' | 'paid' | 'confirmed' | null
+  payment_proof_url: string | null
   joined_at: string
   left_at: string | null
   notes: string | null
@@ -177,12 +180,12 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
   const { data, error } = await supabase
     .from('group_members')
     .select(`
-      id, group_id, player_id, status, joined_at, left_at, notes,
+      id, group_id, player_id, status, payment_status, payment_proof_url,
+      joined_at, left_at, notes,
       player:profiles!player_id(id, full_name, email, padel_level)
     `)
     .eq('group_id', groupId)
     .neq('status', 'inactive')
-    .order('status')                              // active primero, luego waitlist
     .order('joined_at', { ascending: true })
 
   if (error) console.error('[getGroupMembers]', error)
@@ -287,7 +290,7 @@ export async function getAvailableGroups() {
     const mine    = members.find((m) => m.player_id === user.id && m.status !== 'inactive')
     return {
       ...g,
-      activeMemberCount: members.filter((m) => m.status === 'active').length,
+      activeMemberCount: members.filter((m) => m.status === 'active' || m.status === 'pending_payment').length,
       waitlistCount:     members.filter((m) => m.status === 'waitlist').length,
       myStatus: mine?.status ?? null,
     }
@@ -315,7 +318,7 @@ export async function getPlayerGroups() {
   const { data, error } = await supabase
     .from('group_members')
     .select(`
-      id, status, joined_at,
+      id, status, payment_status, payment_proof_url, joined_at,
       group:training_groups(
         id, name, level, monthly_fee, status, notes,
         coach:profiles!coach_id(id, full_name, email),
@@ -329,7 +332,9 @@ export async function getPlayerGroups() {
   if (error) console.error('[getPlayerGroups]', error)
   return (data ?? []) as unknown as {
     id: string
-    status: 'active' | 'waitlist'
+    status: 'active' | 'waitlist' | 'pending_payment'
+    payment_status: 'pending' | 'paid' | 'confirmed' | null
+    payment_proof_url: string | null
     joined_at: string
     group: Omit<TrainingGroup, 'activeMemberCount' | 'waitlistCount' | 'coach_id' | 'default_court_id' | 'default_court' | 'created_at' | 'members'>
   }[]
@@ -592,8 +597,8 @@ export async function removePlayerAction(
 
   if (error) return { error: 'Error al dar de baja al jugador.' }
 
-  // Si era activo, promover el primero de la lista de espera
-  if (m.status === 'active') {
+  // Si era activo o pending_payment, promover el primero de la lista de espera
+  if (m.status === 'active' || m.status === 'pending_payment') {
     const { data: nextInLine } = await supabase
       .from('group_members')
       .select('id')
@@ -606,12 +611,13 @@ export async function removePlayerAction(
     if (nextInLine) {
       await supabase
         .from('group_members')
-        .update({ status: 'active' })
+        .update({ status: 'pending_payment', payment_status: 'pending' })
         .eq('id', (nextInLine as { id: string }).id)
     }
   }
 
   revalidatePath('/admin/groups')
+  revalidatePath('/player/groups')
   revalidatePath(`/admin/groups/${m.group_id}`)
   return { error: null, success: 'Jugador dado de baja. Lista de espera actualizada.' }
 }
@@ -804,10 +810,13 @@ export async function requestGroupEnrollmentAction(
     .maybeSingle()
 
   if (existing) {
+    const st = (existing as any).status
     return {
-      error: (existing as any).status === 'active'
+      error: st === 'active'
         ? 'Ya estás inscrito en este grupo.'
-        : 'Ya estás en la lista de espera de este grupo.',
+        : st === 'pending_payment'
+          ? 'Ya tienes una inscripción pendiente de pago en este grupo.'
+          : 'Ya estás en la lista de espera de este grupo.',
     }
   }
 
@@ -821,19 +830,26 @@ export async function requestGroupEnrollmentAction(
   const g = group as { id: string; name: string; status: string; max_capacity: number } | null
   if (!g || g.status !== 'active') return { error: 'El grupo no está disponible.' }
 
-  const { count: activeCount } = await supabase
+  const { count: occupiedCount } = await supabase
     .from('group_members')
     .select('*', { count: 'exact', head: true })
     .eq('group_id', groupId)
-    .eq('status', 'active')
+    .in('status', ['active', 'pending_payment'])
 
-  const status: 'active' | 'waitlist' =
-    (activeCount ?? 0) < g.max_capacity ? 'active' : 'waitlist'
+  const status: 'pending_payment' | 'waitlist' =
+    (occupiedCount ?? 0) < g.max_capacity ? 'pending_payment' : 'waitlist'
 
   const { error } = await supabase
     .from('group_members')
     .upsert(
-      { group_id: groupId, player_id: user.id, status, left_at: null, joined_at: new Date().toISOString() },
+      {
+        group_id: groupId,
+        player_id: user.id,
+        status,
+        payment_status: status === 'pending_payment' ? 'pending' : null,
+        left_at: null,
+        joined_at: new Date().toISOString(),
+      },
       { onConflict: 'group_id,player_id', ignoreDuplicates: false },
     )
 
@@ -845,8 +861,8 @@ export async function requestGroupEnrollmentAction(
   revalidatePath('/player/groups')
   return {
     error: null,
-    success: status === 'active'
-      ? `¡Te has inscrito en "${g.name}"!`
+    success: status === 'pending_payment'
+      ? `Cupo reservado en "${g.name}". Completa el pago para confirmar tu inscripción.`
       : `Solicitud enviada. Estás en lista de espera de "${g.name}".`,
   }
 }
@@ -882,8 +898,8 @@ export async function cancelMyEnrollmentAction(
 
   if (error) return { error: 'Error al cancelar la inscripción.' }
 
-  // Si era activo, promover el primero de la lista de espera
-  if (m.status === 'active') {
+  // Si tenía un cupo (activo o pending_payment), promover el primero de la lista de espera
+  if (m.status === 'active' || m.status === 'pending_payment') {
     const { data: nextInLine } = await supabase
       .from('group_members')
       .select('id')
@@ -896,11 +912,126 @@ export async function cancelMyEnrollmentAction(
     if (nextInLine) {
       await supabase
         .from('group_members')
-        .update({ status: 'active' })
+        .update({ status: 'pending_payment', payment_status: 'pending' })
         .eq('id', (nextInLine as { id: string }).id)
     }
   }
 
   revalidatePath('/player/groups')
   return { error: null, success: 'Inscripción cancelada correctamente.' }
+}
+
+// ─── Jugador: subir comprobante de pago de inscripción ─────────────────────
+
+const ALLOWED_PROOF_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
+const MAX_PROOF_SIZE = 5 * 1024 * 1024
+
+export async function uploadGroupProofAction(
+  _prev: GroupActionState,
+  formData: FormData,
+): Promise<GroupActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const memberId = (formData.get('memberId') as string | null)?.trim()
+  if (!memberId) return { error: 'ID de membresía requerido' }
+
+  const file = formData.get('paymentProof') as File | null
+  if (!file || file.size === 0) return { error: 'Selecciona un comprobante de pago' }
+  if (!ALLOWED_PROOF_TYPES.includes(file.type))
+    return { error: 'Solo se aceptan archivos JPG, PNG o PDF' }
+  if (file.size > MAX_PROOF_SIZE)
+    return { error: 'El archivo no puede superar 5 MB' }
+
+  const { data: member } = await supabase
+    .from('group_members')
+    .select('id, player_id, group_id, status')
+    .eq('id', memberId)
+    .eq('player_id', user.id)
+    .single()
+
+  const m = member as { id: string; player_id: string; group_id: string; status: string } | null
+  if (!m) return { error: 'Membresía no encontrada.' }
+  if (m.status !== 'pending_payment')
+    return { error: 'Solo se puede subir comprobante para inscripciones pendientes de pago.' }
+
+  const ext    = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg'
+  const path   = `groups/${memberId}.${ext}`
+  const buffer = await file.arrayBuffer()
+  const admin  = createAdminClient()
+
+  const { error: uploadError } = await admin.storage
+    .from('payment-proofs')
+    .upload(path, buffer, { contentType: file.type, upsert: true })
+
+  if (uploadError) {
+    console.error('[uploadGroupProofAction] storage:', uploadError)
+    return { error: 'Error al subir el archivo. Intenta nuevamente.' }
+  }
+
+  const { error: dbError } = await supabase
+    .from('group_members')
+    .update({ payment_proof_url: path, payment_status: 'paid' })
+    .eq('id', memberId)
+
+  if (dbError) return { error: 'Error al actualizar la inscripción.' }
+
+  revalidatePath('/player/groups')
+  return { error: null, success: 'Comprobante enviado. El administrador verificará el pago.' }
+}
+
+// ─── Admin: confirmar pago de inscripción ───────────────────────────────────
+
+export async function confirmGroupPaymentAction(
+  _prev: GroupActionState,
+  formData: FormData,
+): Promise<GroupActionState> {
+  const { supabase } = await requireAdmin()
+
+  const memberId = (formData.get('memberId') as string | null)?.trim()
+  if (!memberId) return { error: 'ID de membresía requerido' }
+
+  const { data: member } = await supabase
+    .from('group_members')
+    .select('id, group_id, status')
+    .eq('id', memberId)
+    .single()
+
+  const m = member as { id: string; group_id: string; status: string } | null
+  if (!m) return { error: 'Membresía no encontrada.' }
+
+  const { error } = await supabase
+    .from('group_members')
+    .update({ status: 'active', payment_status: 'confirmed' })
+    .eq('id', memberId)
+
+  if (error) return { error: 'Error al confirmar el pago.' }
+
+  revalidatePath('/admin/groups')
+  revalidatePath(`/admin/groups/${m.group_id}`)
+  revalidatePath('/player/groups')
+  return { error: null, success: 'Pago confirmado. Jugador activado.' }
+}
+
+// ─── URL firmada para comprobante de pago de grupo ─────────────────────────
+
+export async function getGroupProofUrl(memberId: string, storagePath: string): Promise<string | null> {
+  const { supabase, userId, role } = await requireAuth()
+
+  if (role !== 'admin') {
+    const { data } = await supabase
+      .from('group_members')
+      .select('player_id')
+      .eq('id', memberId)
+      .single()
+    if (!data || (data as { player_id: string }).player_id !== userId) return null
+  }
+
+  const admin = createAdminClient()
+  const { data } = await admin.storage
+    .from('payment-proofs')
+    .createSignedUrl(storagePath, 60 * 60)
+
+  return data?.signedUrl ?? null
 }

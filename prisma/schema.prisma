@@ -100,6 +100,13 @@ enum GroupMemberStatus {
   active
   waitlist
   inactive
+  pending_payment
+}
+
+enum GroupMemberPaymentStatus {
+  pending
+  paid
+  confirmed
 }
 
 enum EvalCategory {
@@ -655,13 +662,16 @@ model GroupSchedule {
 }
 
 model GroupMember {
-  id       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId  String            @map("group_id") @db.Uuid
-  playerId String            @map("player_id") @db.Uuid
-  status   GroupMemberStatus @default(waitlist)
-  joinedAt DateTime          @default(now()) @map("joined_at") @db.Timestamptz(6)
-  leftAt   DateTime?         @map("left_at") @db.Timestamptz(6)
-  notes    String?
+  id                   String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId              String                     @map("group_id") @db.Uuid
+  playerId             String                     @map("player_id") @db.Uuid
+  status               GroupMemberStatus          @default(waitlist)
+  paymentStatus        GroupMemberPaymentStatus?  @map("payment_status")
+  paymentProofUrl      String?                    @map("payment_proof_url")
+  monthlyFeePaidUntil  DateTime?                  @map("monthly_fee_paid_until") @db.Date
+  joinedAt             DateTime                   @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt               DateTime?                  @map("left_at") @db.Timestamptz(6)
+  notes                String?
 
   group  TrainingGroup @relation(fields: [groupId], references: [id])
   player Profile       @relation(fields: [playerId], references: [id])

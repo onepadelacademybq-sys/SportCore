@@ -16,6 +16,8 @@ import { GroupStatusBadge } from '@/components/groups/group-status-badge'
 import { GroupForm } from '@/components/groups/group-form'
 import { EnrollPlayerForm } from '@/components/groups/enroll-player-form'
 import { RemovePlayerButton } from '@/components/groups/remove-player-button'
+import { ConfirmGroupPaymentButton } from '@/components/groups/confirm-group-payment-button'
+import { ViewGroupProofButton } from '@/components/groups/view-group-proof-button'
 import { RecordPaymentForm } from '@/components/groups/record-payment-form'
 import { GeneratePaymentsButton } from '@/components/groups/generate-payments-button'
 
@@ -53,8 +55,9 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
 
   if (!group) notFound()
 
-  const activeMembers  = members.filter((m) => m.status === 'active')
-  const waitlistMembers = members.filter((m) => m.status === 'waitlist')
+  const pendingPaymentMembers = members.filter((m) => m.status === 'pending_payment')
+  const activeMembers         = members.filter((m) => m.status === 'active')
+  const waitlistMembers       = members.filter((m) => m.status === 'waitlist')
   const activeTab = tab ?? 'members'
 
   // Prev / next month links
@@ -204,6 +207,58 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
       {/* Tab: Members */}
       {activeTab === 'members' && (
         <section className="space-y-6">
+
+          {/* Pagos de inscripción pendientes */}
+          {pendingPaymentMembers.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="font-semibold flex items-center gap-2 text-orange-400">
+                <AlertCircle className="h-4 w-4" />
+                Pagos de inscripción pendientes ({pendingPaymentMembers.length})
+              </h2>
+              <div className="rounded-lg border border-orange-500/20 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jugador</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Estado pago</th>
+                      <th className="px-4 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {pendingPaymentMembers.map((m) => (
+                      <tr key={m.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{m.player.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{m.player.email}</p>
+                        </td>
+                        <td className="px-4 py-3 hidden sm:table-cell">
+                          {m.payment_proof_url ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-400">
+                              Comprobante enviado
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/15 text-orange-400">
+                              Sin comprobante
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            {m.payment_proof_url && (
+                              <ViewGroupProofButton memberId={m.id} storagePath={m.payment_proof_url} />
+                            )}
+                            <ConfirmGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
+                            <RemovePlayerButton memberId={m.id} playerName={m.player.full_name} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Active members */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">

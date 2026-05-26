@@ -5,6 +5,7 @@ import type { GroupSchedule } from '@/actions/groups'
 import { LevelBadge } from '@/components/groups/level-badge'
 import { JoinGroupButton } from '@/components/groups/join-group-button'
 import { CancelEnrollmentButton } from '@/components/groups/cancel-enrollment-button'
+import { GroupPaymentCard } from '@/components/groups/group-payment-card'
 
 export const metadata: Metadata = { title: 'Grupos de Entrenamiento — Jugador' }
 
@@ -49,6 +50,11 @@ export default async function PlayerGroupsPage() {
                             Activo
                           </span>
                         )}
+                        {m.status === 'pending_payment' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/15 text-orange-400">
+                            Pago pendiente
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Entrenador: {g.coach?.full_name ?? '—'}
@@ -72,6 +78,14 @@ export default async function PlayerGroupsPage() {
                       <CancelEnrollmentButton memberId={m.id} groupName={g.name} />
                     </div>
                   </div>
+                  {m.status === 'pending_payment' && (
+                    <GroupPaymentCard
+                      memberId={m.id}
+                      groupName={g.name}
+                      monthlyFee={g.monthly_fee}
+                      proofSent={(m as any).payment_status === 'paid'}
+                    />
+                  )}
                 </div>
               )
             })}
