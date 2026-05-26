@@ -22,8 +22,10 @@ export function Mission() {
             </div>
             <h3 className="font-heading text-lg font-semibold">Misión</h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Desarrollar jugadores de pádel a través de una metodología científica de alto rendimiento,
-              tecnología de seguimiento y una formación integral que va más allá del juego.
+              Liderar y transformar el pádel en Barranquilla, el Atlántico y Colombia mediante un modelo
+              de formación deportiva de alta competencia que integra analítica de datos, software
+              predictivo y seguimiento biomecánico en cancha para optimizar el rendimiento y masificar
+              la disciplina.
             </p>
           </div>
 
@@ -34,8 +36,9 @@ export function Mission() {
             </div>
             <h3 className="font-heading text-lg font-semibold">Visión</h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Ser la academia de referencia en la Costa Caribe de Colombia, formando jugadores
-              competitivos y apasionados que representen a Barranquilla en el circuito nacional.
+              Para el año 2030, consolidarnos como la academia y plataforma tecnológica de referencia
+              absoluta en Latinoamérica, unificando la infraestructura deportiva física con experiencias
+              de entrenamiento digitalizadas y automatizadas mediante inteligencia artificial.
             </p>
           </div>
 
