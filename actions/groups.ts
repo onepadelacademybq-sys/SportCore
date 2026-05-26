@@ -830,11 +830,12 @@ export async function requestGroupEnrollmentAction(
   const status: 'active' | 'waitlist' =
     (activeCount ?? 0) < g.max_capacity ? 'active' : 'waitlist'
 
-  const { error } = await supabase.from('group_members').insert({
-    group_id:  groupId,
-    player_id: user.id,
-    status,
-  })
+  const { error } = await supabase
+    .from('group_members')
+    .upsert(
+      { group_id: groupId, player_id: user.id, status, left_at: null, joined_at: new Date().toISOString() },
+      { onConflict: 'group_id,player_id', ignoreDuplicates: false },
+    )
 
   if (error) {
     console.error('[requestGroupEnrollmentAction]', error)
