@@ -1,6 +1,6 @@
 # One Padel — Estado del Proyecto
 
-> Última actualización: 2026-05-25
+> Última actualización: 2026-05-26
 
 ---
 
@@ -45,10 +45,10 @@
 - `scripts/create-storage-buckets.ts` — crea/verifica ambos buckets (idempotente)
 
 ### Autenticación y middleware
-- `middleware.ts` — autenticación con 3 roles, protección de rutas, rol resuelto desde la DB (sin caché de cookie)
+- `middleware.ts` — autenticación con 3 roles, protección de rutas, rol resuelto desde la DB (sin caché de cookie); `'/'` es ruta pública
 - `app/(auth)/layout.tsx` + `login`, `register`, `forgot-password`
 - `actions/auth.ts` — `loginAction`, `registerAction`, `forgotPasswordAction`
-- `app/page.tsx` — redirige a `/login` o al dashboard del rol según sesión
+- `app/page.tsx` — muestra landing pública para no autenticados; redirige al dashboard del rol para sesiones activas
 
 ### Shell de dashboard y dashboards por rol
 - `app/(dashboard)/layout.tsx` con sidebar de navegación por rol
@@ -101,6 +101,16 @@
     - **Entrenador**: clases impartidas, mesociclos creados, próximas clases (tareas pendientes), jugadores asignados actualmente
   - Sidebar con acciones admin: cambio de rol y activar/desactivar cuenta (service-role client)
   - `formatDate` robusto: acepta `string | null | undefined`, devuelve `'—'` en caso de fecha inválida
+
+- **Landing page pública** (`app/page.tsx`, `components/landing/`, `actions/contact.ts`)
+  - Nav sticky con backdrop blur, logo, links ancla, menú hamburguesa en móvil
+  - Hero con headline, gradiente decorativo, glow orb y CTAs
+  - Stats strip: 150+ jugadores, 5 entrenadores, 4 pistas, 98% satisfacción
+  - Sección Misión / Visión / Valores (3 cards)
+  - 6 servicios en grid con hover: clases individuales, grupos, evaluación V3, torneos, reservas, planificación
+  - 3 planes de precios: clase individual $70k, módulo 8 clases $450k, grupo mensual $180k
+  - Sección de contacto: info (ubicación, horario, email, WhatsApp) + formulario funcional → tabla `contact_messages` en DB
+  - Footer con links, email y copyright
 
 - **Perfil del entrenador** (`actions/coach-profile.ts`, `lib/coach-constants.ts`, `components/coach/`, `coach/profile`)
   - `getMyCoachProfile()` — upsert automático del registro `coach_profiles` si no existe; 7 queries en paralelo para actividad
@@ -188,7 +198,7 @@ El componente `Form` de shadcn no está disponible con `base-nova`. Las páginas
 
 ## Siguiente paso sugerido
 
-Nueve módulos núcleo operativos (reservas, E-wallet, planificación, biblioteca, grupos, evaluaciones, finanzas, usuarios, perfil del entrenador). Prioridades sugeridas:
+Diez módulos/secciones operativos (reservas, E-wallet, planificación, biblioteca, grupos, evaluaciones, finanzas, usuarios, perfil del entrenador, landing pública). Prioridades sugeridas:
 
 1. **Limpieza técnica de base de datos** — triggers, RLS global y generación de tipos reales.
 2. **Módulos pendientes** — Torneos, Reportes, Trainings del coach.
