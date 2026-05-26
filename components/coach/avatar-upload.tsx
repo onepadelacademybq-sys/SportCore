@@ -46,7 +46,8 @@ export function AvatarUpload({ userId, currentUrl, fullName }: Props) {
       .upload(path, file, { upsert: true })
 
     if (uploadError) {
-      setError('Error al subir la imagen. Verifica que el bucket "avatars" existe.')
+      console.error('[AvatarUpload] Supabase Storage error:', uploadError)
+      setError(`Error al subir: ${uploadError.message} (status ${uploadError.status ?? 'unknown'})`)
       setUploading(false)
       return
     }
