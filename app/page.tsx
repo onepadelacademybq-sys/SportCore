@@ -6,6 +6,7 @@ import { Stats } from '@/components/landing/stats'
 import { Mission } from '@/components/landing/mission'
 import { Services } from '@/components/landing/services'
 import { Pricing } from '@/components/landing/pricing'
+import { GroupsSection } from '@/components/landing/groups-section'
 import { ContactForm } from '@/components/landing/contact-form'
 import { Footer } from '@/components/landing/footer'
 import { MapPin, Clock, Mail, Phone } from 'lucide-react'
@@ -40,6 +41,7 @@ export default async function HomePage() {
         <Mission />
         <Services />
         <Pricing />
+        <GroupsSection />
 
         {/* Contacto */}
         <section id="contacto" className="py-24 px-6 bg-muted/10">

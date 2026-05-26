@@ -1,199 +1,139 @@
 import Link from 'next/link'
-import { Check, Shield, Tag } from 'lucide-react'
+import { Check, Shield, Sun, Moon, CalendarDays, Tag, ClipboardList } from 'lucide-react'
 
-// ─── Clases personalizadas ───────────────────────────────────────────────────
+// ─── Clases por sesión ────────────────────────────────────────────────────────
 
-const FRANJAS = [
+const SESSION_CARDS = [
   {
-    label: 'AM',
-    sublabel: 'Lun – Vie · 5:00 – 15:00',
-    individual: '$86.000',
-    trio: '$106.000',
-    cuarteto: '$116.000',
+    icon: Sun,
+    label: 'Clase AM',
+    sublabel: 'Individual / Dupla',
+    franja: 'Lun – Vie · 5:00 – 15:00',
+    price: '$86.000',
+    period: '/hora',
+    savings: null,
+    features: [
+      '1 hora con entrenador certificado',
+      'Plan de sesión personalizado',
+      'Análisis técnico en cancha',
+    ],
+    cta: 'Agendar clase',
     highlight: false,
   },
   {
-    label: 'PM',
-    sublabel: 'Lun – Vie · 16:00 – 21:00',
-    individual: '$130.000',
-    trio: '$150.000',
-    cuarteto: '$160.000',
+    icon: Moon,
+    label: 'Clase PM',
+    sublabel: 'Individual / Dupla',
+    franja: 'Lun – Vie · 16:00 – 21:00',
+    price: '$130.000',
+    period: '/hora',
+    savings: null,
+    features: [
+      '1 hora con entrenador certificado',
+      'Plan de sesión personalizado',
+      'Análisis técnico en cancha',
+    ],
+    cta: 'Agendar clase',
     highlight: true,
   },
   {
-    label: 'FDS',
-    sublabel: 'Sáb, Dom y festivos',
-    individual: '$138.000',
-    trio: '$158.000',
-    cuarteto: '$168.000',
+    icon: CalendarDays,
+    label: 'Clase Fin de semana',
+    sublabel: 'Individual / Dupla',
+    franja: 'Sáb, Dom y festivos',
+    price: '$138.000',
+    period: '/hora',
+    savings: null,
+    features: [
+      '1 hora con entrenador certificado',
+      'Plan de sesión personalizado',
+      'Análisis técnico en cancha',
+    ],
+    cta: 'Agendar clase',
     highlight: false,
   },
 ]
 
-// ─── Módulos con descuento ───────────────────────────────────────────────────
+// ─── Módulos ──────────────────────────────────────────────────────────────────
 
-const MODULES = [
+const MODULE_CARDS = [
   {
     label: '8 clases AM',
-    sublabel: 'Lun – Vie · 5:00 – 15:00',
-    dto: '7% dto',
-    individual: '$640.000',
-    trio: '$788.600',
-    cuarteto: '$863.000',
+    sublabel: 'Individual / Dupla',
+    franja: 'Lun – Vie · 5:00 – 15:00',
+    price: '$640.000',
+    savings: 'Ahorra 7%',
+    evalV3: false,
+    features: [
+      '8 horas de entrenamiento',
+      'Franja AM flexible',
+      'Reserva online en tiempo real',
+    ],
+    cta: 'Comprar módulo',
+    highlight: false,
   },
   {
     label: '8 clases PM',
-    sublabel: 'Lun – Vie · 16:00 – 21:00',
-    dto: '7% dto',
-    individual: '$967.200',
-    trio: '$1.116.000',
-    cuarteto: '$1.190.400',
+    sublabel: 'Individual / Dupla',
+    franja: 'Lun – Vie · 16:00 – 21:00',
+    price: '$967.200',
+    savings: 'Ahorra 7%',
+    evalV3: false,
+    features: [
+      '8 horas de entrenamiento',
+      'Franja PM flexible',
+      'Reserva online en tiempo real',
+    ],
+    cta: 'Comprar módulo',
+    highlight: false,
   },
   {
     label: '16 clases AM',
-    sublabel: 'Lun – Vie · 5:00 – 15:00',
-    dto: '15% dto',
-    individual: '$1.169.600',
-    trio: '$1.441.600',
-    cuarteto: '$1.577.600',
+    sublabel: 'Individual / Dupla',
+    franja: 'Lun – Vie · 5:00 – 15:00',
+    price: '$1.169.600',
+    savings: 'Ahorra 15%',
+    evalV3: true,
+    features: [
+      '16 horas de entrenamiento',
+      'Evaluación V3 incluida',
+      'Dashboard de progreso personal',
+      'Seguimiento biomecánico',
+    ],
+    cta: 'Comprar módulo',
+    highlight: true,
   },
   {
     label: '16 clases PM',
-    sublabel: 'Lun – Vie · 16:00 – 21:00',
-    dto: '15% dto',
-    individual: '$1.768.000',
-    trio: '$2.040.000',
-    cuarteto: '$2.176.000',
+    sublabel: 'Individual / Dupla',
+    franja: 'Lun – Vie · 16:00 – 21:00',
+    price: '$1.768.000',
+    savings: 'Ahorra 15%',
+    evalV3: true,
+    features: [
+      '16 horas de entrenamiento',
+      'Evaluación V3 incluida',
+      'Dashboard de progreso personal',
+      'Seguimiento biomecánico',
+    ],
+    cta: 'Comprar módulo',
+    highlight: false,
   },
 ]
 
-// ─── Grupos mensuales ────────────────────────────────────────────────────────
+// ─── Tabla de precios para Trío y Cuarteto ────────────────────────────────────
 
-const GROUPS = [
-  {
-    name: 'Baby Pádel',
-    tag: 'Infantil',
-    price: '$260.000',
-    details: 'Máx 8 jugadores',
-    highlight: false,
-    features: [
-      'Clases grupales para niños',
-      'Metodología lúdica y formativa',
-      'Horario fijo semanal',
-      'Comunidad One Padel',
-    ],
-  },
-  {
-    name: 'Grupo Básico',
-    tag: 'Adultos y juveniles',
-    price: '$290.000',
-    details: 'Máx 4 jugadores',
-    highlight: false,
-    features: [
-      'Clases 2 – 3 veces por semana',
-      'Plan de entrenamiento grupal',
-      'Acceso a torneos internos',
-      'Comunidad One Padel',
-    ],
-  },
-  {
-    name: 'Alto Rendimiento',
-    tag: 'Adultos y juveniles',
-    price: '$380.000',
-    details: 'Máx 4 jugadores',
-    highlight: true,
-    features: [
-      'Todo del Grupo Básico',
-      'Evaluación V3 bimestral incluida',
-      'Seguimiento biomecánico en cancha',
-      'Dashboard de progreso individual',
-      'Analítica de rendimiento',
-    ],
-  },
+const TRIO_CUARTETO = [
+  { franja: 'AM · Lun–Vie',     trio: '$106.000',   cuarteto: '$116.000'   },
+  { franja: 'PM · Lun–Vie',     trio: '$150.000',   cuarteto: '$160.000'   },
+  { franja: 'FDS / festivos',   trio: '$158.000',   cuarteto: '$168.000'   },
+  { franja: 'Módulo 8 AM',      trio: '$788.600',   cuarteto: '$863.000'   },
+  { franja: 'Módulo 8 PM',      trio: '$1.116.000', cuarteto: '$1.190.400' },
+  { franja: 'Módulo 16 AM',     trio: '$1.441.600', cuarteto: '$1.577.600' },
+  { franja: 'Módulo 16 PM',     trio: '$2.040.000', cuarteto: '$2.176.000' },
 ]
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function SectionHeader({ tag, title }: { tag: string; title: string }) {
-  return (
-    <div className="mb-6">
-      <p className="text-[10px] text-[#00C4CC] uppercase tracking-widest font-semibold mb-1">{tag}</p>
-      <h3 className="font-heading text-xl font-bold">{title}</h3>
-    </div>
-  )
-}
-
-function PriceTable({ rows }: {
-  rows: Array<{
-    label: string
-    sublabel: string
-    dto?: string
-    individual: string
-    trio: string
-    cuarteto: string
-    highlight?: boolean
-  }>
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      {/* Table header */}
-      <div className="grid grid-cols-4 gap-0 border-b border-border bg-muted/20">
-        <div className="px-5 py-3">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Franja</span>
-        </div>
-        {['Individual / Dupla', 'Trío', 'Cuarteto'].map((h) => (
-          <div key={h} className="px-4 py-3 text-right border-l border-border">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">{h}</span>
-          </div>
-        ))}
-      </div>
-
-      {rows.map((row, i) => (
-        <div
-          key={row.label}
-          className={`grid grid-cols-4 gap-0 ${i < rows.length - 1 ? 'border-b border-border' : ''} ${
-            row.highlight ? 'bg-[#00C4CC]/5' : ''
-          }`}
-        >
-          {/* Franja */}
-          <div className="px-5 py-4 flex items-start gap-3">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                  row.highlight
-                    ? 'bg-[#00C4CC]/20 text-[#00C4CC]'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  {row.label}
-                </span>
-                {row.dto && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-md">
-                    <Tag className="h-2.5 w-2.5" />
-                    {row.dto}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-1">{row.sublabel}</p>
-            </div>
-          </div>
-
-          {/* Precios */}
-          {[row.individual, row.trio, row.cuarteto].map((price, j) => (
-            <div key={j} className="px-4 py-4 text-right border-l border-border flex items-center justify-end">
-              <span className={`font-heading text-base font-bold tabular-nums ${
-                row.highlight ? 'text-[#00C4CC]' : 'text-foreground'
-              }`}>
-                {price}
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── Main component ──────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function Pricing() {
   return (
@@ -214,8 +154,10 @@ export function Pricing() {
         </div>
 
         {/* Transparency banner */}
-        <div className="mb-10 rounded-xl border border-border bg-card px-6 py-4 flex items-start gap-4"
-          style={{ borderLeft: '4px solid #00C4CC' }}>
+        <div
+          className="mb-12 rounded-xl border border-border bg-card px-6 py-4 flex items-start gap-4"
+          style={{ borderLeft: '4px solid #00C4CC' }}
+        >
           <Shield className="h-5 w-5 text-[#00C4CC] shrink-0 mt-0.5" />
           <p className="text-sm text-foreground">
             <span className="font-semibold">Transparencia One Padel:</span>{' '}
@@ -223,99 +165,176 @@ export function Pricing() {
           </p>
         </div>
 
-        <div className="space-y-14">
-
-          {/* ── Clases personalizadas ── */}
-          <div>
-            <SectionHeader tag="Por sesión" title="Clases personalizadas" />
-            <p className="text-sm text-muted-foreground mb-5">
-              Precio por hora de clase. Las tarifas aplican para la sesión completa sin importar cuántas personas comparten la cancha.
+        {/* ── Clases personalizadas ── */}
+        <div className="mb-16">
+          <div className="mb-6">
+            <p className="text-[10px] text-[#00C4CC] uppercase tracking-widest font-semibold mb-1">Por sesión</p>
+            <h3 className="font-heading text-xl font-bold">Clases personalizadas</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Individual o dupla. Precio por hora, incluye cancha y entrenador.
             </p>
-            <PriceTable rows={FRANJAS} />
           </div>
 
-          {/* ── Módulos ── */}
-          <div>
-            <SectionHeader tag="Paquetes" title="Módulos con descuento" />
-            <p className="text-sm text-muted-foreground mb-5">
-              Ahorra comprando un módulo de clases. El descuento se aplica automáticamente al precio unitario de la franja.
-            </p>
-            <PriceTable rows={MODULES} />
-          </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            {SESSION_CARDS.map((card) => (
+              <div
+                key={card.label}
+                className={`rounded-2xl border p-7 space-y-5 flex flex-col ${
+                  card.highlight
+                    ? 'border-[#00C4CC] bg-[#00C4CC]/5 shadow-lg shadow-[#00C4CC]/10'
+                    : 'border-border bg-card'
+                }`}
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-[#00C4CC]/10 flex items-center justify-center mb-4">
+                    <card.icon className="h-5 w-5 text-[#00C4CC]" />
+                  </div>
+                  <h4 className="font-heading text-base font-semibold">{card.label}</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">{card.franja}</p>
+                  <div className="mt-4 flex items-end gap-1">
+                    <span className={`font-heading text-3xl font-bold tabular-nums ${card.highlight ? 'text-[#00C4CC]' : ''}`}>
+                      {card.price}
+                    </span>
+                    <span className="text-sm text-muted-foreground mb-1">{card.period}</span>
+                  </div>
+                </div>
 
-          {/* ── Grupos ── */}
-          <div>
-            <SectionHeader tag="Mensual" title="Grupos de entrenamiento" />
-            <p className="text-sm text-muted-foreground mb-5">
-              Tarifa mensual por jugador. Horario fijo semanal incluido.
-            </p>
+                <ul className="space-y-2 flex-1">
+                  {card.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm">
+                      <Check className="h-4 w-4 text-[#00C4CC] shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">{f}</span>
+                    </li>
+                  ))}
+                </ul>
 
-            <div className="grid md:grid-cols-3 gap-6">
-              {GROUPS.map((g) => (
-                <div
-                  key={g.name}
-                  className={`rounded-2xl border p-7 space-y-5 relative flex flex-col ${
-                    g.highlight
-                      ? 'border-[#00C4CC] bg-[#00C4CC]/5 shadow-lg shadow-[#00C4CC]/10'
-                      : 'border-border bg-card'
+                <Link
+                  href="/register"
+                  className={`block text-center py-2.5 px-6 rounded-lg text-sm font-semibold transition-colors ${
+                    card.highlight
+                      ? 'bg-[#00C4CC] text-black hover:bg-[#00b3ba]'
+                      : 'border border-border hover:bg-muted/50'
                   }`}
                 >
-                  {g.highlight && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-widest bg-[#00C4CC] text-black px-3 py-1 rounded-full">
-                        Más completo
-                      </span>
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-heading text-base font-semibold">{g.name}</h3>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{g.tag} · {g.details}</p>
-                    <div className="mt-4 flex items-end gap-1">
-                      <span className="font-heading text-3xl font-bold tabular-nums">{g.price}</span>
-                      <span className="text-sm text-muted-foreground mb-1">/mes</span>
-                    </div>
-                  </div>
-
-                  <ul className="space-y-2 flex-1">
-                    {g.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2.5 text-sm">
-                        <Check className="h-4 w-4 text-[#00C4CC] shrink-0 mt-0.5" />
-                        <span className="text-muted-foreground">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Link
-                    href="/register"
-                    className={`block text-center py-2.5 px-6 rounded-lg text-sm font-semibold transition-colors ${
-                      g.highlight
-                        ? 'bg-[#00C4CC] text-black hover:bg-[#00b3ba]'
-                        : 'border border-border hover:bg-muted/50'
-                    }`}
-                  >
-                    Unirse
-                  </Link>
-                </div>
-              ))}
-            </div>
+                  {card.cta}
+                </Link>
+              </div>
+            ))}
           </div>
-
         </div>
 
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* ── Módulos ── */}
+        <div className="mb-16">
+          <div className="mb-6">
+            <p className="text-[10px] text-[#00C4CC] uppercase tracking-widest font-semibold mb-1">Paquetes</p>
+            <h3 className="font-heading text-xl font-bold">Módulos con descuento</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Compra clases por paquete y ahorra. Los módulos de 16 clases incluyen Evaluación V3.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-5">
+            {MODULE_CARDS.map((card) => (
+              <div
+                key={card.label}
+                className={`rounded-2xl border p-7 space-y-5 flex flex-col relative ${
+                  card.highlight
+                    ? 'border-[#00C4CC] bg-[#00C4CC]/5 shadow-lg shadow-[#00C4CC]/10'
+                    : 'border-border bg-card'
+                }`}
+              >
+                {card.highlight && (
+                  <div className="absolute -top-3.5 left-6">
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-widest bg-[#00C4CC] text-black px-3 py-1 rounded-full">
+                      Más popular
+                    </span>
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h4 className="font-heading text-base font-semibold">{card.label}</h4>
+                    {card.evalV3 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#00C4CC] bg-[#00C4CC]/10 px-2 py-0.5 rounded-full">
+                        <ClipboardList className="h-2.5 w-2.5" />
+                        Eval. V3
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{card.franja}</p>
+                  <div className="mt-3 flex items-end gap-2">
+                    <span className={`font-heading text-3xl font-bold tabular-nums ${card.highlight ? 'text-[#00C4CC]' : ''}`}>
+                      {card.price}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md mb-1">
+                      <Tag className="h-2.5 w-2.5" />
+                      {card.savings}
+                    </span>
+                  </div>
+                </div>
+
+                <ul className="space-y-2 flex-1">
+                  {card.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm">
+                      <Check className="h-4 w-4 text-[#00C4CC] shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href="/register"
+                  className={`block text-center py-2.5 px-6 rounded-lg text-sm font-semibold transition-colors ${
+                    card.highlight
+                      ? 'bg-[#00C4CC] text-black hover:bg-[#00b3ba]'
+                      : 'border border-border hover:bg-muted/50'
+                  }`}
+                >
+                  {card.cta}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Trío y Cuarteto ── */}
+        <div className="rounded-2xl border border-border bg-card overflow-hidden mb-4">
+          <div className="px-6 py-4 border-b border-border bg-muted/20">
+            <p className="text-xs font-semibold text-muted-foreground">
+              Precios para Trío (3 personas) y Cuarteto (4 personas) — por sesión o módulo
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-6 py-3 text-[11px] text-muted-foreground font-medium">Modalidad</th>
+                  <th className="text-right px-4 py-3 text-[11px] text-muted-foreground font-medium">Trío</th>
+                  <th className="text-right px-6 py-3 text-[11px] text-muted-foreground font-medium">Cuarteto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {TRIO_CUARTETO.map((row, i) => (
+                  <tr key={row.franja} className={i < TRIO_CUARTETO.length - 1 ? 'border-b border-border' : ''}>
+                    <td className="px-6 py-3 text-muted-foreground">{row.franja}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums">{row.trio}</td>
+                    <td className="px-6 py-3 text-right font-medium tabular-nums">{row.cuarteto}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
             ¿Tienes un grupo o empresa? Escríbenos para tarifas especiales.
           </p>
-          <Link
-            href="#contacto"
-            className="text-xs text-[#00C4CC] hover:underline font-medium"
-          >
+          <a href="#contacto" className="text-xs text-[#00C4CC] hover:underline font-medium">
             Contáctanos →
-          </Link>
+          </a>
         </div>
+
       </div>
     </section>
   )
