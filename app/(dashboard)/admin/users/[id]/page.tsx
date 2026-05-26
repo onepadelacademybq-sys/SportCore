@@ -9,6 +9,7 @@ import { RoleBadge } from '@/components/users/role-badge'
 import { LevelBadge } from '@/components/groups/level-badge'
 import { StatusBadge } from '@/components/bookings/status-badge'
 import { UserActions } from '@/components/users/user-actions'
+import { RemovePlayerButton } from '@/components/groups/remove-player-button'
 
 export const metadata: Metadata = { title: 'Perfil de usuario — Admin' }
 
@@ -218,11 +219,14 @@ export default async function AdminUserDetailPage({ params }: Props) {
                 {groups.length === 0 ? (
                   <p className="text-xs text-muted-foreground">No está inscrito en ningún grupo.</p>
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className="space-y-2.5">
                     {groups.map((g) => (
-                      <li key={g.id} className="flex items-center justify-between">
-                        <Link href={`/admin/groups/${g.id}`} className="text-sm hover:text-[#00C4CC] hover:underline">{g.name}</Link>
-                        <LevelBadge level={g.level} />
+                      <li key={g.id} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Link href={`/admin/groups/${g.id}`} className="text-sm hover:text-[#00C4CC] hover:underline truncate">{g.name}</Link>
+                          <LevelBadge level={g.level} />
+                        </div>
+                        <RemovePlayerButton memberId={g.memberId} playerName={profile.full_name} />
                       </li>
                     ))}
                   </ul>

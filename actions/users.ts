@@ -29,7 +29,7 @@ export type UserBooking = {
   price: number
 }
 
-export type UserGroup = { id: string; name: string; level: string; status: string }
+export type UserGroup = { id: string; name: string; level: string; status: string; memberId: string }
 export type UserEvaluation = { id: string; title: string; evaluated_at: string; is_shared: boolean }
 export type UserAssignment = { id: string; name: string; status: string; assigned_at: string }
 
@@ -236,7 +236,7 @@ export async function getUserProfile(id: string): Promise<UserProfileFull | null
       .eq('player_id', id),
     supabase
       .from('group_members')
-      .select('group_id, status')
+      .select('id, group_id, status')
       .eq('player_id', id),
     supabase
       .from('evaluations')
@@ -271,7 +271,7 @@ export async function getUserProfile(id: string): Promise<UserProfileFull | null
   }
 
   // Grupos (resolver nombres en una segunda consulta)
-  const memberRows = (membersRes.data ?? []) as { group_id: string; status: string }[]
+  const memberRows = (membersRes.data ?? []) as { id: string; group_id: string; status: string }[]
   let groups: UserGroup[] = []
   if (memberRows.length > 0) {
     const { data: groupRows } = await supabase
@@ -282,7 +282,7 @@ export async function getUserProfile(id: string): Promise<UserProfileFull | null
     groups = memberRows
       .map((m) => {
         const g = byId.get(m.group_id)
-        return g ? { id: g.id, name: g.name, level: g.level, status: m.status } : null
+        return g ? { id: g.id, name: g.name, level: g.level, status: m.status, memberId: m.id } : null
       })
       .filter((g): g is UserGroup => g !== null)
   }

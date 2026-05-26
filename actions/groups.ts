@@ -849,3 +849,57 @@ export async function requestGroupEnrollmentAction(
       : `Solicitud enviada. Estás en lista de espera de "${g.name}".`,
   }
 }
+
+// ─── Jugador: cancelar su propia inscripción ────────────────────────────────
+
+export async function cancelMyEnrollmentAction(
+  _prev: GroupActionState,
+  formData: FormData,
+): Promise<GroupActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const memberId = (formData.get('memberId') as string | null)?.trim()
+  if (!memberId) return { error: 'ID de membresía requerido' }
+
+  // Verificar que la membresía pertenece a este jugador
+  const { data: member } = await supabase
+    .from('group_members')
+    .select('id, group_id, player_id, status')
+    .eq('id', memberId)
+    .eq('player_id', user.id)
+    .single()
+
+  const m = member as { id: string; group_id: string; player_id: string; status: string } | null
+  if (!m) return { error: 'Membresía no encontrada.' }
+
+  const { error } = await supabase
+    .from('group_members')
+    .update({ status: 'inactive', left_at: new Date().toISOString() })
+    .eq('id', memberId)
+
+  if (error) return { error: 'Error al cancelar la inscripción.' }
+
+  // Si era activo, promover el primero de la lista de espera
+  if (m.status === 'active') {
+    const { data: nextInLine } = await supabase
+      .from('group_members')
+      .select('id')
+      .eq('group_id', m.group_id)
+      .eq('status', 'waitlist')
+      .order('joined_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    if (nextInLine) {
+      await supabase
+        .from('group_members')
+        .update({ status: 'active' })
+        .eq('id', (nextInLine as { id: string }).id)
+    }
+  }
+
+  revalidatePath('/player/groups')
+  return { error: null, success: 'Inscripción cancelada correctamente.' }
+}

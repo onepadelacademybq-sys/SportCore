@@ -4,6 +4,7 @@ import { getAvailableGroups, getPlayerGroups } from '@/actions/groups'
 import type { GroupSchedule } from '@/actions/groups'
 import { LevelBadge } from '@/components/groups/level-badge'
 import { JoinGroupButton } from '@/components/groups/join-group-button'
+import { CancelEnrollmentButton } from '@/components/groups/cancel-enrollment-button'
 
 export const metadata: Metadata = { title: 'Grupos de Entrenamiento — Jugador' }
 
@@ -63,9 +64,12 @@ export default async function PlayerGroupsPage() {
                         </div>
                       )}
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-xl">${Number(g.monthly_fee).toFixed(0)}</p>
-                      <p className="text-xs text-muted-foreground">/mes</p>
+                    <div className="text-right shrink-0 space-y-2">
+                      <div>
+                        <p className="font-bold text-xl">${Number(g.monthly_fee).toFixed(0)}</p>
+                        <p className="text-xs text-muted-foreground">/mes</p>
+                      </div>
+                      <CancelEnrollmentButton memberId={m.id} groupName={g.name} />
                     </div>
                   </div>
                 </div>
