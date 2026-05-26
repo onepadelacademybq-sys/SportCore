@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/middleware'
 
 type Role = 'admin' | 'coach' | 'player'
 
-const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password']
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password']
 
 const ROLE_DASHBOARD: Record<Role, string> = {
   admin: '/admin/dashboard',
