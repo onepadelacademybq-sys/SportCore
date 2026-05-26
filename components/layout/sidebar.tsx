@@ -91,12 +91,14 @@ export function Sidebar({ fullName, email, role }: SidebarProps) {
     <aside className="w-60 shrink-0 border-r bg-card flex flex-col h-screen sticky top-0">
       {/* Brand */}
       <div className="px-5 py-6">
-        <p className="text-lg font-bold tracking-tight font-heading">
-          <span className="text-primary">One</span> Padel
-        </p>
-        <p className="text-xs text-muted-foreground tracking-widest uppercase mt-0.5">
-          Academia
-        </p>
+        <Link href="/" className="block">
+          <p className="text-lg font-bold tracking-tight font-heading">
+            <span className="text-primary">One</span> Padel
+          </p>
+          <p className="text-xs text-muted-foreground tracking-widest uppercase mt-0.5">
+            Academia
+          </p>
+        </Link>
       </div>
 
       <Separator />
