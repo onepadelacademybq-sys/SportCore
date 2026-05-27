@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { calcCourtCost, recommendedCourts } from '@/lib/tournaments/costs'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,12 @@ export interface Tournament {
   description: string | null
   requires_partner: boolean
   created_at: string
+  // Planta física
+  num_courts: number | null
+  tournament_date: string | null
+  start_time: string | null
+  end_time: string | null
+  court_cost_total: string | null
   entries?: Array<{ id: string; status: EntryStatus }>
 }
 
@@ -89,15 +96,17 @@ export { entryLabel }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
+const TOURNAMENT_SELECT_BASE = `
+  id, name, format, category, start_date, end_date, status,
+  max_entries, entry_fee, requires_partner, description, created_at,
+  num_courts, tournament_date, start_time, end_time, court_cost_total
+`
+
 export async function getTournaments(): Promise<Tournament[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tournaments')
-    .select(`
-      id, name, format, category, start_date, end_date, status,
-      max_entries, entry_fee, requires_partner, description, created_at,
-      entries:tournament_entries(id, status)
-    `)
+    .select(`${TOURNAMENT_SELECT_BASE}, entries:tournament_entries(id, status)`)
     .order('start_date', { ascending: false })
   if (error) throw error
   return (data ?? []) as Tournament[]
@@ -107,11 +116,7 @@ export async function getOpenTournaments(): Promise<Tournament[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tournaments')
-    .select(`
-      id, name, format, category, start_date, end_date, status,
-      max_entries, entry_fee, requires_partner, description, created_at,
-      entries:tournament_entries(id, status)
-    `)
+    .select(`${TOURNAMENT_SELECT_BASE}, entries:tournament_entries(id, status)`)
     .in('status', ['open', 'in_progress', 'completed'])
     .order('start_date', { ascending: false })
   if (error) throw error
@@ -123,8 +128,7 @@ export async function getTournamentById(id: string) {
   const { data, error } = await supabase
     .from('tournaments')
     .select(`
-      id, name, format, category, start_date, end_date, status,
-      max_entries, entry_fee, requires_partner, description, created_at,
+      ${TOURNAMENT_SELECT_BASE},
       entries:tournament_entries(
         id, status, registered_at, player1_id, player2_id, registered_by,
         player1:profiles!player1_id(full_name),
@@ -185,6 +189,16 @@ export async function createTournamentAction(_: unknown, formData: FormData) {
     const description = ((formData.get('description') as string) ?? '').trim() || null
     const requires_partner = formData.get('requires_partner') === 'true'
 
+    // Planta física (optional at creation)
+    const tournament_date = (formData.get('tournament_date') as string) || null
+    const start_time = (formData.get('start_time') as string) || null
+    const end_time = (formData.get('end_time') as string) || null
+    const num_courts_raw = formData.get('num_courts') as string
+    const num_courts = num_courts_raw ? Number(num_courts_raw) : null
+    const court_cost_total = (tournament_date && start_time && end_time && num_courts)
+      ? calcCourtCost(tournament_date, start_time, end_time, num_courts)
+      : null
+
     if (!name || !format || !category || !start_date || !end_date) {
       return { error: 'Completa todos los campos requeridos' }
     }
@@ -195,6 +209,7 @@ export async function createTournamentAction(_: unknown, formData: FormData) {
     const { error } = await supabase.from('tournaments').insert({
       name, format, category, start_date, end_date,
       max_entries, entry_fee, description, requires_partner,
+      tournament_date, start_time, end_time, num_courts, court_cost_total,
       created_by: userId,
     })
 
@@ -208,16 +223,74 @@ export async function createTournamentAction(_: unknown, formData: FormData) {
 
 export async function updateTournamentStatusAction(id: string, status: TournamentStatus) {
   try {
-    const { supabase } = await requireAdmin()
+    const { supabase, userId } = await requireAdmin()
     const { error } = await supabase.from('tournaments').update({ status }).eq('id', id)
     if (error) return { error: error.message }
+
+    // When starting the tournament, record court cost as a financial expense
+    if (status === 'in_progress') {
+      const { data: t } = await supabase
+        .from('tournaments')
+        .select('name, court_cost_total, tournament_date')
+        .eq('id', id).single()
+
+      if (t && t.court_cost_total && Number(t.court_cost_total) > 0) {
+        const txDate = t.tournament_date ?? new Date().toISOString().slice(0, 10)
+        await supabase.from('financial_transactions').insert({
+          type: 'expense',
+          category: 'court_cost',
+          amount: Number(t.court_cost_total),
+          description: `Alquiler de canchas — Torneo: ${t.name}`,
+          date: txDate,
+          created_by: userId,
+        })
+      }
+    }
+
     revalidatePath('/admin/tournaments')
     revalidatePath(`/admin/tournaments/${id}`)
     revalidatePath('/player/tournaments')
     revalidatePath('/coach/tournaments')
+    revalidatePath('/admin/finances')
     return { success: true }
   } catch (e: unknown) {
     return { error: e instanceof Error ? e.message : 'Error actualizando estado' }
+  }
+}
+
+export async function updateTournamentVenueAction(_: unknown, formData: FormData) {
+  try {
+    const { supabase } = await requireAdmin()
+
+    const id = formData.get('tournament_id') as string
+    const tournament_date = (formData.get('tournament_date') as string) || null
+    const start_time = (formData.get('start_time') as string) || null
+    const end_time = (formData.get('end_time') as string) || null
+    const num_courts_raw = formData.get('num_courts') as string
+    const num_courts = num_courts_raw ? Number(num_courts_raw) : null
+
+    if (!id) return { error: 'ID de torneo requerido' }
+    if (start_time && end_time) {
+      const [sh, sm] = start_time.split(':').map(Number)
+      const [eh, em] = end_time.split(':').map(Number)
+      if (eh * 60 + em <= sh * 60 + sm) {
+        return { error: 'La hora de fin debe ser posterior a la de inicio' }
+      }
+    }
+
+    const court_cost_total = (tournament_date && start_time && end_time && num_courts)
+      ? calcCourtCost(tournament_date, start_time, end_time, num_courts)
+      : null
+
+    const { error } = await supabase.from('tournaments').update({
+      tournament_date, start_time, end_time, num_courts, court_cost_total,
+    }).eq('id', id)
+
+    if (error) return { error: error.message }
+    revalidatePath(`/admin/tournaments/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Error guardando planta física' }
   }
 }
 

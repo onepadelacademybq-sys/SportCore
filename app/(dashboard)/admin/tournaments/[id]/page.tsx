@@ -5,8 +5,10 @@ import { getTournamentById, entryLabel } from '@/actions/tournaments'
 import { ConfirmEntryButton, RejectEntryButton } from '@/components/tournaments/entry-actions'
 import { TournamentStatusActions, NextRoundButton } from '@/components/tournaments/tournament-status-actions'
 import { RecordResultDialog } from '@/components/tournaments/record-result-dialog'
-import { ArrowLeft, Trophy, Calendar, Users, Info, ListChecks, Network, BarChart2 } from 'lucide-react'
+import { VenueForm } from '@/components/tournaments/venue-form'
+import { ArrowLeft, Trophy, Calendar, Users, Info, Network, BarChart2, Building2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { calcCourtCost, recommendedCourts, courtSlotType, durationHours, formatCOP, SLOT_LABELS } from '@/lib/tournaments/costs'
 
 export const metadata: Metadata = { title: 'Torneo — Admin' }
 
@@ -39,10 +41,11 @@ const MATCH_STATUS: Record<string, { label: string; className: string }> = {
 }
 
 const TABS = [
-  { key: 'info',          label: 'Información', icon: Info },
+  { key: 'info',          label: 'Información',  icon: Info },
+  { key: 'planta',        label: 'Planta Física', icon: Building2 },
   { key: 'inscripciones', label: 'Inscripciones', icon: Users },
-  { key: 'llaves',        label: 'Llaves', icon: Network },
-  { key: 'resultados',    label: 'Resultados', icon: BarChart2 },
+  { key: 'llaves',        label: 'Llaves',        icon: Network },
+  { key: 'resultados',    label: 'Resultados',    icon: BarChart2 },
 ]
 
 export default async function AdminTournamentDetailPage({
@@ -231,6 +234,173 @@ export default async function AdminTournamentDetailPage({
               ))}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* ── Tab: Planta Física ────────────────────────────────────────────── */}
+      {activeTab === 'planta' && (
+        <div className="space-y-6 max-w-2xl">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {/* Confirmed pairs → recommended courts */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs text-muted-foreground">Parejas confirmadas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-[#00C4CC]">{confirmedEntries.length}</p>
+                {(() => {
+                  const rec = recommendedCourts(confirmedEntries.length)
+                  return rec ? (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">→ {rec} canchas recomendadas</p>
+                  ) : confirmedEntries.length > 0 ? (
+                    <p className="text-[10px] text-amber-400 mt-0.5">fuera del rango automático</p>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">sin inscritos confirmados</p>
+                  )
+                })()}
+              </CardContent>
+            </Card>
+
+            {/* Current num_courts */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs text-muted-foreground">Canchas configuradas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-amber-400">{tournament.num_courts ?? '—'}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {tournament.start_time ? `${tournament.start_time.slice(0,5)} – ${tournament.end_time?.slice(0,5) ?? '?'}` : 'sin horario'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Court cost total */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs text-muted-foreground">Costo total de canchas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tournament.court_cost_total ? (
+                  <>
+                    <p className="text-xl font-bold text-emerald-400">{formatCOP(Number(tournament.court_cost_total))}</p>
+                    {confirmedEntries.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {formatCOP(Math.ceil(Number(tournament.court_cost_total) / confirmedEntries.length))} / pareja
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-2xl font-bold text-muted-foreground/40">—</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Slot breakdown if scheduled */}
+          {tournament.tournament_date && tournament.start_time && tournament.end_time && tournament.num_courts && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  Detalle de costos
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {(() => {
+                  const slot  = courtSlotType(tournament.tournament_date, tournament.start_time.slice(0,5))
+                  const hours = durationHours(tournament.start_time.slice(0,5), tournament.end_time.slice(0,5))
+                  const totalCost = calcCourtCost(
+                    tournament.tournament_date,
+                    tournament.start_time.slice(0,5),
+                    tournament.end_time.slice(0,5),
+                    Number(tournament.num_courts),
+                  )
+                  const perPair = confirmedEntries.length > 0
+                    ? Math.ceil(totalCost / confirmedEntries.length) : 0
+                  const perEntry = tournament.entry_fee ? Number(tournament.entry_fee) : 0
+                  const deficit  = totalCost - (confirmedEntries.length * perEntry)
+
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 gap-y-2">
+                        <span className="text-muted-foreground">Fecha evento</span>
+                        <span>{new Date(tournament.tournament_date + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        <span className="text-muted-foreground">Horario</span>
+                        <span>{tournament.start_time.slice(0,5)} – {tournament.end_time.slice(0,5)} ({hours % 1 === 0 ? hours : hours.toFixed(1)} h)</span>
+                        <span className="text-muted-foreground">Franja</span>
+                        <span>{SLOT_LABELS[slot]}</span>
+                        <span className="text-muted-foreground">Canchas</span>
+                        <span>{tournament.num_courts}</span>
+                        <span className="text-muted-foreground">Costo total</span>
+                        <span className="font-semibold text-amber-400">{formatCOP(totalCost)}</span>
+                      </div>
+
+                      {confirmedEntries.length > 0 && (
+                        <div className={`mt-3 rounded-lg p-3 border text-sm ${
+                          deficit <= 0
+                            ? 'bg-emerald-500/10 border-emerald-500/30'
+                            : 'bg-red-500/10 border-red-500/30'
+                        }`}>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Costo por pareja (recomendado)</span>
+                            <span className="font-semibold">{formatCOP(perPair)}</span>
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className="text-muted-foreground">Inscripción actual</span>
+                            <span>{formatCOP(perEntry)}</span>
+                          </div>
+                          <div className="flex justify-between mt-1 border-t pt-1">
+                            <span className="text-muted-foreground">
+                              {deficit > 0 ? 'Déficit estimado' : 'Superávit estimado'}
+                            </span>
+                            <span className={`font-semibold ${deficit > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                              {deficit > 0 ? '-' : '+'}{formatCOP(Math.abs(deficit))}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Edit form */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                Editar planta física
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VenueForm
+                tournamentId={id}
+                confirmedPairs={confirmedEntries.length}
+                initial={{
+                  tournament_date: tournament.tournament_date ?? null,
+                  start_time: tournament.start_time?.slice(0, 5) ?? null,
+                  end_time: tournament.end_time?.slice(0, 5) ?? null,
+                  num_courts: tournament.num_courts ?? null,
+                  court_cost_total: tournament.court_cost_total ?? null,
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Note about financial registration */}
+          {tournament.status !== 'in_progress' && tournament.court_cost_total && (
+            <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-4 py-3">
+              El egreso de <strong>{formatCOP(Number(tournament.court_cost_total))}</strong> se registrará automáticamente en Finanzas cuando inicies el torneo (cambio a "En curso").
+            </p>
+          )}
+          {tournament.status === 'in_progress' && (
+            <p className="text-xs text-emerald-400 bg-emerald-400/10 rounded-lg px-4 py-3">
+              El costo de canchas ya fue registrado como egreso en el módulo de Finanzas al iniciar el torneo.
+            </p>
+          )}
         </div>
       )}
 
