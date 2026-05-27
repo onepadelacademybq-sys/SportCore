@@ -106,6 +106,11 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                   <td className="px-4 py-3">
                     <div className="space-y-1">
                       <StatusBadge status={b.status} />
+                      {b.status === 'cancelled' && b.wallet_credit_slot && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400">
+                          Crédito wallet {(b.wallet_credit_slot as string).toUpperCase()}
+                        </span>
+                      )}
                       {b.status === 'paid' && b.payment_proof_url && (
                         <ViewProofButton
                           bookingId={b.id}

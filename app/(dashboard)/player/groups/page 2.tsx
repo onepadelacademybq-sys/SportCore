@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
-import { Clock } from 'lucide-react'
+import { Clock, AlertTriangle, CheckCircle, Info } from 'lucide-react'
 import { getAvailableGroups, getPlayerGroups } from '@/actions/groups'
 import type { GroupSchedule } from '@/actions/groups'
 import { LevelBadge } from '@/components/groups/level-badge'
 import { JoinGroupButton } from '@/components/groups/join-group-button'
 import { CancelEnrollmentButton } from '@/components/groups/cancel-enrollment-button'
 import { GroupPaymentCard } from '@/components/groups/group-payment-card'
+import { calcBilling } from '@/lib/groups/billing'
 
 export const metadata: Metadata = { title: 'Grupos de Entrenamiento — Jugador' }
 
@@ -31,10 +32,26 @@ export default async function PlayerGroupsPage() {
 
           <div className="space-y-3">
             {myGroups.map((m) => {
-              const g = m.group
+              const g      = m.group
+              const billing = m.status === 'active' ? calcBilling(m as any) : null
 
               return (
-                <div key={m.id} className="rounded-lg border border-[#00C4CC]/30 bg-[#00C4CC]/5 p-4">
+                <div key={m.id} className="rounded-lg border border-[#00C4CC]/30 bg-[#00C4CC]/5 p-4 space-y-3">
+                  {/* Warning banner */}
+                  {billing?.showWarning && !billing.isOverdue && (
+                    <div className="flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-amber-400 text-xs">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Tu próximo pago vence en {billing.daysUntilDue} día{billing.daysUntilDue !== 1 ? 's' : ''}.
+                    </div>
+                  )}
+                  {billing?.isOverdue && (
+                    <div className="flex items-center gap-2 rounded-md bg-red-500/10 border border-red-500/30 px-3 py-2 text-red-400 text-xs">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Pago vencido hace {billing.daysLate} día{billing.daysLate !== 1 ? 's' : ''}.
+                      Aplica 10% de mora — total a pagar: <strong className="ml-1">${billing.amount.toLocaleString('es-CO')}</strong>
+                    </div>
+                  )}
+
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -78,6 +95,33 @@ export default async function PlayerGroupsPage() {
                       <CancelEnrollmentButton memberId={m.id} groupName={g.name} />
                     </div>
                   </div>
+
+                  {/* Billing info for active members */}
+                  {billing && (m as any).next_payment_due && (
+                    <div className={`rounded-md border px-3 py-2 flex items-center gap-2 text-xs ${
+                      billing.isOverdue
+                        ? 'bg-red-500/5 border-red-500/20 text-red-400'
+                        : billing.showWarning
+                          ? 'bg-amber-500/5 border-amber-500/20 text-amber-400'
+                          : 'bg-muted/50 border-border text-muted-foreground'
+                    }`}>
+                      {billing.isOverdue
+                        ? <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        : billing.showWarning
+                          ? <Info className="h-3.5 w-3.5 shrink-0" />
+                          : <CheckCircle className="h-3.5 w-3.5 shrink-0 text-[#00C4CC]" />
+                      }
+                      <span>
+                        Próximo pago:{' '}
+                        <strong>{(m as any).next_payment_due}</strong>
+                        {billing.daysUntilDue > 0 && !billing.showWarning && (
+                          <span className="ml-1 text-[#00C4CC]">({billing.daysUntilDue} días)</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Payment card for pending_payment members */}
                   {m.status === 'pending_payment' && (
                     <GroupPaymentCard
                       memberId={m.id}

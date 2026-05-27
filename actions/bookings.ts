@@ -29,6 +29,8 @@ export type Booking = {
   coach:  ProfileRef | null
   player: ProfileRef | null
   court:  CourtRef   | null
+  // present only in admin view
+  wallet_credit_slot?: string | null
 }
 
 export type CoachOption = { id: string; full_name: string; email: string }
@@ -138,7 +140,8 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
       id, start_time, end_time, status, notes, payment_proof_url, price, expires_at, created_at,
       coach:profiles!coach_id(id, full_name, email),
       player:profiles!player_id(id, full_name, email),
-      court:courts!court_id(id, name)
+      court:courts!court_id(id, name),
+      wallet_credits:wallet_transactions(slot_type, type)
     `)
     .order('created_at', { ascending: false })
 
@@ -147,7 +150,14 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
   }
 
   const { data } = await query
-  return (data ?? []) as unknown as Booking[]
+  return ((data ?? []) as any[]).map((b) => {
+    const credit = (b.wallet_credits ?? []).find((t: any) => t.type === 'credit')
+    return {
+      ...b,
+      wallet_credit_slot: credit?.slot_type ?? null,
+      wallet_credits: undefined,
+    }
+  }) as unknown as Booking[]
 }
 
 /** Bloques ocupados de un entrenador en el rango de fechas dado (para el calendario) */
@@ -419,6 +429,23 @@ export async function confirmBookingAction(
   return { error: null, success: 'Reserva confirmada.' }
 }
 
+// ─── Helpers para tipo de franja horaria ─────────────────────────────────────
+
+type SlotType = 'am' | 'pm' | 'weekend'
+
+function getSlotType(startTime: string): SlotType {
+  const d   = new Date(startTime)
+  const day = d.getUTCDay()   // 0=Dom, 6=Sáb
+  if (day === 0 || day === 6) return 'weekend'
+  return d.getUTCHours() < 16 ? 'am' : 'pm'
+}
+
+const SLOT_LABELS: Record<SlotType, string> = {
+  am:      'AM',
+  pm:      'PM',
+  weekend: 'FDS',
+}
+
 // ─── Admin / Player: cancelar reserva ────────────────────────────────────────
 
 export async function cancelBookingAction(
@@ -432,20 +459,66 @@ export async function cancelBookingAction(
 
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, player_id, status')
+    .select('id, player_id, status, start_time')
     .eq('id', bookingId)
     .single()
 
-  const b = booking as { player_id: string; status: string } | null
+  const b = booking as { player_id: string; status: string; start_time: string } | null
   if (!b) return { error: 'Reserva no encontrada' }
 
   if (role !== 'admin') {
     if (b.player_id !== userId) return { error: 'Sin permisos para cancelar esta reserva' }
-    if (b.status === 'confirmed') {
-      return { error: 'Solo el administrador puede cancelar reservas ya confirmadas' }
+
+    // Reservas pendientes (sin pago aún): cancelación libre, sin crédito wallet
+    if (b.status === 'pending') {
+      await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
+      revalidatePath('/player/bookings')
+      return { error: null, success: 'Reserva cancelada.' }
     }
+
+    // Reservas pagadas o confirmadas: requieren 24 h de anticipación
+    if (b.status === 'paid' || b.status === 'confirmed') {
+      const hoursUntil = (new Date(b.start_time).getTime() - Date.now()) / 3_600_000
+      if (hoursUntil < 24) {
+        return {
+          error: `No se puede cancelar con menos de 24 horas de anticipación. La clase está en ${Math.max(0, Math.floor(hoursUntil))}h.`,
+        }
+      }
+
+      // Cancelar y acreditar 1 clase a la wallet
+      const { error: cancelErr } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId)
+
+      if (cancelErr) return { error: 'Error al cancelar la reserva.' }
+
+      const slot      = getSlotType(b.start_time)
+      const label     = SLOT_LABELS[slot]
+      const classDate = new Date(b.start_time).toLocaleDateString('es-CO', {
+        day: 'numeric', month: 'short',
+      })
+
+      await creditClasses(
+        supabase,
+        userId,
+        bookingId,
+        1,
+        `Cancelación - clase ${label} del ${classDate}`,
+        slot,
+      )
+
+      revalidatePath('/player/bookings')
+      return {
+        error: null,
+        success: `Clase cancelada. Se acreditó 1 clase ${label} a tu E-wallet.`,
+      }
+    }
+
+    return { error: 'Esta reserva no puede cancelarse.' }
   }
 
+  // Admin: cancelación directa sin restricciones
   const { error } = await supabase
     .from('bookings')
     .update({ status: 'cancelled' })
@@ -453,7 +526,8 @@ export async function cancelBookingAction(
 
   if (error) return { error: 'Error al cancelar la reserva' }
 
-  revalidatePath(role === 'admin' ? '/admin/bookings' : '/player/bookings')
+  revalidatePath('/admin/bookings')
+  revalidatePath('/player/bookings')
   return { error: null, success: 'Reserva cancelada.' }
 }
 

@@ -1,90 +1,271 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dumbbell, ClipboardList, Calendar, Star } from 'lucide-react'
+import { formatBookingDateTime } from '@/lib/format'
+import { Calendar, CheckCircle, Wallet, Star, Users, Clock } from 'lucide-react'
 
 export const metadata: Metadata = { title: 'Dashboard — Jugador' }
 
-const STATS = [
-  { label: 'Próxima sesión', icon: Calendar, value: '—' },
-  { label: 'Sesiones completadas', icon: Dumbbell, value: '—' },
-  { label: 'Evaluaciones realizadas', icon: ClipboardList, value: '—' },
-  { label: 'Nivel actual', icon: Star, value: '—' },
-]
+const LEVEL_LABELS: Record<string, string> = {
+  '5ta_masculino':  '5ta Masc.',
+  '6ta_masculino':  '6ta Masc.',
+  '7ma_masculino':  '7ma Masc.',
+  femenino_d:       'Fem. D',
+  femenino_c:       'Fem. C',
+  juvenil_s18:      'Sub-18',
+  juvenil_s16:      'Sub-16',
+  juvenil_s14:      'Sub-14',
+  prejuvenil:       'Prejuvenil',
+  baby_padel:       'Baby Pádel',
+}
+
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  confirmed: { label: 'Confirmada',  className: 'bg-[#00C4CC]/10 text-[#00C4CC]' },
+  completed: { label: 'Completada',  className: 'bg-emerald-500/10 text-emerald-400' },
+  pending:   { label: 'Pendiente',   className: 'bg-amber-500/10 text-amber-400' },
+  paid:      { label: 'Pago enviado',className: 'bg-blue-500/10 text-blue-400' },
+  cancelled: { label: 'Cancelada',   className: 'bg-muted text-muted-foreground' },
+}
+
+const MEMBER_STATUS: Record<string, { label: string; className: string }> = {
+  active:          { label: 'Activo',          className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  pending_payment: { label: 'Pago pendiente',  className: 'bg-orange-500/15 text-orange-400' },
+  waitlist:        { label: 'Lista de espera', className: 'bg-amber-500/15 text-amber-400' },
+}
 
 export default async function PlayerDashboardPage() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  const playerId = user!.id
+  const nowIso   = new Date().toISOString()
 
-  const { data } = await supabase
-    .from('profiles')
-    .select('full_name, padel_level')
-    .eq('id', user!.id)
-    .single()
+  const [
+    { data: profile },
+    { count: completedCount },
+    { data: wallet },
+    { data: nextBookings },
+    { data: recentBookings },
+    { data: myGroups },
+  ] = await Promise.all([
+    supabase.from('profiles')
+      .select('full_name, padel_level')
+      .eq('id', playerId)
+      .single(),
 
-  const profile = data as { full_name?: string; padel_level?: string } | null
-  const fullName = profile?.full_name ?? 'Jugador'
-  const level = profile?.padel_level ?? null
+    supabase.from('bookings').select('*', { count: 'exact', head: true })
+      .eq('player_id', playerId)
+      .eq('status', 'completed'),
+
+    supabase.from('class_wallet')
+      .select('available_classes, total_classes, used_classes')
+      .eq('player_id', playerId)
+      .maybeSingle(),
+
+    // Próximas reservas confirmadas
+    supabase.from('bookings')
+      .select(`
+        id, start_time, end_time, status,
+        coach:profiles!coach_id(full_name),
+        court:courts!court_id(name)
+      `)
+      .eq('player_id', playerId)
+      .eq('status', 'confirmed')
+      .gte('start_time', nowIso)
+      .order('start_time', { ascending: true })
+      .limit(1),
+
+    // Últimas 3 reservas (cualquier estado)
+    supabase.from('bookings')
+      .select(`
+        id, start_time, end_time, status,
+        coach:profiles!coach_id(full_name),
+        court:courts!court_id(name)
+      `)
+      .eq('player_id', playerId)
+      .order('start_time', { ascending: false })
+      .limit(3),
+
+    // Grupos en los que está inscrito
+    supabase.from('group_members')
+      .select(`
+        id, status,
+        group:training_groups(
+          id, name, level,
+          coach:profiles!coach_id(full_name),
+          schedules:group_schedules(day_of_week, start_time, end_time)
+        )
+      `)
+      .eq('player_id', playerId)
+      .neq('status', 'inactive')
+      .order('joined_at', { ascending: false }),
+  ])
+
+  const prof      = profile as any
+  const fullName  = prof?.full_name ?? 'Jugador'
+  const level     = prof?.padel_level ?? null
+  const w         = wallet as any
+  const nextClass = ((nextBookings ?? []) as any[])[0]
+
+  const kpis = [
+    {
+      label: 'Próxima clase',
+      value: nextClass
+        ? new Date(nextClass.start_time).toLocaleString('es-CO', {
+            weekday: 'short', day: 'numeric', month: 'short',
+          })
+        : 'Sin clases',
+      sub: nextClass
+        ? `${new Date(nextClass.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} · ${nextClass.coach?.full_name ?? ''}`
+        : '—',
+      icon: Calendar,
+      color: nextClass ? 'text-[#00C4CC]' : 'text-muted-foreground',
+    },
+    {
+      label: 'Sesiones completadas',
+      value: completedCount ?? 0,
+      sub: 'total histórico',
+      icon: CheckCircle,
+      color: 'text-emerald-400',
+    },
+    {
+      label: 'Clases en E-wallet',
+      value: w?.available_classes ?? 0,
+      sub: w ? `${w.used_classes} usadas · ${w.total_classes} totales` : 'Sin billetera',
+      icon: Wallet,
+      color: 'text-amber-400',
+    },
+    {
+      label: 'Nivel actual',
+      value: level ? LEVEL_LABELS[level] ?? level : '—',
+      sub: level ? 'categoría asignada' : 'sin clasificar',
+      icon: Star,
+      color: level ? 'text-purple-400' : 'text-muted-foreground',
+    },
+  ]
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-8 space-y-8 max-w-5xl">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-bold">Bienvenido, {fullName}</h1>
           <span className="text-xs font-medium bg-[#00C4CC]/15 text-[#00C4CC] px-2.5 py-1 rounded-full">
             Jugador
           </span>
           {level && (
-            <span className="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-1 rounded-full capitalize">
-              {level}
+            <span className="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-1 rounded-full">
+              {LEVEL_LABELS[level] ?? level}
             </span>
           )}
         </div>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Tu progreso y actividad en la academia
-        </p>
+        <p className="text-muted-foreground mt-1 text-sm">Tu progreso y actividad en la academia</p>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map(({ label, icon: Icon, value }) => (
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map(({ label, value, sub, icon: Icon, color }) => (
           <Card key={label}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {label}
-              </CardTitle>
-              <Icon className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium text-muted-foreground leading-tight">{label}</CardTitle>
+              <Icon className={`h-4 w-4 shrink-0 ${color}`} />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{value}</p>
+              <p className={`text-2xl font-bold leading-tight ${color}`}>{value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Placeholder sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Últimas reservas */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Mi entrenamiento actual</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Últimas reservas
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Próximamente — mesociclo y sesiones asignadas
-            </p>
+          <CardContent className="space-y-0">
+            {((recentBookings ?? []) as any[]).length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">No tienes reservas aún.</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {((recentBookings ?? []) as any[]).map((b) => {
+                  const cfg = STATUS_CONFIG[b.status] ?? { label: b.status, className: 'bg-muted text-muted-foreground' }
+                  return (
+                    <div key={b.id} className="py-2.5 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {b.coach?.full_name ?? 'Entrenador no asignado'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatBookingDateTime(b.start_time, b.end_time)}
+                        </p>
+                        {b.court && (
+                          <p className="text-xs text-muted-foreground">{b.court.name}</p>
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-medium shrink-0 px-1.5 py-0.5 rounded ${cfg.className}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div className="pt-3">
+              <Link href="/player/bookings" className="text-xs text-[#00C4CC] hover:underline">
+                Ver todas mis reservas →
+              </Link>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Mis grupos */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Mis evaluaciones</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Mis grupos de entrenamiento
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Próximamente — historial y evolución de KPIs
-            </p>
+          <CardContent className="space-y-0">
+            {((myGroups ?? []) as any[]).length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">No estás inscrito en ningún grupo.</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {((myGroups ?? []) as any[]).map((m) => {
+                  const g   = m.group as any
+                  const cfg = MEMBER_STATUS[m.status] ?? { label: m.status, className: 'bg-muted text-muted-foreground' }
+                  const days = [...new Set(((g?.schedules ?? []) as any[]).map((s: any) => s.day_of_week as number))]
+                    .sort()
+                    .map((d) => ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][d])
+                    .join(' · ')
+                  return (
+                    <div key={m.id} className="py-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{g?.name ?? '—'}</p>
+                          {days && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{days}</p>
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-medium shrink-0 px-1.5 py-0.5 rounded ${cfg.className}`}>
+                          {cfg.label}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div className="pt-3">
+              <Link href="/player/groups" className="text-xs text-[#00C4CC] hover:underline">
+                Ver grupos disponibles →
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

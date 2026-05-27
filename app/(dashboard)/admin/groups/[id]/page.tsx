@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronLeft, Users, AlertCircle } from 'lucide-react'
+import { ChevronLeft, Users, AlertCircle, TrendingUp } from 'lucide-react'
 import {
   getGroupById,
   getGroupMembers,
@@ -11,6 +11,7 @@ import {
   updateGroupAction,
 } from '@/actions/groups'
 import { getCoaches, getCourts } from '@/actions/bookings'
+import { calcBilling } from '@/lib/groups/billing'
 import { LevelBadge } from '@/components/groups/level-badge'
 import { GroupStatusBadge } from '@/components/groups/group-status-badge'
 import { GroupForm } from '@/components/groups/group-form'
@@ -185,9 +186,10 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
       <div className="border-b border-border">
         <div className="flex gap-0">
           {[
-            { key: 'members', label: 'Jugadores' },
-            { key: 'payments', label: 'Pagos' },
-            { key: 'edit', label: 'Editar grupo' },
+            { key: 'members',  label: 'Jugadores' },
+            { key: 'billing',  label: 'Facturación' },
+            { key: 'payments', label: 'Pagos históricos' },
+            { key: 'edit',     label: 'Editar grupo' },
           ].map(({ key, label }) => (
             <Link
               key={key}
@@ -346,6 +348,144 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {/* Tab: Billing */}
+      {activeTab === 'billing' && (
+        <section className="space-y-6">
+          {/* Pending inscription payments */}
+          {pendingPaymentMembers.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="font-semibold flex items-center gap-2 text-orange-400">
+                <AlertCircle className="h-4 w-4" />
+                Pagos de inscripción pendientes ({pendingPaymentMembers.length})
+              </h2>
+              <div className="rounded-lg border border-orange-500/20 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jugador</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Tarifa</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Comprobante</th>
+                      <th className="px-4 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {pendingPaymentMembers.map((m) => (
+                      <tr key={m.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{m.player.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{m.player.email}</p>
+                        </td>
+                        <td className="px-4 py-3 hidden sm:table-cell text-sm font-mono">
+                          ${Number(m.monthly_fee ?? group.monthly_fee).toLocaleString('es-CO')}
+                        </td>
+                        <td className="px-4 py-3 hidden sm:table-cell">
+                          {m.payment_proof_url ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-400">
+                              Enviado
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/15 text-orange-400">
+                              Sin enviar
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            {m.payment_proof_url && (
+                              <ViewGroupProofButton memberId={m.id} storagePath={m.payment_proof_url} />
+                            )}
+                            <ConfirmGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
+                            <RemovePlayerButton memberId={m.id} playerName={m.player.full_name} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Active member billing cycles */}
+          <div className="space-y-3">
+            <h2 className="font-semibold flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              Ciclos de pago — jugadores activos
+            </h2>
+
+            {activeMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
+                No hay jugadores activos.
+              </p>
+            ) : (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jugador</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Próximo venc.</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Monto</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {activeMembers.map((m) => {
+                      const billing = calcBilling(m)
+                      return (
+                        <tr key={m.id} className="hover:bg-muted/20 transition-colors">
+                          <td className="px-4 py-3">
+                            <p className="font-medium">{m.player.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{m.player.email}</p>
+                          </td>
+                          <td className="px-4 py-3 hidden sm:table-cell text-xs text-muted-foreground">
+                            {m.next_payment_due ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 hidden sm:table-cell text-sm font-mono">
+                            {billing ? (
+                              billing.isOverdue ? (
+                                <span className="text-red-400">
+                                  ${billing.amount.toLocaleString('es-CO')}
+                                  <span className="text-xs ml-1 font-sans">(+10% mora)</span>
+                                </span>
+                              ) : (
+                                `$${billing.fee.toLocaleString('es-CO')}`
+                              )
+                            ) : (
+                              `$${Number(group.monthly_fee).toLocaleString('es-CO')}`
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {!billing || !m.next_payment_due ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                                Sin ciclo
+                              </span>
+                            ) : billing.isOverdue ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-400">
+                                <AlertCircle className="h-3 w-3" />
+                                Vencido {billing.daysLate}d
+                              </span>
+                            ) : billing.showWarning ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400">
+                                <AlertCircle className="h-3 w-3" />
+                                Vence en {billing.daysUntilDue}d
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400">
+                                Al día
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </section>
       )}
 

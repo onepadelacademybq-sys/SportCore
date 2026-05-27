@@ -1,16 +1,32 @@
 import type { Metadata } from 'next'
 import { getCoaches, getPlayerBookings } from '@/actions/bookings'
+import type { Booking } from '@/actions/bookings'
 import { getPlayerWallet, getWalletTransactions } from '@/actions/wallet'
 import { BookingRequestForm } from '@/components/bookings/booking-request-form'
 import { PaymentCard } from '@/components/bookings/payment-card'
 import { PaymentProofForm } from '@/components/bookings/payment-proof-form'
 import { BookingCountdown } from '@/components/bookings/booking-countdown'
 import { CancelBookingButton } from '@/components/bookings/confirm-booking-form'
+import { CancelMyBookingButton } from '@/components/bookings/cancel-my-booking-button'
 import { StatusBadge } from '@/components/bookings/status-badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { formatBookingDateTime } from '@/lib/format'
 import { Wallet, TrendingUp, TrendingDown } from 'lucide-react'
+
+type SlotLabel = 'AM' | 'PM' | 'FDS'
+
+function getSlotLabel(startTime: string): SlotLabel {
+  const d   = new Date(startTime)
+  const day = d.getUTCDay()
+  if (day === 0 || day === 6) return 'FDS'
+  return d.getUTCHours() < 16 ? 'AM' : 'PM'
+}
+
+function canCancelWithCredit(b: Booking): boolean {
+  if (!['confirmed', 'paid'].includes(b.status)) return false
+  return (new Date(b.start_time).getTime() - Date.now()) >= 24 * 3_600_000
+}
 
 export const metadata: Metadata = { title: 'Mis Reservas' }
 
@@ -150,8 +166,25 @@ export default async function PlayerBookingsPage() {
                     </>
                   )}
 
-                  {/* Cancelar — solo si no está confirmada */}
-                  {b.status !== 'confirmed' && (
+                  {/* Cancelar clase (pagada/confirmada) — con crédito wallet */}
+                  {canCancelWithCredit(b) && (
+                    <div className="flex justify-end pt-1">
+                      <CancelMyBookingButton
+                        bookingId={b.id}
+                        slotLabel={getSlotLabel(b.start_time)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Aviso de cancelación tardía para pagadas/confirmadas */}
+                  {['confirmed', 'paid'].includes(b.status) && !canCancelWithCredit(b) && (
+                    <p className="text-[10px] text-muted-foreground text-right">
+                      Cancelación no disponible (menos de 24 h)
+                    </p>
+                  )}
+
+                  {/* Cancelar reserva pendiente — sin crédito wallet */}
+                  {b.status === 'pending' && (
                     <div className="flex justify-end">
                       <CancelBookingButton bookingId={b.id} />
                     </div>

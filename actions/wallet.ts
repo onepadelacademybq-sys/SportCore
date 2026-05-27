@@ -20,6 +20,7 @@ export type WalletTransaction = {
   description: string
   created_at:  string
   booking_id:  string | null
+  slot_type:   'am' | 'pm' | 'weekend' | 'any' | null
 }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ export async function getWalletTransactions(limit = 10): Promise<WalletTransacti
 
   const { data } = await supabase
     .from('wallet_transactions')
-    .select('id, type, classes, description, created_at, booking_id')
+    .select('id, type, classes, description, created_at, booking_id, slot_type')
     .eq('player_id', user.id)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -74,6 +75,7 @@ export async function creditClasses(
   bookingId: string,
   classes: number,
   description: string,
+  slotType: 'am' | 'pm' | 'weekend' | 'any' = 'any',
 ): Promise<void> {
   // Upsert wallet — create if player has none yet
   const { data: existing } = await supabase
@@ -101,6 +103,7 @@ export async function creditClasses(
     type:        'credit',
     classes,
     description,
+    slot_type:   slotType,
   })
 }
 

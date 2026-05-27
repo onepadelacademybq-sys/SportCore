@@ -1,19 +1,16 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { recordGroupIncome } from '@/actions/finances'
-import { nextClassDate, addOneMonth, formatDate } from '@/lib/groups/billing'
 
 // ─── Shared types ──────────────────────────────────────────────────────────────
 
 export type GroupActionState = { error: string | null; success?: string }
 
-type ProfileRef    = { id: string; full_name: string; email: string }
-type SupabaseClient = Awaited<ReturnType<typeof createClient>>
+type ProfileRef = { id: string; full_name: string; email: string }
 type CourtRef   = { id: string; name: string }
 
 export type GroupSchedule = {
@@ -41,20 +38,12 @@ export type TrainingGroup = {
   waitlistCount: number
 }
 
-export type GroupMemberPaymentStatus = 'pending_payment' | 'paid' | 'confirmed' | 'overdue'
-
 export type GroupMember = {
   id: string
   group_id: string
   player_id: string
   player: ProfileRef & { padel_level: string | null }
-  status: 'active' | 'waitlist' | 'inactive' | 'pending_payment'
-  payment_status: GroupMemberPaymentStatus | null
-  payment_proof_url: string | null
-  cycle_start_date: string | null
-  next_payment_due: string | null
-  monthly_fee: string | null
-  late_fee_applied: boolean
+  status: 'active' | 'waitlist' | 'inactive'
   joined_at: string
   left_at: string | null
   notes: string | null
@@ -80,18 +69,6 @@ export type GroupFinancials = {
   pendingCount: number
   overdueCount: number
   collectionRate: number  // 0–100
-}
-
-export type GroupSession = {
-  id: string
-  group_id: string
-  coach_id: string | null
-  court_id: string | null
-  start_time: string
-  end_time: string
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'
-  notes: string | null
-  court: { id: string; name: string } | null
 }
 
 // ─── Auth guards ───────────────────────────────────────────────────────────────
@@ -200,13 +177,12 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
   const { data, error } = await supabase
     .from('group_members')
     .select(`
-      id, group_id, player_id, status, payment_status, payment_proof_url,
-      cycle_start_date, next_payment_due, monthly_fee, late_fee_applied,
-      joined_at, left_at, notes,
+      id, group_id, player_id, status, joined_at, left_at, notes,
       player:profiles!player_id(id, full_name, email, padel_level)
     `)
     .eq('group_id', groupId)
     .neq('status', 'inactive')
+    .order('status')                              // active primero, luego waitlist
     .order('joined_at', { ascending: true })
 
   if (error) console.error('[getGroupMembers]', error)
@@ -311,7 +287,7 @@ export async function getAvailableGroups() {
     const mine    = members.find((m) => m.player_id === user.id && m.status !== 'inactive')
     return {
       ...g,
-      activeMemberCount: members.filter((m) => m.status === 'active' || m.status === 'pending_payment').length,
+      activeMemberCount: members.filter((m) => m.status === 'active').length,
       waitlistCount:     members.filter((m) => m.status === 'waitlist').length,
       myStatus: mine?.status ?? null,
     }
@@ -339,8 +315,7 @@ export async function getPlayerGroups() {
   const { data, error } = await supabase
     .from('group_members')
     .select(`
-      id, status, payment_status, payment_proof_url, joined_at,
-      cycle_start_date, next_payment_due, monthly_fee, late_fee_applied,
+      id, status, joined_at,
       group:training_groups(
         id, name, level, monthly_fee, status, notes,
         coach:profiles!coach_id(id, full_name, email),
@@ -354,13 +329,7 @@ export async function getPlayerGroups() {
   if (error) console.error('[getPlayerGroups]', error)
   return (data ?? []) as unknown as {
     id: string
-    status: 'active' | 'waitlist' | 'pending_payment'
-    payment_status: GroupMemberPaymentStatus | null
-    payment_proof_url: string | null
-    cycle_start_date: string | null
-    next_payment_due: string | null
-    monthly_fee: string | null
-    late_fee_applied: boolean
+    status: 'active' | 'waitlist'
     joined_at: string
     group: Omit<TrainingGroup, 'activeMemberCount' | 'waitlistCount' | 'coach_id' | 'default_court_id' | 'default_court' | 'created_at' | 'members'>
   }[]
@@ -393,7 +362,7 @@ export async function createGroupAction(
   _prev: GroupActionState,
   formData: FormData,
 ): Promise<GroupActionState> {
-  const { supabase, userId } = await requireAdmin()
+  const { supabase } = await requireAdmin()
 
   const parsed = GroupUpsertSchema.safeParse({
     name:           formData.get('name'),
@@ -431,14 +400,13 @@ export async function createGroupAction(
     return { error: groupErr?.message ?? 'Error al crear el grupo. Intenta nuevamente.' }
   }
 
-  // Insertar horarios y generar agenda de sesiones
-  let parsedSchedules: { dayOfWeek: number; startTime: string; endTime: string }[] = []
+  // Insertar horarios si se proporcionaron
   if (schedulesJson) {
     try {
-      parsedSchedules = JSON.parse(schedulesJson)
-      if (parsedSchedules.length > 0) {
+      const schedules: { dayOfWeek: number; startTime: string; endTime: string }[] = JSON.parse(schedulesJson)
+      if (schedules.length > 0) {
         await supabase.from('group_schedules').insert(
-          parsedSchedules.map((s) => ({
+          schedules.map((s) => ({
             group_id:    group.id,
             day_of_week: s.dayOfWeek,
             start_time:  s.startTime,
@@ -449,22 +417,6 @@ export async function createGroupAction(
     } catch {
       // Horarios inválidos — el grupo ya se creó, no bloqueamos
     }
-  }
-
-  // Generar sesiones del mes actual y siguiente automáticamente
-  if (parsedSchedules.length > 0) {
-    const groupRef: GroupRef = {
-      id:              (group as { id: string }).id,
-      name,
-      coach_id:        coachId,
-      default_court_id: defaultCourtId || null,
-    }
-    const scheduleRefs: ScheduleRef[] = parsedSchedules.map((s) => ({
-      day_of_week: s.dayOfWeek,
-      start_time:  s.startTime,
-      end_time:    s.endTime,
-    }))
-    await generateGroupSessionsInternal(supabase, groupRef, scheduleRefs, userId)
   }
 
   revalidatePath('/admin/groups')
@@ -640,8 +592,8 @@ export async function removePlayerAction(
 
   if (error) return { error: 'Error al dar de baja al jugador.' }
 
-  // Si era activo o pending_payment, promover el primero de la lista de espera
-  if (m.status === 'active' || m.status === 'pending_payment') {
+  // Si era activo, promover el primero de la lista de espera
+  if (m.status === 'active') {
     const { data: nextInLine } = await supabase
       .from('group_members')
       .select('id')
@@ -654,13 +606,12 @@ export async function removePlayerAction(
     if (nextInLine) {
       await supabase
         .from('group_members')
-        .update({ status: 'pending_payment', payment_status: 'pending_payment' })
+        .update({ status: 'active' })
         .eq('id', (nextInLine as { id: string }).id)
     }
   }
 
   revalidatePath('/admin/groups')
-  revalidatePath('/player/groups')
   revalidatePath(`/admin/groups/${m.group_id}`)
   return { error: null, success: 'Jugador dado de baja. Lista de espera actualizada.' }
 }
@@ -853,49 +804,37 @@ export async function requestGroupEnrollmentAction(
     .maybeSingle()
 
   if (existing) {
-    const st = (existing as any).status
     return {
-      error: st === 'active'
+      error: (existing as any).status === 'active'
         ? 'Ya estás inscrito en este grupo.'
-        : st === 'pending_payment'
-          ? 'Ya tienes una inscripción pendiente de pago en este grupo.'
-          : 'Ya estás en la lista de espera de este grupo.',
+        : 'Ya estás en la lista de espera de este grupo.',
     }
   }
 
   // Verificar que el grupo existe y está activo
   const { data: group } = await supabase
     .from('training_groups')
-    .select('id, name, status, max_capacity, monthly_fee')
+    .select('id, name, status, max_capacity')
     .eq('id', groupId)
     .single()
 
-  const g = group as { id: string; name: string; status: string; max_capacity: number; monthly_fee: string } | null
+  const g = group as { id: string; name: string; status: string; max_capacity: number } | null
   if (!g || g.status !== 'active') return { error: 'El grupo no está disponible.' }
 
-  const { count: occupiedCount } = await supabase
+  const { count: activeCount } = await supabase
     .from('group_members')
     .select('*', { count: 'exact', head: true })
     .eq('group_id', groupId)
-    .in('status', ['active', 'pending_payment'])
+    .eq('status', 'active')
 
-  const status: 'pending_payment' | 'waitlist' =
-    (occupiedCount ?? 0) < g.max_capacity ? 'pending_payment' : 'waitlist'
+  const status: 'active' | 'waitlist' =
+    (activeCount ?? 0) < g.max_capacity ? 'active' : 'waitlist'
 
-  const { error } = await supabase
-    .from('group_members')
-    .upsert(
-      {
-        group_id: groupId,
-        player_id: user.id,
-        status,
-        payment_status: status === 'pending_payment' ? 'pending_payment' : null,
-        monthly_fee:    status === 'pending_payment' ? Number(g.monthly_fee) : null,
-        left_at: null,
-        joined_at: new Date().toISOString(),
-      },
-      { onConflict: 'group_id,player_id', ignoreDuplicates: false },
-    )
+  const { error } = await supabase.from('group_members').insert({
+    group_id:  groupId,
+    player_id: user.id,
+    status,
+  })
 
   if (error) {
     console.error('[requestGroupEnrollmentAction]', error)
@@ -905,463 +844,8 @@ export async function requestGroupEnrollmentAction(
   revalidatePath('/player/groups')
   return {
     error: null,
-    success: status === 'pending_payment'
-      ? `Cupo reservado en "${g.name}". Completa el pago para confirmar tu inscripción.`
+    success: status === 'active'
+      ? `¡Te has inscrito en "${g.name}"!`
       : `Solicitud enviada. Estás en lista de espera de "${g.name}".`,
   }
-}
-
-// ─── Jugador: cancelar su propia inscripción ────────────────────────────────
-
-export async function cancelMyEnrollmentAction(
-  _prev: GroupActionState,
-  formData: FormData,
-): Promise<GroupActionState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const memberId = (formData.get('memberId') as string | null)?.trim()
-  if (!memberId) return { error: 'ID de membresía requerido' }
-
-  // Verificar que la membresía pertenece a este jugador
-  const { data: member } = await supabase
-    .from('group_members')
-    .select('id, group_id, player_id, status')
-    .eq('id', memberId)
-    .eq('player_id', user.id)
-    .single()
-
-  const m = member as { id: string; group_id: string; player_id: string; status: string } | null
-  if (!m) return { error: 'Membresía no encontrada.' }
-
-  const { error } = await supabase
-    .from('group_members')
-    .update({ status: 'inactive', left_at: new Date().toISOString() })
-    .eq('id', memberId)
-
-  if (error) return { error: 'Error al cancelar la inscripción.' }
-
-  // Si tenía un cupo (activo o pending_payment), promover el primero de la lista de espera
-  if (m.status === 'active' || m.status === 'pending_payment') {
-    const { data: nextInLine } = await supabase
-      .from('group_members')
-      .select('id')
-      .eq('group_id', m.group_id)
-      .eq('status', 'waitlist')
-      .order('joined_at', { ascending: true })
-      .limit(1)
-      .maybeSingle()
-
-    if (nextInLine) {
-      await supabase
-        .from('group_members')
-        .update({ status: 'pending_payment', payment_status: 'pending_payment' })
-        .eq('id', (nextInLine as { id: string }).id)
-    }
-  }
-
-  revalidatePath('/player/groups')
-  return { error: null, success: 'Inscripción cancelada correctamente.' }
-}
-
-// ─── Jugador: subir comprobante de pago de inscripción ─────────────────────
-
-const ALLOWED_PROOF_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
-const MAX_PROOF_SIZE = 5 * 1024 * 1024
-
-export async function uploadGroupProofAction(
-  _prev: GroupActionState,
-  formData: FormData,
-): Promise<GroupActionState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const memberId = (formData.get('memberId') as string | null)?.trim()
-  if (!memberId) return { error: 'ID de membresía requerido' }
-
-  const file = formData.get('paymentProof') as File | null
-  if (!file || file.size === 0) return { error: 'Selecciona un comprobante de pago' }
-  if (!ALLOWED_PROOF_TYPES.includes(file.type))
-    return { error: 'Solo se aceptan archivos JPG, PNG o PDF' }
-  if (file.size > MAX_PROOF_SIZE)
-    return { error: 'El archivo no puede superar 5 MB' }
-
-  const { data: member } = await supabase
-    .from('group_members')
-    .select('id, player_id, group_id, status')
-    .eq('id', memberId)
-    .eq('player_id', user.id)
-    .single()
-
-  const m = member as { id: string; player_id: string; group_id: string; status: string } | null
-  if (!m) return { error: 'Membresía no encontrada.' }
-  if (m.status !== 'pending_payment')
-    return { error: 'Solo se puede subir comprobante para inscripciones pendientes de pago.' }
-
-  const ext    = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg'
-  const path   = `groups/${memberId}.${ext}`
-  const buffer = await file.arrayBuffer()
-  const admin  = createAdminClient()
-
-  const { error: uploadError } = await admin.storage
-    .from('payment-proofs')
-    .upload(path, buffer, { contentType: file.type, upsert: true })
-
-  if (uploadError) {
-    console.error('[uploadGroupProofAction] storage:', uploadError)
-    return { error: 'Error al subir el archivo. Intenta nuevamente.' }
-  }
-
-  const { error: dbError } = await supabase
-    .from('group_members')
-    .update({ payment_proof_url: path, payment_status: 'paid' })
-    .eq('id', memberId)
-
-  if (dbError) return { error: 'Error al actualizar la inscripción.' }
-
-  revalidatePath('/player/groups')
-  return { error: null, success: 'Comprobante enviado. El administrador verificará el pago.' }
-}
-
-// ─── Admin: confirmar pago de inscripción ───────────────────────────────────
-
-export async function confirmGroupPaymentAction(
-  _prev: GroupActionState,
-  formData: FormData,
-): Promise<GroupActionState> {
-  const { supabase } = await requireAdmin()
-
-  const memberId = (formData.get('memberId') as string | null)?.trim()
-  if (!memberId) return { error: 'ID de membresía requerido' }
-
-  const { data: member } = await supabase
-    .from('group_members')
-    .select('id, group_id, status, next_payment_due')
-    .eq('id', memberId)
-    .single()
-
-  const m = member as { id: string; group_id: string; status: string; next_payment_due: string | null } | null
-  if (!m) return { error: 'Membresía no encontrada.' }
-
-  // Calcular ciclo de pago anclado a la próxima clase
-  const { data: schedulesData } = await supabase
-    .from('group_schedules')
-    .select('day_of_week')
-    .eq('group_id', m.group_id)
-
-  const schedules = (schedulesData ?? []) as { day_of_week: number }[]
-  const now        = new Date()
-  const cycleStart = nextClassDate(schedules, now)
-  const nextDue    = addOneMonth(cycleStart)
-
-  // Mora: si había una fecha de vencimiento previa y ya pasó el período de gracia
-  const isLate = m.next_payment_due
-    ? now > new Date(new Date(m.next_payment_due).getTime() + 4 * 24 * 60 * 60 * 1000)
-    : false
-
-  const { error } = await supabase
-    .from('group_members')
-    .update({
-      status:           'active',
-      payment_status:   'confirmed',
-      cycle_start_date: formatDate(cycleStart),
-      next_payment_due: formatDate(nextDue),
-      late_fee_applied: isLate,
-    })
-    .eq('id', memberId)
-
-  if (error) return { error: 'Error al confirmar el pago.' }
-
-  revalidatePath('/admin/groups')
-  revalidatePath(`/admin/groups/${m.group_id}`)
-  revalidatePath('/player/groups')
-  return { error: null, success: 'Pago confirmado. Jugador activado.' }
-}
-
-// ─── Agenda de sesiones grupales ───────────────────────────────────────────────
-
-// Devuelve todas las fechas de un mes que coinciden con un día de la semana (0=Dom)
-function datesInMonth(year: number, month: number, dayOfWeek: number): Date[] {
-  const dates: Date[] = []
-  const d = new Date(year, month - 1, 1)
-  while (d.getMonth() === month - 1) {
-    if (d.getDay() === dayOfWeek) dates.push(new Date(d))
-    d.setDate(d.getDate() + 1)
-  }
-  return dates
-}
-
-// Combina una fecha y un string "HH:MM:SS" → "YYYY-MM-DDTHH:MM:SS"
-function toDateTime(date: Date, timeStr: string): string {
-  const [h, m, s] = timeStr.split(':').map(Number)
-  const pad = (n: number) => String(Math.floor(n)).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(h)}:${pad(m)}:${pad(s ?? 0)}`
-}
-
-type GroupRef = { id: string; name: string; coach_id: string; default_court_id: string | null }
-type ScheduleRef = { day_of_week: number; start_time: string; end_time: string }
-
-async function insertSessionsForMonth(
-  supabase: SupabaseClient,
-  group: GroupRef,
-  schedules: ScheduleRef[],
-  year: number,
-  month: number,
-  adminId: string,
-): Promise<number> {
-  if (!schedules.length) return 0
-
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const monthStart = `${year}-${pad(month)}-01T00:00:00`
-  const nextY = month === 12 ? year + 1 : year
-  const nextM = month === 12 ? 1 : month + 1
-  const monthEnd = `${nextY}-${pad(nextM)}-01T00:00:00`
-
-  // Evitar duplicados chequeando qué slots ya existen en ese mes
-  const { data: existing } = await supabase
-    .from('bookings')
-    .select('start_time')
-    .eq('group_id', group.id)
-    .gte('start_time', monthStart)
-    .lt('start_time', monthEnd)
-
-  const seen = new Set((existing ?? []).map((b: any) => b.start_time.slice(0, 16)))
-
-  const rows: Record<string, unknown>[] = []
-  for (const sched of schedules) {
-    for (const date of datesInMonth(year, month, sched.day_of_week)) {
-      const startIso = toDateTime(date, sched.start_time)
-      const endIso   = toDateTime(date, sched.end_time)
-      if (!seen.has(startIso.slice(0, 16))) {
-        rows.push({
-          group_id:   group.id,
-          coach_id:   group.coach_id,
-          court_id:   group.default_court_id,
-          created_by: adminId,
-          start_time: startIso,
-          end_time:   endIso,
-          status:     'confirmed',   // ya confirmadas para bloquear el calendario del entrenador
-          notes:      `Clase grupal - ${group.name}`,
-          price:      0,
-        })
-        seen.add(startIso.slice(0, 16))
-      }
-    }
-  }
-
-  if (!rows.length) return 0
-  const { error } = await supabase.from('bookings').insert(rows)
-  if (error) console.error('[insertSessionsForMonth]', error)
-  return rows.length
-}
-
-/** Genera sesiones para el mes actual + siguiente. Lllamada internamente al crear el grupo. */
-async function generateGroupSessionsInternal(
-  supabase: SupabaseClient,
-  group: GroupRef,
-  schedules: ScheduleRef[],
-  adminId: string,
-): Promise<number> {
-  const today = new Date()
-  const y = today.getFullYear()
-  const m = today.getMonth() + 1
-  const ny = m === 12 ? y + 1 : y
-  const nm = m === 12 ? 1 : m + 1
-  return (
-    (await insertSessionsForMonth(supabase, group, schedules, y, m, adminId)) +
-    (await insertSessionsForMonth(supabase, group, schedules, ny, nm, adminId))
-  )
-}
-
-/** Admin: (re)generar sesiones del grupo para el mes actual y siguiente */
-export async function generateGroupSessionsAction(
-  _prev: GroupActionState,
-  formData: FormData,
-): Promise<GroupActionState> {
-  const { supabase, userId } = await requireAdmin()
-
-  const groupId = (formData.get('groupId') as string | null)?.trim()
-  if (!groupId) return { error: 'ID de grupo requerido' }
-
-  const { data: group } = await supabase
-    .from('training_groups')
-    .select('id, name, coach_id, default_court_id, schedules:group_schedules(day_of_week, start_time, end_time)')
-    .eq('id', groupId)
-    .single()
-
-  if (!group) return { error: 'Grupo no encontrado' }
-
-  const schedules = ((group as any).schedules ?? []) as ScheduleRef[]
-  if (!schedules.length) return { error: 'El grupo no tiene horarios definidos.' }
-
-  const count = await generateGroupSessionsInternal(supabase, group as any, schedules, userId)
-
-  revalidatePath(`/admin/groups/${groupId}`)
-  return {
-    error: null,
-    success: count > 0
-      ? `${count} sesiones generadas correctamente.`
-      : 'No se generaron sesiones (ya existen para esos meses).',
-  }
-}
-
-/** Admin/Coach: todas las sesiones de un grupo */
-export async function getGroupSessions(groupId: string): Promise<GroupSession[]> {
-  const { supabase } = await requireAuth()
-
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      id, group_id, coach_id, court_id, start_time, end_time, status, notes,
-      court:courts!court_id(id, name)
-    `)
-    .eq('group_id', groupId)
-    .neq('status', 'cancelled')
-    .order('start_time', { ascending: true })
-
-  if (error) console.error('[getGroupSessions]', error)
-  return (data ?? []) as unknown as GroupSession[]
-}
-
-/** Próximas sesiones confirmadas de un grupo — para jugadores inscritos */
-export async function getUpcomingGroupSessions(groupId: string): Promise<GroupSession[]> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
-
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      id, group_id, coach_id, court_id, start_time, end_time, status, notes,
-      court:courts!court_id(id, name)
-    `)
-    .eq('group_id', groupId)
-    .eq('status', 'confirmed')
-    .gte('start_time', new Date().toISOString())
-    .order('start_time', { ascending: true })
-    .limit(8)
-
-  if (error) console.error('[getUpcomingGroupSessions]', error)
-  return (data ?? []) as unknown as GroupSession[]
-}
-
-/** Admin: confirmar una sesión (p.ej. tras reprogramar o si se creó como pending) */
-export async function confirmGroupSessionAction(
-  _prev: GroupActionState,
-  formData: FormData,
-): Promise<GroupActionState> {
-  const { supabase } = await requireAdmin()
-
-  const sessionId = (formData.get('sessionId') as string | null)?.trim()
-  if (!sessionId) return { error: 'ID de sesión requerido' }
-
-  const { data: session } = await supabase
-    .from('bookings')
-    .select('group_id')
-    .eq('id', sessionId)
-    .single()
-
-  const { error } = await supabase
-    .from('bookings')
-    .update({ status: 'confirmed' })
-    .eq('id', sessionId)
-
-  if (error) return { error: 'Error al confirmar la sesión.' }
-
-  if (session) {
-    revalidatePath(`/admin/groups/${(session as any).group_id}`)
-    revalidatePath('/coach/groups')
-  }
-  return { error: null, success: 'Sesión confirmada.' }
-}
-
-/** Admin: cancelar una sesión (libera el horario del entrenador) */
-export async function cancelGroupSessionAction(
-  _prev: GroupActionState,
-  formData: FormData,
-): Promise<GroupActionState> {
-  const { supabase } = await requireAdmin()
-
-  const sessionId = (formData.get('sessionId') as string | null)?.trim()
-  if (!sessionId) return { error: 'ID de sesión requerido' }
-
-  const { data: session } = await supabase
-    .from('bookings')
-    .select('group_id')
-    .eq('id', sessionId)
-    .single()
-
-  const { error } = await supabase
-    .from('bookings')
-    .update({ status: 'cancelled' })
-    .eq('id', sessionId)
-
-  if (error) return { error: 'Error al cancelar la sesión.' }
-
-  if (session) {
-    revalidatePath(`/admin/groups/${(session as any).group_id}`)
-    revalidatePath('/coach/groups')
-    revalidatePath('/player/groups')
-  }
-  return { error: null, success: 'Sesión cancelada. El horario del entrenador queda libre.' }
-}
-
-/** Llama al cargar la agenda: si quedan < 14 días de sesiones futuras, genera el mes siguiente */
-export async function ensureFutureGroupSessions(groupId: string): Promise<void> {
-  const { supabase, userId, role } = await requireAuth()
-  if (role !== 'admin') return
-
-  const { data: last } = await supabase
-    .from('bookings')
-    .select('start_time')
-    .eq('group_id', groupId)
-    .in('status', ['confirmed', 'pending'])
-    .order('start_time', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const lastDate     = last ? new Date((last as any).start_time) : new Date()
-  const twoWeeksOut  = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-
-  if (lastDate > twoWeeksOut) return
-
-  // La última sesión está dentro de 2 semanas → generar el mes siguiente
-  const pivot      = lastDate > new Date() ? lastDate : new Date()
-  const targetYear = pivot.getMonth() === 11 ? pivot.getFullYear() + 1 : pivot.getFullYear()
-  const targetMonth = pivot.getMonth() === 11 ? 1 : pivot.getMonth() + 2 // getMonth() es 0-indexed
-
-  const { data: group } = await supabase
-    .from('training_groups')
-    .select('id, name, coach_id, default_court_id, schedules:group_schedules(day_of_week, start_time, end_time)')
-    .eq('id', groupId)
-    .single()
-
-  if (!group) return
-  const schedules = ((group as any).schedules ?? []) as ScheduleRef[]
-  await insertSessionsForMonth(supabase, group as any, schedules, targetYear, targetMonth, userId)
-  revalidatePath(`/admin/groups/${groupId}`)
-}
-
-// ─── URL firmada para comprobante de pago de grupo ─────────────────────────
-
-export async function getGroupProofUrl(memberId: string, storagePath: string): Promise<string | null> {
-  const { supabase, userId, role } = await requireAuth()
-
-  if (role !== 'admin') {
-    const { data } = await supabase
-      .from('group_members')
-      .select('player_id')
-      .eq('id', memberId)
-      .single()
-    if (!data || (data as { player_id: string }).player_id !== userId) return null
-  }
-
-  const admin = createAdminClient()
-  const { data } = await admin.storage
-    .from('payment-proofs')
-    .createSignedUrl(storagePath, 60 * 60)
-
-  return data?.signedUrl ?? null
 }
