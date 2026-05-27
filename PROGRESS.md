@@ -1,6 +1,6 @@
 # One Padel — Estado del Proyecto
 
-> Última actualización: 2026-05-26
+> Última actualización: 2026-05-27
 
 ---
 
@@ -15,7 +15,7 @@
 ### Base de datos
 - Prisma 7 schema (`prisma/schema.prisma`) — 32 modelos, enums del Protocolo V3, reservas y finanzas
 - Base de datos: Supabase PostgreSQL 16 en `aws-1-sa-east-1`
-- Migraciones aplicadas (12):
+- Migraciones aplicadas (14):
   - `20260522165058_init_one_padel` — todas las tablas iniciales
   - `20260522180000_add_profile_document_address` — `document_id` y `address` en `profiles`
   - `20260522190000_fix_updated_at_defaults`
@@ -28,6 +28,8 @@
   - `20260523160000_create_wallet_tables` — E-wallet de clases
   - `20260524100000_create_eval_specialized_tables` — tablas especializadas de evaluación V3
   - `20260525120000_create_finances_module` — `financial_transactions`, `bank_accounts`, enums financieros y tarifas por franja en `coach_profiles`
+  - `20260526110000_group_members_billing_cycle` — `cycle_start_date`, `next_payment_due`, `monthly_fee`, `late_fee_applied` en `group_members`; enum `GroupMemberPaymentStatus`
+  - `wallet_transactions.slot_type TEXT` — campo para distinguir clase AM/PM/FDS acreditada en cancelaciones
 
 ### Infraestructura de proyecto
 - Next.js 15.5 con App Router, TypeScript 5, Turbopack
@@ -46,14 +48,17 @@
 
 ### Autenticación y middleware
 - `middleware.ts` — autenticación con 3 roles, protección de rutas, rol resuelto desde la DB (sin caché de cookie); `'/'` es ruta pública
-- `app/(auth)/layout.tsx` + `login`, `register`, `forgot-password`
+- `app/(auth)/layout.tsx` + `login`, `register`, `forgot-password`; logos con link a landing
 - `actions/auth.ts` — `loginAction`, `registerAction`, `forgotPasswordAction`
 - `app/page.tsx` — muestra landing pública para no autenticados; redirige al dashboard del rol para sesiones activas
 
 ### Shell de dashboard y dashboards por rol
 - `app/(dashboard)/layout.tsx` con sidebar de navegación por rol
-- Branding "One Padel Academy"
-- Dashboards de inicio: `admin/dashboard`, `coach/dashboard`, `player/dashboard`
+- Branding "One Padel Academy"; logo en sidebar enlaza a `/`
+- **Dashboards con datos reales** (implementados en esta sesión):
+  - **Admin** (`admin/dashboard`): jugadores activos, entrenadores, reservas pendientes de confirmar, ingresos del mes (desde `financial_transactions`), próximas 5 reservas confirmadas, grupos activos con cupos disponibles
+  - **Coach** (`coach/dashboard`): jugadores en grupos propios, sesiones esta semana, evaluaciones incompletas, próxima sesión individual, últimas 3 sesiones
+  - **Jugador** (`player/dashboard`): próxima clase confirmada, sesiones completadas, saldo E-wallet, nivel actual, últimas 3 reservas, grupos inscritos con estado
 
 ### Módulos funcionando
 
@@ -63,9 +68,16 @@
   - Pago con datos bancarios + subida de comprobante como imagen
   - E-wallet como método de pago; selección de paquetes/módulos de clases
   - Cancelación automática de reservas no pagadas en 15 min (contador regresivo, `expires_at`)
+  - **Cancelación con crédito de E-wallet** (implementado en esta sesión):
+    - Reservas `confirmed`/`paid`: cancela con mínimo 24 h de anticipación
+    - Acredita 1 clase del tipo correcto (AM/PM/FDS) según franja horaria
+    - `CancelMyBookingButton` con diálogo de confirmación e info del crédito
+    - Admin ve badge "Crédito wallet AM/PM/FDS" en reservas canceladas
+    - Reservas `pending`: cancelación libre sin crédito (sin pago aún)
 
 - **E-wallet de clases** (`actions/wallet.ts`)
-  - Saldo siempre visible (0 por defecto), transacciones, `creditClasses` / `debitClass` (UI integrada en el flujo de reservas)
+  - Saldo siempre visible (0 por defecto), transacciones, `creditClasses` / `debitClass`
+  - `wallet_transactions.slot_type` — distingue créditos AM/PM/FDS/any para trazabilidad
 
 - **Planificación** (`actions/training.ts`, `components/training/`)
   - Mesociclo → Microciclo → Sesión → bloques (3 bloques: calentamiento 10 / central 35 / vuelta a la calma 15)
@@ -77,8 +89,24 @@
   - 19 ejercicios seed de One Padel (`scripts/seed-exercises.ts`)
   - CRUD en admin y coach
 
-- **Grupos de entrenamiento** (`actions/groups.ts`, `components/groups/`)
+- **Grupos de entrenamiento** (`actions/groups.ts`, `lib/groups/billing.ts`, `components/groups/`)
   - Niveles oficiales One Padel; vistas admin/coach/player
+  - Inscripción con flujo de pago (comprobante + confirmación admin → activación)
+  - Cancelación de inscripción con promoción automática de lista de espera
+  - Re-inscripción tras cancelar (upsert por `group_id, player_id`)
+  - **Facturación de ciclo mensual** (implementado en esta sesión):
+    - Campos `cycle_start_date`, `next_payment_due`, `monthly_fee`, `late_fee_applied` en `group_members`
+    - `lib/groups/billing.ts` — `calcBilling()` (mora 10% tras 4 días de gracia), `nextClassDate()`, `addOneMonth()`
+    - `confirmGroupPaymentAction` calcula el ciclo anclado a la próxima clase tras la confirmación
+    - Player: banner de advertencia 2 días antes del vencimiento, banner rojo con monto con mora si vencido
+    - Admin: pestaña "Facturación" por grupo con estado por jugador (Al día / Vence en Xd / Vencido con mora)
+  - **Agenda de sesiones grupales** (implementado en esta sesión):
+    - `generateGroupSessions` — crea automáticamente sesiones de los meses actual y siguiente al crear el grupo (bookings `confirmed` con `group_id`, bloquea el calendario del entrenador)
+    - `generateGroupSessionsAction` — regeneración manual desde el admin
+    - `getGroupSessions` / `getUpcomingGroupSessions` — listados para admin/coach/player
+    - `confirmGroupSessionAction` / `cancelGroupSessionAction` — gestión individual
+    - `ensureFutureGroupSessions` — genera el mes siguiente on-the-fly cuando quedan < 14 días
+    - `lib/groups/billing.ts` expone helpers de fechas usados por las acciones
 
 - **Evaluaciones — Protocolo V3** (`actions/evaluations.ts`, `components/evaluations/`)
   - 4 módulos de captura: técnico (checkboxes por golpe), táctico, antropométrico, físico
@@ -100,25 +128,19 @@
     - **Jugador/Admin**: comportamiento de pago, últimas 5 reservas, grupos inscritos, evaluaciones, planificaciones, E-wallet
     - **Entrenador**: clases impartidas, mesociclos creados, próximas clases (tareas pendientes), jugadores asignados actualmente
   - Sidebar con acciones admin: cambio de rol y activar/desactivar cuenta (service-role client)
-  - `formatDate` robusto: acepta `string | null | undefined`, devuelve `'—'` en caso de fecha inválida
 
 - **Landing page pública** (`app/page.tsx`, `components/landing/`, `actions/contact.ts`)
-  - Nav sticky con backdrop blur, logo, links ancla, menú hamburguesa en móvil
-  - Hero con headline, gradiente decorativo, glow orb y CTAs
-  - Stats strip: 150+ jugadores, 5 entrenadores, 4 pistas, 98% satisfacción
-  - Sección Misión / Visión / Valores (3 cards)
-  - 6 servicios en grid con hover: clases individuales, grupos, evaluación V3, torneos, reservas, planificación
-  - 3 planes de precios: clase individual $70k, módulo 8 clases $450k, grupo mensual $180k
-  - Sección de contacto: info (ubicación, horario, email, WhatsApp) + formulario funcional → tabla `contact_messages` en DB
-  - Footer con links, email y copyright
+  - Nav sticky con links de grupos en el menú
+  - Misión / Visión / Valores con texto oficial de marca
+  - Precios oficiales: sesiones AM ($86k), PM ($130k), FDS ($138k); módulos 8/16 clases con badge de ahorro; tabla Trío/Cuarteto; banner de transparencia
+  - Sección Grupos dinámica: server component que consume `training_groups` activos con coach, horarios y cupos en tiempo real; estado vacío si no hay grupos
+  - Sección de contacto + formulario funcional → tabla `contact_messages`
 
 - **Perfil del entrenador** (`actions/coach-profile.ts`, `lib/coach-constants.ts`, `components/coach/`, `coach/profile`)
-  - `getMyCoachProfile()` — upsert automático del registro `coach_profiles` si no existe; 7 queries en paralelo para actividad
-  - Formulario editable: nombre, teléfono, bio, años de experiencia, fortalezas (checkboxes), niveles preferidos, estilo de entrenamiento, idiomas
-  - Subida de foto de perfil al bucket `avatars` vía cliente Supabase en el navegador; `updateAvatarUrl()` guarda la URL pública
-  - Certificaciones: lista con badge "Validada", link a documento, agregar/eliminar (guard de ownership en la action)
-  - Historial de actividad: 5 KPI cards (clases totales + delta mensual, grupos activos/históricos, jugadores entrenados, evaluaciones, mesociclos)
-  - Grilla de disponibilidad semanal Lun–Dom × 05:00–22:00 en bloques de 1h; `updateAvailability()` hace replace-all atómico
+  - Formulario editable: nombre, teléfono, bio, años de experiencia, fortalezas, niveles preferidos, estilo, idiomas
+  - Subida de foto de perfil al bucket `avatars`
+  - Certificaciones con badge "Validada" y eliminación segura
+  - 5 KPI cards de actividad; grilla de disponibilidad semanal
 
 ---
 
@@ -131,11 +153,12 @@
 - [ ] `actions/trainings.ts` está vacío (duplicado de `training.ts`); decidir si eliminar
 - [ ] Notificaciones
 - [ ] Comunicación
+- [ ] Agenda de grupos — vistas para coach (`/coach/groups`) y player (`/player/groups` sección sesiones)
 
 ### Base de datos
 - [ ] Triggers: `on_auth_user_created`, `create_session_blocks`, `update_eval_scores`
 - [ ] RLS policies — habilitar y configurar para todas las tablas (solo `storage.objects/avatars` tiene políticas completas)
-- [ ] Supabase custom access token hook — inyecta `role` en `app_metadata` del JWT (habilita resolución tier-1 en middleware)
+- [ ] Supabase custom access token hook — inyecta `role` en `app_metadata` del JWT
 - [ ] `npx supabase gen types typescript` — reemplazar el stub permisivo en `types/database.types.ts` con tipos reales
 
 ### Integraciones
@@ -156,29 +179,32 @@
 - `DIRECT_URL` puerto 5432 — conexión directa, para migraciones y SQL admin (`psql $DIRECT_URL`)
 
 ### Migraciones con advisory lock — aplicar SQL manualmente
-`prisma migrate dev` y `prisma migrate resolve` fallan con timeout al adquirir `pg_advisory_lock`. **Workaround:** escribir el SQL manualmente, aplicarlo con `psql $DIRECT_URL` e insertar el registro en `_prisma_migrations` vía psql. Las migraciones SQL se escriben idempotentes.
+`prisma migrate dev` y `prisma migrate resolve` fallan con timeout. **Workaround:** escribir el SQL manualmente, aplicarlo con `psql $DIRECT_URL` e insertar el registro en `_prisma_migrations` vía psql.
 
 ### Sesiones de entrenamiento — 3 bloques
 La estructura pasó de 4 a 3 bloques: `calentamiento` (10 min) / `central` (35 min) / `vuelta_a_la_calma` (15 min).
 
-### Reservas — pago y cancelación
+### Reservas — pago, cancelación y crédito de wallet
 - Pago con transferencia bancaria: el jugador sube comprobante como imagen; el coach/admin confirma.
 - E-wallet de clases como método de pago alternativo; saldo siempre visible (default 0).
 - Reservas sin pagar expiran en 15 min (`expires_at`), con contador regresivo y cancelación automática.
+- Cancelación de reservas `confirmed`/`paid` por el jugador: requiere 24 h de anticipación; acredita 1 clase del tipo AM/PM/FDS a la wallet; sin devolución en efectivo.
+- `wallet_transactions.slot_type` persiste el tipo de clase para trazabilidad.
+
+### Facturación de grupos — ciclo mensual y mora
+- Campos en `group_members`: `cycle_start_date` (próxima clase tras pago confirmado), `next_payment_due` (+1 mes), `monthly_fee`, `late_fee_applied`.
+- `lib/groups/billing.ts` calcula mora on-the-fly: 10% si han pasado > 4 días del vencimiento.
+- `late_fee_applied=true` solo se escribe en DB cuando el admin confirma un pago tardío.
+- Las sesiones del grupo se generan como bookings `confirmed` (no `pending`) para bloquear el calendario del entrenador en `getCoachAvailability`.
 
 ### Resolución de rol — 2 niveles (sin caché de cookie)
 `JWT app_metadata.role → query profiles.role`. El nivel 1 (JWT) está inactivo hasta configurar el custom access token hook, así que hoy opera siempre contra la DB.
 
-**Por qué se eliminó la cookie `x-user-role`:** cacheaba el rol 1h. Cuando cambiaba `profiles.role`, la cookie quedaba obsoleta y el middleware enrutaba con el rol viejo. El middleware ahora lee la DB por request.
-
 ### Constantes de coach separadas de las server actions
-`lib/coach-constants.ts` — `COACH_STRENGTHS`, `PADEL_LEVELS`, `COACH_LANGUAGES`. Next.js no permite exportar objetos desde archivos con `'use server'` (solo async functions), por eso las constantes viven en un archivo lib independiente.
+`lib/coach-constants.ts` — Next.js no permite exportar objetos desde archivos con `'use server'` (solo async functions).
 
 ### Storage — políticas RLS de avatars
-El bucket `avatars` es público para lectura pero requiere políticas RLS explícitas en `storage.objects` para INSERT/UPDATE/DELETE. Las políticas validan que el primer segmento del path (`foldername(name)[1]`) coincida con `auth.uid()`, lo que permite subir solo a la carpeta propia (`${userId}/avatar.ext`). Aplicadas vía `psql $DIRECT_URL`.
-
-### Tipos de Supabase aún sin generar
-`types/database.types.ts` es un stub permisivo. Varias Server Actions castean `supabase as any`. Se resolverá al correr `supabase gen types`.
+El bucket `avatars` es público para lectura pero requiere políticas RLS explícitas en `storage.objects` para INSERT/UPDATE/DELETE. Las políticas validan que el primer segmento del path coincida con `auth.uid()`.
 
 ### Zod v4
 La propiedad de errores es `.issues`, no `.errors`.
@@ -198,8 +224,9 @@ El componente `Form` de shadcn no está disponible con `base-nova`. Las páginas
 
 ## Siguiente paso sugerido
 
-Diez módulos/secciones operativos (reservas, E-wallet, planificación, biblioteca, grupos, evaluaciones, finanzas, usuarios, perfil del entrenador, landing pública). Prioridades sugeridas:
+Once módulos/secciones operativos. Prioridades sugeridas:
 
-1. **Limpieza técnica de base de datos** — triggers, RLS global y generación de tipos reales.
-2. **Módulos pendientes** — Torneos, Reportes, Trainings del coach.
-3. **Integraciones de producción** — Stripe, Resend, Sentry y deploy en Vercel.
+1. **Vistas de agenda de grupos** — pestaña Agenda en admin/groups/[id], sesiones en coach/groups y player/groups.
+2. **Limpieza técnica de base de datos** — triggers, RLS global y generación de tipos reales.
+3. **Módulos pendientes** — Torneos, Reportes, Trainings del coach.
+4. **Integraciones de producción** — Stripe, Resend, Sentry y deploy en Vercel.
