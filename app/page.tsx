@@ -63,18 +63,63 @@ export default async function HomePage() {
               <div className="space-y-8">
                 <div className="space-y-5">
                   {[
-                    { icon: MapPin, label: 'Ubicación', value: 'Barranquilla, Colombia' },
-                    { icon: Clock,  label: 'Horario',   value: 'Lun – Vie 6:00 am – 10:00 pm\nSáb – Dom 7:00 am – 8:00 pm' },
-                    { icon: Mail,   label: 'Email',     value: 'onepadelacademybq@gmail.com' },
-                    { icon: Phone,  label: 'WhatsApp',  value: '+57 300 000 0000' },
-                  ].map(({ icon: Icon, label, value }) => (
+                    {
+                      icon: MapPin,
+                      label: 'Ubicación',
+                      content: (
+                        <a
+                          href="https://share.google/Z9wdHleldl0AQOwma"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm hover:text-[#00C4CC] transition-colors"
+                        >
+                          Casa Pádel, Barranquilla, Colombia
+                        </a>
+                      ),
+                    },
+                    {
+                      icon: Clock,
+                      label: 'Horario',
+                      content: (
+                        <p className="text-sm whitespace-pre-line">
+                          {'Lun – Vie  5:00 am – 10:00 pm\nSáb, Dom y festivos  8:00 am – 3:00 pm'}
+                        </p>
+                      ),
+                    },
+                    {
+                      icon: Mail,
+                      label: 'Email',
+                      content: (
+                        <a
+                          href="mailto:onepadelacademybq@gmail.com"
+                          className="text-sm hover:text-[#00C4CC] transition-colors"
+                        >
+                          onepadelacademybq@gmail.com
+                        </a>
+                      ),
+                    },
+                    {
+                      icon: Phone,
+                      label: 'WhatsApp',
+                      content: (
+                        <a
+                          href="https://wa.me/573016575440"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm hover:text-[#00C4CC] transition-colors"
+                        >
+                          +57 301 657 5440
+                        </a>
+                      ),
+                    },
+                  ].map(({ icon: Icon, label, content }) => (
                     <div key={label} className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded-xl bg-[#00C4CC]/10 flex items-center justify-center shrink-0">
                         <Icon className="h-4 w-4 text-[#00C4CC]" />
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-                        <p className="text-sm whitespace-pre-line">{value}</p>
+                        {content}
                       </div>
                     </div>
                   ))}
@@ -84,7 +129,14 @@ export default async function HomePage() {
                   <p className="text-xs text-muted-foreground">
                     Contenido de entrenamientos, tips técnicos y noticias de la academia.
                   </p>
-                  <p className="text-xs text-[#00C4CC] font-medium pt-1">@onepadelacademy</p>
+                  <a
+                    href="https://instagram.com/1padelbaq"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[#00C4CC] font-medium pt-1 hover:underline block"
+                  >
+                    @1padelbaq
+                  </a>
                 </div>
               </div>
 
