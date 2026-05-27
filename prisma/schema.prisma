@@ -906,7 +906,8 @@ model Tournament {
   endDate     DateTime         @map("end_date") @db.Date
   status      TournamentStatus @default(draft)
   maxEntries  Int?             @map("max_entries")
-  entryFee    Decimal          @default(0) @map("entry_fee") @db.Decimal(10, 2)
+  entryFee         Decimal          @default(0) @map("entry_fee") @db.Decimal(10, 2)
+  requiresPartner  Boolean          @default(false) @map("requires_partner")
   description String?
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)

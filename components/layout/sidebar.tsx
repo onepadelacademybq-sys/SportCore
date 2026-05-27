@@ -52,6 +52,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: 'Jugadores',     href: '/coach/players',   icon: Users },
     { label: 'Entrenamientos', href: '/coach/trainings', icon: Dumbbell },
     { label: 'Evaluaciones', href: '/coach/evaluations', icon: ClipboardList },
+    { label: 'Torneos',      href: '/coach/tournaments', icon: Trophy },
     { label: 'Mi Perfil',    href: '/coach/profile',     icon: UserCircle },
   ],
   player: [
@@ -60,6 +61,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: 'Mis evaluaciones', href: '/player/my-evaluations', icon: ClipboardList },
     { label: 'Reservas',         href: '/player/bookings',     icon: Calendar },
     { label: 'Grupos',           href: '/player/groups',       icon: UsersRound },
+    { label: 'Torneos',          href: '/player/tournaments',  icon: Trophy },
   ],
 }
 
