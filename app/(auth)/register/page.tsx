@@ -119,6 +119,29 @@ export default function RegisterPage() {
           {/* Rol fijo — solo admin puede asignar coach desde el panel */}
           <input type="hidden" name="role" value="player" />
 
+          {/* Aceptación de términos */}
+          <div className="flex items-start gap-3 pt-1">
+            <input
+              type="checkbox"
+              id="terms"
+              name="terms"
+              required
+              disabled={isPending}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-[#00C4CC]"
+            />
+            <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer">
+              Acepto los{' '}
+              <Link href="/terms" target="_blank" className="text-foreground font-medium hover:underline">
+                Términos y Condiciones
+              </Link>
+              {' '}y la{' '}
+              <Link href="/privacy" target="_blank" className="text-foreground font-medium hover:underline">
+                Política de Privacidad
+              </Link>
+              {' '}de One Padel Academy
+            </label>
+          </div>
+
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? 'Creando cuenta...' : 'Crear cuenta'}
           </Button>

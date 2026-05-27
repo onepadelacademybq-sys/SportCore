@@ -12,6 +12,10 @@ const LINKS = {
     { label: 'Iniciar sesión', href: '/login' },
     { label: 'Registrarse',    href: '/register' },
   ],
+  Legal: [
+    { label: 'Términos y Condiciones', href: '/terms' },
+    { label: 'Política de Privacidad', href: '/privacy' },
+  ],
 }
 
 export function Footer() {
