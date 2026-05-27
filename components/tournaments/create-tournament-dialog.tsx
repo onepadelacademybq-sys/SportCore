@@ -7,9 +7,54 @@ import { Button } from '@/components/ui/button'
 import { Plus, X, Calculator } from 'lucide-react'
 
 const FORMATS = [
-  { value: 'eliminatoria',          label: 'Eliminación directa' },
-  { value: 'grupos',                label: 'Fase de grupos (round-robin)' },
-  { value: 'grupos_y_eliminatoria', label: 'Grupos + eliminación' },
+  {
+    value: 'eliminatoria',
+    label: 'Eliminación directa',
+    desc: 'Torneo de llaves. El perdedor queda eliminado. Ideal para competencias con campeón único.',
+    requiresPartner: true,
+  },
+  {
+    value: 'grupos',
+    label: 'Fase de grupos (round-robin)',
+    desc: 'Todos juegan contra todos. Ranking final por puntos y game-difference.',
+    requiresPartner: true,
+  },
+  {
+    value: 'grupos_y_eliminatoria',
+    label: 'Grupos + eliminación',
+    desc: 'Fase de grupos clasificatoria seguida de cuadro de eliminación directa.',
+    requiresPartner: true,
+  },
+  {
+    value: 'americano_individual',
+    label: 'Americano individual',
+    desc: 'Jugadores individuales. Las parejas rotan automáticamente cada ronda. Requiere múltiplo de 4 jugadores.',
+    requiresPartner: false,
+  },
+  {
+    value: 'americano_mixto',
+    label: 'Americano mixto',
+    desc: 'Igual que americano individual con mezcla de géneros. Rotación aleatoria.',
+    requiresPartner: false,
+  },
+  {
+    value: 'super_8',
+    label: 'Super 8',
+    desc: 'Exactamente 8 jugadores. 7 rondas con calendario fijo: cada jugador es pareja de los otros 7 una vez.',
+    requiresPartner: false,
+  },
+  {
+    value: 'americano_parejas',
+    label: 'Americano por parejas',
+    desc: 'Parejas fijas que juegan entre sí en round-robin completo. Ranking por pareja.',
+    requiresPartner: true,
+  },
+  {
+    value: 'americano_rey_pista',
+    label: 'Rey de pista',
+    desc: 'Parejas fijas. Tras cada ronda las mejores parejas suben a cancha 1 y las peores bajan. El rey es quien domina la cancha 1.',
+    requiresPartner: true,
+  },
 ]
 
 const CATEGORIES = [
@@ -29,11 +74,16 @@ export function CreateTournamentDialog() {
   const [tStart, setTStart]         = useState('')
   const [tEnd, setTEnd]             = useState('')
   const [numCourts, setNumCourts]   = useState('')
+  const [selectedFormat, setSelectedFormat] = useState('')
+  const [requiresPartner, setRequiresPartner] = useState('true')
 
   if (state?.success && open) {
     setOpen(false)
     setMaxEntries(''); setTDate(''); setTStart(''); setTEnd(''); setNumCourts('')
+    setSelectedFormat(''); setRequiresPartner('true')
   }
+
+  const formatMeta = FORMATS.find(f => f.value === selectedFormat)
 
   const recommended = maxEntries ? recommendedCourts(Number(maxEntries)) : null
   const effectiveCourts = Number(numCourts) || recommended || 0
@@ -41,6 +91,12 @@ export function CreateTournamentDialog() {
     ? calcCourtCost(tDate, tStart, tEnd, effectiveCourts) : 0
   const hours = (tStart && tEnd) ? durationHours(tStart, tEnd) : 0
   const slot  = (tDate && tStart) ? courtSlotType(tDate, tStart) : null
+
+  function handleFormatChange(val: string) {
+    setSelectedFormat(val)
+    const meta = FORMATS.find(f => f.value === val)
+    if (meta) setRequiresPartner(meta.requiresPartner ? 'true' : 'false')
+  }
 
   return (
     <>
@@ -78,10 +134,28 @@ export function CreateTournamentDialog() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Formato *</label>
-                      <select name="format" required className="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      <select
+                        name="format"
+                        required
+                        value={selectedFormat}
+                        onChange={e => handleFormatChange(e.target.value)}
+                        className="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
                         <option value="">Seleccionar…</option>
-                        {FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                        <optgroup label="Clásico">
+                          {FORMATS.filter(f => ['eliminatoria','grupos','grupos_y_eliminatoria'].includes(f.value))
+                            .map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                        </optgroup>
+                        <optgroup label="Americano">
+                          {FORMATS.filter(f => !['eliminatoria','grupos','grupos_y_eliminatoria'].includes(f.value))
+                            .map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                        </optgroup>
                       </select>
+                      {formatMeta && (
+                        <p className="text-[11px] text-muted-foreground bg-muted/40 rounded-md px-2.5 py-1.5 leading-relaxed">
+                          {formatMeta.desc}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Categoría *</label>
@@ -105,7 +179,7 @@ export function CreateTournamentDialog() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Cupo máximo (parejas)</label>
+                      <label className="text-xs font-medium text-muted-foreground">Cupo máximo</label>
                       <input
                         name="max_entries"
                         type="number"
@@ -128,7 +202,12 @@ export function CreateTournamentDialog() {
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Modalidad de inscripción</label>
-                    <select name="requires_partner" className="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    <select
+                      name="requires_partner"
+                      value={requiresPartner}
+                      onChange={e => setRequiresPartner(e.target.value)}
+                      className="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
                       <option value="true">Por pareja (jugador + compañero)</option>
                       <option value="false">Individual (el admin forma las parejas)</option>
                     </select>

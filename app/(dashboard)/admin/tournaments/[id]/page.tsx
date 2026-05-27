@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTournamentById, entryLabel } from '@/actions/tournaments'
 import { ConfirmEntryButton, RejectEntryButton } from '@/components/tournaments/entry-actions'
-import { TournamentStatusActions, NextRoundButton } from '@/components/tournaments/tournament-status-actions'
+import { TournamentStatusActions, NextRoundButton, ReyPistaNextRoundButton } from '@/components/tournaments/tournament-status-actions'
 import { RecordResultDialog } from '@/components/tournaments/record-result-dialog'
 import { VenueForm } from '@/components/tournaments/venue-form'
 import { ArrowLeft, Trophy, Calendar, Users, Info, Network, BarChart2, Building2 } from 'lucide-react'
@@ -13,31 +13,36 @@ import { calcCourtCost, recommendedCourts, courtSlotType, durationHours, formatC
 export const metadata: Metadata = { title: 'Torneo — Admin' }
 
 const FORMAT_LABELS: Record<string, string> = {
-  eliminatoria: 'Eliminación directa',
-  grupos: 'Fase de grupos (round-robin)',
+  eliminatoria:          'Eliminación directa',
+  grupos:                'Fase de grupos (round-robin)',
   grupos_y_eliminatoria: 'Grupos + eliminación',
+  americano_individual:  'Americano individual',
+  americano_mixto:       'Americano mixto',
+  super_8:               'Super 8',
+  americano_parejas:     'Americano por parejas',
+  americano_rey_pista:   'Rey de pista',
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft:       { label: 'Borrador',           className: 'bg-muted text-muted-foreground' },
+  draft:       { label: 'Borrador',              className: 'bg-muted text-muted-foreground' },
   open:        { label: 'Inscripciones abiertas', className: 'bg-emerald-500/15 text-emerald-400' },
-  in_progress: { label: 'En curso',           className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
-  completed:   { label: 'Finalizado',         className: 'bg-purple-500/15 text-purple-400' },
-  cancelled:   { label: 'Cancelado',          className: 'bg-red-500/15 text-red-400' },
+  in_progress: { label: 'En curso',              className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  completed:   { label: 'Finalizado',            className: 'bg-purple-500/15 text-purple-400' },
+  cancelled:   { label: 'Cancelado',             className: 'bg-red-500/15 text-red-400' },
 }
 
 const ENTRY_STATUS: Record<string, { label: string; className: string }> = {
-  pending:    { label: 'Pendiente',   className: 'bg-amber-500/15 text-amber-400' },
-  confirmed:  { label: 'Confirmado',  className: 'bg-emerald-500/15 text-emerald-400' },
-  eliminated: { label: 'Eliminado',   className: 'bg-red-500/15 text-red-400' },
-  withdrawn:  { label: 'Retirado',    className: 'bg-muted text-muted-foreground' },
+  pending:    { label: 'Pendiente',  className: 'bg-amber-500/15 text-amber-400' },
+  confirmed:  { label: 'Confirmado', className: 'bg-emerald-500/15 text-emerald-400' },
+  eliminated: { label: 'Eliminado',  className: 'bg-red-500/15 text-red-400' },
+  withdrawn:  { label: 'Retirado',   className: 'bg-muted text-muted-foreground' },
 }
 
 const MATCH_STATUS: Record<string, { label: string; className: string }> = {
-  scheduled:   { label: 'Por jugar',   className: 'bg-amber-500/15 text-amber-400' },
-  in_progress: { label: 'En juego',    className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
-  completed:   { label: 'Completado',  className: 'bg-emerald-500/15 text-emerald-400' },
-  cancelled:   { label: 'Cancelado',   className: 'bg-muted text-muted-foreground' },
+  scheduled:   { label: 'Por jugar',  className: 'bg-amber-500/15 text-amber-400' },
+  in_progress: { label: 'En juego',   className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  completed:   { label: 'Completado', className: 'bg-emerald-500/15 text-emerald-400' },
+  cancelled:   { label: 'Cancelado',  className: 'bg-muted text-muted-foreground' },
 }
 
 const TABS = [
@@ -47,6 +52,9 @@ const TABS = [
   { key: 'llaves',        label: 'Llaves',        icon: Network },
   { key: 'resultados',    label: 'Resultados',    icon: BarChart2 },
 ]
+
+const AMERICANO_FORMATS = ['americano_individual','americano_mixto','super_8','americano_parejas','americano_rey_pista']
+const ROUND_PAIR_FORMATS = ['americano_individual','americano_mixto','super_8']
 
 export default async function AdminTournamentDetailPage({
   params,
@@ -63,17 +71,26 @@ export default async function AdminTournamentDetailPage({
   if (!data) notFound()
 
   const tournament = data as any
-  const entries = (tournament.entries ?? []) as any[]
-  const matches = (tournament.matches ?? []) as any[]
+  const allEntries = (tournament.entries ?? []) as any[]
+  const matches    = (tournament.matches ?? []) as any[]
+
+  // For inscripciones tab: only show real registrations (not round_pair temp entries)
+  const entries = allEntries.filter((e: any) => !e.is_round_pair)
 
   const confirmedEntries = entries.filter((e: any) => e.status === 'confirmed')
   const pendingEntries   = entries.filter((e: any) => e.status === 'pending')
   const activeEntries    = entries.filter((e: any) => !['withdrawn'].includes(e.status))
 
-  // Group matches by round
-  const rounds = [...new Set(matches.map((m: any) => m.round as string))]
+  const isAmericano    = AMERICANO_FORMATS.includes(tournament.format)
+  const isRoundPair    = ROUND_PAIR_FORMATS.includes(tournament.format)
+  const isReyPista     = tournament.format === 'americano_rey_pista'
+  const isEliminatoria = ['eliminatoria','grupos_y_eliminatoria'].includes(tournament.format)
+
+  // Group matches by round (sort by round_number if present)
+  const sortedMatches = [...matches].sort((a: any, b: any) => (a.round_number ?? 0) - (b.round_number ?? 0))
+  const rounds = [...new Set(sortedMatches.map((m: any) => m.round as string))]
   const matchesByRound = rounds.reduce<Record<string, any[]>>((acc, round) => {
-    acc[round] = matches.filter((m: any) => m.round === round)
+    acc[round] = sortedMatches.filter((m: any) => m.round === round)
     return acc
   }, {})
 
@@ -87,6 +104,58 @@ export default async function AdminTournamentDetailPage({
     const n = Number(fee)
     if (n === 0) return 'Gratuito'
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
+  }
+
+  // ─── Leaderboard computation ───────────────────────────────────────────────
+  const completedMatchesForLeaderboard = matches.filter(
+    (m: any) => m.status === 'completed' && m.score_entry1 !== 'BYE'
+  )
+
+  // Player-level leaderboard for individual americano formats
+  const playerLeaderboard: Array<{ rank: number; name: string; wins: number; losses: number; points: number }> = []
+  if (isRoundPair && completedMatchesForLeaderboard.length > 0) {
+    const stats: Record<string, { name: string; wins: number; losses: number; points: number }> = {}
+    function creditPlayer(pid: string, name: string, pts: number, won: boolean) {
+      if (!stats[pid]) stats[pid] = { name, wins: 0, losses: 0, points: 0 }
+      stats[pid].points += pts
+      if (won) stats[pid].wins++; else stats[pid].losses++
+    }
+    for (const m of completedMatchesForLeaderboard) {
+      const s1 = parseInt(m.score_entry1 ?? '0', 10) || 0
+      const s2 = parseInt(m.score_entry2 ?? '0', 10) || 0
+      const e1Won = m.winner_entry_id === m.entry1_id
+      if (m.entry1?.player1_id) creditPlayer(m.entry1.player1_id, (m.entry1.player1 as any)?.full_name ?? '?', s1, e1Won)
+      if (m.entry1?.player2_id) creditPlayer(m.entry1.player2_id, (m.entry1.player2 as any)?.full_name ?? '?', s1, e1Won)
+      if (m.entry2?.player1_id) creditPlayer(m.entry2.player1_id, (m.entry2.player1 as any)?.full_name ?? '?', s2, !e1Won)
+      if (m.entry2?.player2_id) creditPlayer(m.entry2.player2_id, (m.entry2.player2 as any)?.full_name ?? '?', s2, !e1Won)
+    }
+    Object.values(stats)
+      .sort((a, b) => b.wins !== a.wins ? b.wins - a.wins : b.points - a.points)
+      .forEach((s, idx) => playerLeaderboard.push({ rank: idx + 1, ...s }))
+  }
+
+  // Pair-level leaderboard for pair americano formats
+  const pairLeaderboard: Array<{ rank: number; label: string; wins: number; losses: number; points: number }> = []
+  if (!isRoundPair && isAmericano && completedMatchesForLeaderboard.length > 0) {
+    const stats: Record<string, { label: string; wins: number; losses: number; points: number }> = {}
+    for (const m of completedMatchesForLeaderboard) {
+      const s1 = parseInt(m.score_entry1 ?? '0', 10) || 0
+      const s2 = parseInt(m.score_entry2 ?? '0', 10) || 0
+      const e1Won = m.winner_entry_id === m.entry1_id
+      const e1Id = m.entry1_id as string
+      const e2Id = m.entry2_id as string | null
+      if (!stats[e1Id]) stats[e1Id] = { label: entryLabel(m.entry1), wins: 0, losses: 0, points: 0 }
+      stats[e1Id].points += s1
+      if (e1Won) stats[e1Id].wins++; else stats[e1Id].losses++
+      if (e2Id) {
+        if (!stats[e2Id]) stats[e2Id] = { label: entryLabel(m.entry2), wins: 0, losses: 0, points: 0 }
+        stats[e2Id].points += s2
+        if (!e1Won) stats[e2Id].wins++; else stats[e2Id].losses++
+      }
+    }
+    Object.values(stats)
+      .sort((a, b) => b.wins !== a.wins ? b.wins - a.wins : b.points - a.points)
+      .forEach((s, idx) => pairLeaderboard.push({ rank: idx + 1, ...s }))
   }
 
   return (
@@ -240,9 +309,7 @@ export default async function AdminTournamentDetailPage({
       {/* ── Tab: Planta Física ────────────────────────────────────────────── */}
       {activeTab === 'planta' && (
         <div className="space-y-6 max-w-2xl">
-          {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {/* Confirmed pairs → recommended courts */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs text-muted-foreground">Parejas confirmadas</CardTitle>
@@ -262,7 +329,6 @@ export default async function AdminTournamentDetailPage({
               </CardContent>
             </Card>
 
-            {/* Current num_courts */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs text-muted-foreground">Canchas configuradas</CardTitle>
@@ -275,7 +341,6 @@ export default async function AdminTournamentDetailPage({
               </CardContent>
             </Card>
 
-            {/* Court cost total */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs text-muted-foreground">Costo total de canchas</CardTitle>
@@ -297,7 +362,6 @@ export default async function AdminTournamentDetailPage({
             </Card>
           </div>
 
-          {/* Slot breakdown if scheduled */}
           {tournament.tournament_date && tournament.start_time && tournament.end_time && tournament.num_courts && (
             <Card>
               <CardHeader className="pb-3">
@@ -316,8 +380,7 @@ export default async function AdminTournamentDetailPage({
                     tournament.end_time.slice(0,5),
                     Number(tournament.num_courts),
                   )
-                  const perPair = confirmedEntries.length > 0
-                    ? Math.ceil(totalCost / confirmedEntries.length) : 0
+                  const perPair  = confirmedEntries.length > 0 ? Math.ceil(totalCost / confirmedEntries.length) : 0
                   const perEntry = tournament.entry_fee ? Number(tournament.entry_fee) : 0
                   const deficit  = totalCost - (confirmedEntries.length * perEntry)
 
@@ -367,7 +430,6 @@ export default async function AdminTournamentDetailPage({
             </Card>
           )}
 
-          {/* Edit form */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -390,10 +452,9 @@ export default async function AdminTournamentDetailPage({
             </CardContent>
           </Card>
 
-          {/* Note about financial registration */}
           {tournament.status !== 'in_progress' && tournament.court_cost_total && (
             <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-4 py-3">
-              El egreso de <strong>{formatCOP(Number(tournament.court_cost_total))}</strong> se registrará automáticamente en Finanzas cuando inicies el torneo (cambio a "En curso").
+              El egreso de <strong>{formatCOP(Number(tournament.court_cost_total))}</strong> se registrará automáticamente en Finanzas cuando inicies el torneo (cambio a &quot;En curso&quot;).
             </p>
           )}
           {tournament.status === 'in_progress' && (
@@ -417,7 +478,7 @@ export default async function AdminTournamentDetailPage({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Equipo</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Equipo / Jugador</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Inscrito</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Estado</th>
                     <th className="px-4 py-3"></th>
@@ -425,7 +486,7 @@ export default async function AdminTournamentDetailPage({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {entries.map((entry: any) => {
-                    const cfg = ENTRY_STATUS[entry.status] ?? { label: entry.status, className: 'bg-muted text-muted-foreground' }
+                    const cfg   = ENTRY_STATUS[entry.status] ?? { label: entry.status, className: 'bg-muted text-muted-foreground' }
                     const label = `${(entry.player1 as any)?.full_name ?? '—'}${(entry.player2 as any)?.full_name ? ` / ${(entry.player2 as any).full_name}` : ''}`
                     return (
                       <tr key={entry.id} className="hover:bg-muted/20">
@@ -482,17 +543,24 @@ export default async function AdminTournamentDetailPage({
                   </div>
                   <div className="grid gap-2">
                     {matchesByRound[round].map((match: any) => {
-                      const e1 = match.entry1
-                      const e2 = match.entry2
+                      const e1     = match.entry1
+                      const e2     = match.entry2
                       const winner = match.winner_entry_id
-                      const mCfg = MATCH_STATUS[match.status] ?? { label: match.status, className: 'bg-muted text-muted-foreground' }
-                      const isBye = !e2
+                      const mCfg   = MATCH_STATUS[match.status] ?? { label: match.status, className: 'bg-muted text-muted-foreground' }
+                      const isBye  = !e2
 
                       return (
                         <div
                           key={match.id}
                           className="border rounded-lg p-3 flex items-center gap-3 hover:bg-muted/20 transition-colors"
                         >
+                          {/* Court badge for americano formats */}
+                          {isAmericano && match.court_number && (
+                            <span className="shrink-0 text-[10px] font-medium text-[#00C4CC] bg-[#00C4CC]/10 border border-[#00C4CC]/20 rounded px-1.5 py-0.5">
+                              C{match.court_number}
+                            </span>
+                          )}
+
                           <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
                             <div className={`truncate text-sm font-medium ${winner === match.entry1_id ? 'text-emerald-400' : ''}`}>
                               {entryLabel(e1)}
@@ -532,10 +600,11 @@ export default async function AdminTournamentDetailPage({
                 </section>
               ))}
 
-              {/* Next round button */}
-              {tournament.status === 'in_progress' && tournament.format !== 'grupos' && allLastRoundDone && (
+              {/* Next round buttons */}
+              {tournament.status === 'in_progress' && allLastRoundDone && (
                 <div className="pt-2">
-                  <NextRoundButton tournamentId={id} currentRound={lastRound} />
+                  {isEliminatoria && <NextRoundButton tournamentId={id} currentRound={lastRound} />}
+                  {isReyPista && <ReyPistaNextRoundButton tournamentId={id} />}
                 </div>
               )}
             </>
@@ -545,55 +614,112 @@ export default async function AdminTournamentDetailPage({
 
       {/* ── Tab: Resultados ────────────────────────────────────────────────── */}
       {activeTab === 'resultados' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {matches.filter((m: any) => m.status === 'completed').length === 0 ? (
             <div className="border rounded-xl p-10 text-center">
               <BarChart2 className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
               <p className="text-muted-foreground text-sm">No hay resultados registrados aún.</p>
             </div>
           ) : (
-            <div className="border rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ronda</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Equipo 1</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Resultado</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Equipo 2</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Ganador</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {matches
-                    .filter((m: any) => m.status === 'completed' && m.score_entry1 !== 'BYE')
-                    .map((match: any) => {
-                      const e1 = match.entry1
-                      const e2 = match.entry2
-                      const winner = match.winner_entry_id
-                      const winnerEntry = winner === match.entry1_id ? e1 : e2
-                      return (
-                        <tr key={match.id} className="hover:bg-muted/20">
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{match.round}</td>
-                          <td className={`px-4 py-3 font-medium ${winner === match.entry1_id ? 'text-emerald-400' : ''}`}>
-                            {entryLabel(e1)}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">
-                            {match.score_entry1} · {match.score_entry2}
-                          </td>
-                          <td className={`px-4 py-3 font-medium ${winner === match.entry2_id ? 'text-emerald-400' : ''}`}>
-                            {entryLabel(e2)}
-                          </td>
-                          <td className="px-4 py-3 hidden md:table-cell">
-                            <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-                              {entryLabel(winnerEntry)}
-                            </span>
-                          </td>
+            <>
+              {/* Leaderboard for americano formats */}
+              {isAmericano && (playerLeaderboard.length > 0 || pairLeaderboard.length > 0) && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-amber-400" />
+                    Tabla de posiciones
+                  </h3>
+                  <div className="border rounded-xl overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-10">#</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            {isRoundPair ? 'Jugador' : 'Pareja'}
+                          </th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">G</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">P</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pts</th>
                         </tr>
-                      )
-                    })}
-                </tbody>
-              </table>
-            </div>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {(isRoundPair ? playerLeaderboard : pairLeaderboard).map((row) => (
+                          <tr key={row.rank} className={`hover:bg-muted/20 ${row.rank === 1 ? 'bg-amber-500/5' : ''}`}>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs font-bold ${row.rank === 1 ? 'text-amber-400' : row.rank === 2 ? 'text-slate-300' : row.rank === 3 ? 'text-amber-700' : 'text-muted-foreground'}`}>
+                                {row.rank}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-medium">
+                              {'name' in row ? row.name : row.label}
+                            </td>
+                            <td className="px-4 py-3 text-center text-emerald-400 font-semibold">{row.wins}</td>
+                            <td className="px-4 py-3 text-center text-red-400">{row.losses}</td>
+                            <td className="px-4 py-3 text-center font-semibold">{row.points}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="text-[11px] text-muted-foreground px-4 py-2 border-t">
+                      G = partidos ganados · P = partidos perdidos · Pts = juegos totales acumulados
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Match-by-match results */}
+              <div className="space-y-3">
+                {isAmericano && <h3 className="text-sm font-semibold text-muted-foreground">Historial de partidos</h3>}
+                <div className="border rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/40">
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ronda</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Equipo 1</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Resultado</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Equipo 2</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Ganador</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {matches
+                        .filter((m: any) => m.status === 'completed' && m.score_entry1 !== 'BYE')
+                        .sort((a: any, b: any) => (a.round_number ?? 0) - (b.round_number ?? 0))
+                        .map((match: any) => {
+                          const e1 = match.entry1
+                          const e2 = match.entry2
+                          const winner = match.winner_entry_id
+                          const winnerEntry = winner === match.entry1_id ? e1 : e2
+                          return (
+                            <tr key={match.id} className="hover:bg-muted/20">
+                              <td className="px-4 py-3 text-xs text-muted-foreground">
+                                {match.round}
+                                {isAmericano && match.court_number && (
+                                  <span className="ml-1.5 text-[#00C4CC]">C{match.court_number}</span>
+                                )}
+                              </td>
+                              <td className={`px-4 py-3 font-medium ${winner === match.entry1_id ? 'text-emerald-400' : ''}`}>
+                                {entryLabel(e1)}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">
+                                {match.score_entry1} · {match.score_entry2}
+                              </td>
+                              <td className={`px-4 py-3 font-medium ${winner === match.entry2_id ? 'text-emerald-400' : ''}`}>
+                                {entryLabel(e2)}
+                              </td>
+                              <td className="px-4 py-3 hidden md:table-cell">
+                                <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
+                                  {entryLabel(winnerEntry)}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}

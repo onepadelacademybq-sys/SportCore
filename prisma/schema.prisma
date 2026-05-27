@@ -133,6 +133,11 @@ enum TournamentFormat {
   eliminatoria
   grupos
   grupos_y_eliminatoria
+  americano_individual
+  americano_parejas
+  americano_rey_pista
+  super_8
+  americano_mixto
 }
 
 enum TournamentStatus {
@@ -931,6 +936,7 @@ model TournamentEntry {
   player2Id    String?     @map("player2_id") @db.Uuid
   registeredBy String      @map("registered_by") @db.Uuid
   status       EntryStatus @default(pending)
+  isRoundPair  Boolean     @default(false) @map("is_round_pair")
   registeredAt DateTime    @default(now()) @map("registered_at") @db.Timestamptz(6)
 
   tournament      Tournament  @relation(fields: [tournamentId], references: [id])
@@ -950,6 +956,8 @@ model TournamentMatch {
   entry1Id      String      @map("entry1_id") @db.Uuid
   entry2Id      String?     @map("entry2_id") @db.Uuid
   round         String
+  roundNumber   Int?        @map("round_number")
+  courtNumber   Int?        @map("court_number")
   scheduledAt   DateTime?   @map("scheduled_at") @db.Timestamptz(6)
   courtId       String?     @map("court_id") @db.Uuid
   scoreEntry1   String?     @map("score_entry1")

@@ -3,11 +3,27 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { calcCourtCost, recommendedCourts } from '@/lib/tournaments/costs'
+import {
+  SUPER_8_ROUNDS,
+  generateIndividualRounds,
+  generatePairsRoundRobin,
+  assignCourtsFromRanking,
+  isAmericanoFormat,
+  ROUND_PAIR_FORMATS,
+} from '@/lib/tournaments/americano'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type TournamentStatus = 'draft' | 'open' | 'in_progress' | 'completed' | 'cancelled'
-export type TournamentFormat = 'eliminatoria' | 'grupos' | 'grupos_y_eliminatoria'
+export type TournamentFormat =
+  | 'eliminatoria'
+  | 'grupos'
+  | 'grupos_y_eliminatoria'
+  | 'americano_individual'
+  | 'americano_parejas'
+  | 'americano_rey_pista'
+  | 'super_8'
+  | 'americano_mixto'
 export type EntryStatus = 'pending' | 'confirmed' | 'eliminated' | 'withdrawn'
 export type MatchStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 
@@ -130,20 +146,20 @@ export async function getTournamentById(id: string) {
     .select(`
       ${TOURNAMENT_SELECT_BASE},
       entries:tournament_entries(
-        id, status, registered_at, player1_id, player2_id, registered_by,
+        id, status, registered_at, player1_id, player2_id, registered_by, is_round_pair,
         player1:profiles!player1_id(full_name),
         player2:profiles!player2_id(full_name)
       ),
       matches:tournament_matches(
-        id, round, scheduled_at, score_entry1, score_entry2,
+        id, round, round_number, court_number, scheduled_at, score_entry1, score_entry2,
         winner_entry_id, status, entry1_id, entry2_id, court_id,
         entry1:tournament_entries!entry1_id(
-          id, player1_id, player2_id,
+          id, player1_id, player2_id, is_round_pair,
           player1:profiles!player1_id(full_name),
           player2:profiles!player2_id(full_name)
         ),
         entry2:tournament_entries!entry2_id(
-          id, player1_id, player2_id,
+          id, player1_id, player2_id, is_round_pair,
           player1:profiles!player1_id(full_name),
           player2:profiles!player2_id(full_name)
         ),
@@ -326,37 +342,212 @@ export async function rejectEntryAction(entryId: string) {
   }
 }
 
-// ─── Admin: Bracket Generation ────────────────────────────────────────────────
+// ─── Admin: Bracket / Round Generation ───────────────────────────────────────
+
+// Helper: delete all round_pair entries for a tournament (and their matches first)
+async function cleanupRoundPairs(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
+  const { data: rpEntries } = await supabase
+    .from('tournament_entries').select('id')
+    .eq('tournament_id', tournamentId).eq('is_round_pair', true)
+
+  if (rpEntries && rpEntries.length > 0) {
+    const ids = rpEntries.map(e => e.id)
+    // Delete matches referencing these entries (entry1 side)
+    await supabase.from('tournament_matches').delete()
+      .eq('tournament_id', tournamentId).in('entry1_id', ids)
+    // Delete matches referencing these entries (entry2 side)
+    await supabase.from('tournament_matches').delete()
+      .eq('tournament_id', tournamentId).in('entry2_id', ids)
+    // Now safe to delete the entries
+    await supabase.from('tournament_entries').delete().in('id', ids)
+  }
+}
+
+// Helper: insert one round_pair entry and return its id
+async function insertRoundPair(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tournamentId: string,
+  player1Id: string,
+  player2Id: string,
+  registeredBy: string,
+): Promise<string> {
+  const { data, error } = await supabase.from('tournament_entries').insert({
+    tournament_id: tournamentId,
+    player1_id: player1Id,
+    player2_id: player2Id,
+    registered_by: registeredBy,
+    status: 'confirmed',
+    is_round_pair: true,
+  }).select('id').single()
+  if (error || !data) throw new Error(error?.message ?? 'Error creando pareja de ronda')
+  return data.id as string
+}
 
 export async function generateMatchesAction(tournamentId: string) {
   try {
-    const { supabase } = await requireAdmin()
+    const { supabase, userId } = await requireAdmin()
 
     const { data: tournament } = await supabase
       .from('tournaments').select('format, status').eq('id', tournamentId).single()
 
     if (!tournament) return { error: 'Torneo no encontrado' }
     if (!['open', 'in_progress'].includes(tournament.status as string)) {
-      return { error: 'El torneo debe estar abierto o en progreso para generar llaves' }
+      return { error: 'El torneo debe estar abierto o en progreso' }
     }
 
+    // Confirm no completed matches (can't regenerate once results exist)
+    const { count: doneCount } = await supabase
+      .from('tournament_matches').select('*', { count: 'exact', head: true })
+      .eq('tournament_id', tournamentId).eq('status', 'completed')
+    if (doneCount && doneCount > 0) {
+      return { error: 'No se puede regenerar: ya hay partidos con resultado registrado.' }
+    }
+
+    // Fetch confirmed entries (non-round-pair = real inscriptions)
     const { data: entries } = await supabase
-      .from('tournament_entries').select('id')
-      .eq('tournament_id', tournamentId).eq('status', 'confirmed')
+      .from('tournament_entries')
+      .select('id, player1_id, player2_id')
+      .eq('tournament_id', tournamentId)
+      .eq('status', 'confirmed')
+      .eq('is_round_pair', false)
 
     if (!entries || entries.length < 2) {
       return { error: 'Se necesitan al menos 2 inscripciones confirmadas' }
     }
 
-    // Remove existing scheduled matches only (keep completed ones)
-    await supabase
-      .from('tournament_matches').delete()
-      .eq('tournament_id', tournamentId).eq('status', 'scheduled')
+    // Cast entries to known type (Supabase infers unknown for dynamic selects)
+    const typedEntries = entries as Array<{ id: string; player1_id: string; player2_id: string | null }>
 
-    const rows: Record<string, unknown>[] = []
+    const fmt = tournament.format as string
 
-    if (tournament.format === 'grupos') {
-      // Round-robin: every entry plays every other
+    // ── americano_individual / americano_mixto ─────────────────────────────
+    if (fmt === 'americano_individual' || fmt === 'americano_mixto') {
+      const n = typedEntries.length
+      if (n < 4)  return { error: 'Se necesitan al menos 4 jugadores' }
+      if (n % 4 !== 0) return { error: `Necesitas múltiplo de 4 jugadores (tienes ${n}). Confirma o retira inscripciones hasta ajustar.` }
+
+      await cleanupRoundPairs(supabase, tournamentId)
+      await supabase.from('tournament_matches').delete().eq('tournament_id', tournamentId).eq('status', 'scheduled')
+
+      const numRounds = Math.min(n - 1, 9)
+      const schedule = generateIndividualRounds(n, numRounds)
+      const matchRows: Record<string, unknown>[] = []
+
+      for (const [ri, round] of schedule.entries()) {
+        for (const [mi, [a, b, c, d]] of round.entries()) {
+          const p1 = typedEntries[a].player1_id
+          const p2 = typedEntries[b].player1_id
+          const p3 = typedEntries[c].player1_id
+          const p4 = typedEntries[d].player1_id
+
+          const pair1Id = await insertRoundPair(supabase, tournamentId, p1, p2, userId)
+          const pair2Id = await insertRoundPair(supabase, tournamentId, p3, p4, userId)
+
+          matchRows.push({
+            tournament_id: tournamentId,
+            entry1_id: pair1Id,
+            entry2_id: pair2Id,
+            round: `Ronda ${ri + 1}`,
+            round_number: ri + 1,
+            court_number: mi + 1,
+            status: 'scheduled',
+          })
+        }
+      }
+
+      if (matchRows.length > 0) {
+        const { error } = await supabase.from('tournament_matches').insert(matchRows)
+        if (error) return { error: error.message }
+      }
+
+    // ── super_8 ────────────────────────────────────────────────────────────
+    } else if (fmt === 'super_8') {
+      if (typedEntries.length !== 8) {
+        return { error: `Super 8 requiere exactamente 8 jugadores (tienes ${typedEntries.length})` }
+      }
+
+      await cleanupRoundPairs(supabase, tournamentId)
+      await supabase.from('tournament_matches').delete().eq('tournament_id', tournamentId).eq('status', 'scheduled')
+
+      const matchRows: Record<string, unknown>[] = []
+
+      for (const [ri, roundMatches] of SUPER_8_ROUNDS.entries()) {
+        for (const [mi, [a, b, c, d]] of roundMatches.entries()) {
+          const p1 = typedEntries[a].player1_id
+          const p2 = typedEntries[b].player1_id
+          const p3 = typedEntries[c].player1_id
+          const p4 = typedEntries[d].player1_id
+
+          const pair1Id = await insertRoundPair(supabase, tournamentId, p1, p2, userId)
+          const pair2Id = await insertRoundPair(supabase, tournamentId, p3, p4, userId)
+
+          matchRows.push({
+            tournament_id: tournamentId,
+            entry1_id: pair1Id,
+            entry2_id: pair2Id,
+            round: `Ronda ${ri + 1}`,
+            round_number: ri + 1,
+            court_number: mi + 1,
+            status: 'scheduled',
+          })
+        }
+      }
+
+      const { error } = await supabase.from('tournament_matches').insert(matchRows)
+      if (error) return { error: error.message }
+
+    // ── americano_parejas ─────────────────────────────────────────────────
+    } else if (fmt === 'americano_parejas') {
+      await supabase.from('tournament_matches').delete().eq('tournament_id', tournamentId).eq('status', 'scheduled')
+
+      const roundRobin = generatePairsRoundRobin(typedEntries.length)
+      const matchRows: Record<string, unknown>[] = []
+
+      for (const [ri, round] of roundRobin.entries()) {
+        for (const [mi, [i, j]] of round.entries()) {
+          matchRows.push({
+            tournament_id: tournamentId,
+            entry1_id: typedEntries[i].id,
+            entry2_id: typedEntries[j].id,
+            round: `Ronda ${ri + 1}`,
+            round_number: ri + 1,
+            court_number: mi + 1,
+            status: 'scheduled',
+          })
+        }
+      }
+
+      if (matchRows.length > 0) {
+        const { error } = await supabase.from('tournament_matches').insert(matchRows)
+        if (error) return { error: error.message }
+      }
+
+    // ── americano_rey_pista (round 1 only) ────────────────────────────────
+    } else if (fmt === 'americano_rey_pista') {
+      await supabase.from('tournament_matches').delete().eq('tournament_id', tournamentId).eq('status', 'scheduled')
+
+      const shuffled = [...typedEntries].sort(() => Math.random() - 0.5)
+      const courts = assignCourtsFromRanking(shuffled.map(e => e.id))
+      const matchRows: Record<string, unknown>[] = courts.map(c => ({
+        tournament_id: tournamentId,
+        entry1_id: c.entry1_id,
+        entry2_id: c.entry2_id,
+        round: 'Ronda 1',
+        round_number: 1,
+        court_number: c.court_number,
+        status: 'scheduled',
+      }))
+
+      if (matchRows.length > 0) {
+        const { error } = await supabase.from('tournament_matches').insert(matchRows)
+        if (error) return { error: error.message }
+      }
+
+    // ── grupos ─────────────────────────────────────────────────────────────
+    } else if (fmt === 'grupos') {
+      await supabase.from('tournament_matches').delete().eq('tournament_id', tournamentId).eq('status', 'scheduled')
+
+      const rows: Record<string, unknown>[] = []
       for (let i = 0; i < entries.length; i++) {
         for (let j = i + 1; j < entries.length; j++) {
           rows.push({
@@ -368,18 +559,24 @@ export async function generateMatchesAction(tournamentId: string) {
           })
         }
       }
-    } else {
-      // eliminatoria (and grupos_y_eliminatoria first round)
-      const shuffled = [...entries].sort(() => Math.random() - 0.5)
-      const n = shuffled.length
-      const totalRounds = Math.ceil(Math.log2(n))
+      if (rows.length > 0) {
+        const { error } = await supabase.from('tournament_matches').insert(rows)
+        if (error) return { error: error.message }
+      }
 
+    // ── eliminatoria / grupos_y_eliminatoria ──────────────────────────────
+    } else {
+      await supabase.from('tournament_matches').delete().eq('tournament_id', tournamentId).eq('status', 'scheduled')
+
+      const shuffled = [...entries].sort(() => Math.random() - 0.5)
+      const totalRounds = Math.ceil(Math.log2(shuffled.length))
       const roundName = totalRounds <= 1 ? 'Final'
         : totalRounds === 2 ? 'Semifinal'
         : totalRounds === 3 ? 'Cuartos de final'
         : totalRounds === 4 ? 'Octavos de final'
         : 'Ronda 1'
 
+      const rows: Record<string, unknown>[] = []
       for (let i = 0; i < shuffled.length - 1; i += 2) {
         rows.push({
           tournament_id: tournamentId,
@@ -389,8 +586,6 @@ export async function generateMatchesAction(tournamentId: string) {
           status: 'scheduled',
         })
       }
-
-      // Odd entry gets a bye (auto-advance)
       if (shuffled.length % 2 !== 0) {
         rows.push({
           tournament_id: tournamentId,
@@ -400,24 +595,111 @@ export async function generateMatchesAction(tournamentId: string) {
           status: 'completed',
           winner_entry_id: shuffled[shuffled.length - 1].id,
           score_entry1: 'BYE',
-          score_entry2: null,
         })
+      }
+      if (rows.length > 0) {
+        const { error } = await supabase.from('tournament_matches').insert(rows)
+        if (error) return { error: error.message }
       }
     }
 
-    if (rows.length > 0) {
-      const { error } = await supabase.from('tournament_matches').insert(rows)
-      if (error) return { error: error.message }
-    }
-
-    await supabase
-      .from('tournaments').update({ status: 'in_progress' }).eq('id', tournamentId)
-
+    await supabase.from('tournaments').update({ status: 'in_progress' }).eq('id', tournamentId)
     revalidatePath(`/admin/tournaments/${tournamentId}`)
     revalidatePath('/admin/tournaments')
     return { success: true }
   } catch (e: unknown) {
     return { error: e instanceof Error ? e.message : 'Error generando el cuadro' }
+  }
+}
+
+// ─── Rey de pista: siguiente ronda ────────────────────────────────────────────
+
+export async function generateNextReyPistaRoundAction(tournamentId: string) {
+  try {
+    const { supabase } = await requireAdmin()
+
+    // Get all matches with results to compute cumulative stats per pair
+    const { data: allMatches } = await supabase
+      .from('tournament_matches')
+      .select('entry1_id, entry2_id, winner_entry_id, score_entry1, score_entry2, status, round_number')
+      .eq('tournament_id', tournamentId)
+      .order('round_number', { ascending: true })
+
+    if (!allMatches) return { error: 'No se encontraron partidos' }
+
+    // Cast to typed array
+    const typedMatches = allMatches as Array<{
+      entry1_id: string; entry2_id: string | null; winner_entry_id: string | null
+      score_entry1: string | null; score_entry2: string | null; status: string; round_number: number | null
+    }>
+
+    // Find last round_number
+    const maxRound = Math.max(...typedMatches.map(m => m.round_number ?? 0))
+    const lastRoundMatches = typedMatches.filter(m => (m.round_number ?? 0) === maxRound)
+
+    const pending = lastRoundMatches.filter(m => m.status !== 'completed')
+    if (pending.length > 0) {
+      return { error: `Faltan ${pending.length} partido${pending.length !== 1 ? 's' : ''} por completar en esta ronda` }
+    }
+
+    // Compute cumulative wins + points per pair entry
+    const stats: Record<string, { wins: number; points: number }> = {}
+    function credit(entryId: string, points: number, won: boolean) {
+      if (!stats[entryId]) stats[entryId] = { wins: 0, points: 0 }
+      stats[entryId].points += points
+      if (won) stats[entryId].wins++
+    }
+
+    for (const m of typedMatches) {
+      if (m.status !== 'completed') continue
+      const s1 = parseInt(m.score_entry1 ?? '0', 10) || 0
+      const s2 = parseInt(m.score_entry2 ?? '0', 10) || 0
+      const e1Won = m.winner_entry_id === m.entry1_id
+      credit(m.entry1_id, s1, e1Won)
+      if (m.entry2_id) credit(m.entry2_id, s2, !e1Won)
+    }
+
+    // Get all pair entries for this tournament
+    const { data: rawPairEntries } = await supabase
+      .from('tournament_entries')
+      .select('id')
+      .eq('tournament_id', tournamentId)
+      .eq('status', 'confirmed')
+      .eq('is_round_pair', false)
+
+    if (!rawPairEntries || rawPairEntries.length < 2) {
+      return { error: 'No hay parejas suficientes' }
+    }
+
+    const pairEntries = rawPairEntries as Array<{ id: string }>
+
+    // Sort by wins desc, then points desc
+    const ranked = [...pairEntries].sort((a, b) => {
+      const sa = stats[a.id] ?? { wins: 0, points: 0 }
+      const sb = stats[b.id] ?? { wins: 0, points: 0 }
+      return sb.wins !== sa.wins ? sb.wins - sa.wins : sb.points - sa.points
+    })
+
+    const nextRound = maxRound + 1
+    const courts = assignCourtsFromRanking(ranked.map(e => e.id))
+
+    const rows: Record<string, unknown>[] = courts.map(c => ({
+      tournament_id: tournamentId,
+      entry1_id: c.entry1_id,
+      entry2_id: c.entry2_id,
+      round: `Ronda ${nextRound}`,
+      round_number: nextRound,
+      court_number: c.court_number,
+      status: 'scheduled',
+    }))
+
+    const { error } = await supabase.from('tournament_matches').insert(rows)
+    if (error) return { error: error.message }
+
+    revalidatePath(`/admin/tournaments/${tournamentId}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Error generando siguiente ronda' }
   }
 }
 
@@ -511,9 +793,12 @@ export async function recordMatchResultAction(
 
     if (error) return { error: error.message }
 
-    // Mark losing entry as eliminated
+    // Only eliminate losers in bracket formats — not in americano/grupos (everyone plays all rounds)
+    const { data: tournamentData } = await supabase
+      .from('tournaments').select('format').eq('id', match.tournament_id as string).single()
+    const eliminatoryFormats = ['eliminatoria', 'grupos_y_eliminatoria']
     const loserEntryId = winnerEntryId === match.entry1_id ? match.entry2_id : match.entry1_id
-    if (loserEntryId) {
+    if (loserEntryId && eliminatoryFormats.includes((tournamentData?.format as string | null) ?? '')) {
       await supabase
         .from('tournament_entries').update({ status: 'eliminated' }).eq('id', loserEntryId)
     }
