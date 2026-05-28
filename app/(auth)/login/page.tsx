@@ -70,6 +70,18 @@ function LoginForm() {
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? 'Ingresando...' : 'Ingresar'}
       </Button>
+
+      <p className="text-center text-xs text-muted-foreground leading-relaxed pt-1">
+        Al iniciar sesión aceptas nuestros{' '}
+        <Link href="/terms" className="underline hover:text-foreground transition-colors">
+          Términos y Condiciones
+        </Link>{' '}
+        y nuestra{' '}
+        <Link href="/privacy" className="underline hover:text-foreground transition-colors">
+          Política de Privacidad
+        </Link>
+        .
+      </p>
     </form>
   )
 }

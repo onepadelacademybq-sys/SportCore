@@ -328,6 +328,18 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
         />
       </div>
 
+      {/* Cancellation policy notice */}
+      <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
+        Al confirmar esta reserva aceptas nuestra{' '}
+        <strong className="text-foreground">política de cancelaciones</strong>: cancelación con mínimo
+        24 horas de anticipación; el valor se acredita a tu E-wallet.{' '}
+        <strong className="text-foreground">No hay devoluciones en efectivo.</strong>{' '}
+        <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#00C4CC] hover:underline">
+          Ver términos completos
+        </a>
+        .
+      </div>
+
       <Button type="submit" disabled={isPending || coaches.length === 0} className="w-full sm:w-auto">
         {isPending ? 'Solicitando...' : 'Solicitar reserva'}
       </Button>

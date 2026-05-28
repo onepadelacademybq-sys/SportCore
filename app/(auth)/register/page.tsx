@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { registerAction } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function RegisterPage() {
   const [state, action, isPending] = useActionState(registerAction, { error: null })
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   return (
     <Card>
@@ -120,17 +121,19 @@ export default function RegisterPage() {
           <input type="hidden" name="role" value="player" />
 
           {/* Aceptación de términos */}
-          <div className="flex items-start gap-3 pt-1">
+          <div className="flex items-start gap-3 pt-1 rounded-lg border border-border bg-muted/20 p-3">
             <input
               type="checkbox"
               id="terms"
               name="terms"
               required
+              checked={termsAccepted}
+              onChange={e => setTermsAccepted(e.target.checked)}
               disabled={isPending}
-              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-[#00C4CC]"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-[#00C4CC] cursor-pointer"
             />
-            <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer">
-              Acepto los{' '}
+            <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer select-none">
+              He leído y acepto los{' '}
               <Link href="/terms" target="_blank" className="text-foreground font-medium hover:underline">
                 Términos y Condiciones
               </Link>
@@ -142,7 +145,7 @@ export default function RegisterPage() {
             </label>
           </div>
 
-          <Button type="submit" className="w-full" disabled={isPending}>
+          <Button type="submit" className="w-full" disabled={isPending || !termsAccepted}>
             {isPending ? 'Creando cuenta...' : 'Crear cuenta'}
           </Button>
         </form>
