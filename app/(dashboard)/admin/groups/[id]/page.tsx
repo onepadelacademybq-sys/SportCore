@@ -18,6 +18,7 @@ import { GroupForm } from '@/components/groups/group-form'
 import { EnrollPlayerForm } from '@/components/groups/enroll-player-form'
 import { RemovePlayerButton } from '@/components/groups/remove-player-button'
 import { ConfirmGroupPaymentButton } from '@/components/groups/confirm-group-payment-button'
+import { RejectGroupPaymentButton } from '@/components/groups/reject-group-payment-button'
 import { ViewGroupProofButton } from '@/components/groups/view-group-proof-button'
 import { RecordPaymentForm } from '@/components/groups/record-payment-form'
 import { GeneratePaymentsButton } from '@/components/groups/generate-payments-button'
@@ -249,6 +250,9 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                             {m.payment_proof_url && (
                               <ViewGroupProofButton memberId={m.id} storagePath={m.payment_proof_url} />
                             )}
+                            {m.payment_proof_url && (
+                              <RejectGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
+                            )}
                             <ConfirmGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
                             <RemovePlayerButton memberId={m.id} playerName={m.player.full_name} />
                           </div>
@@ -396,6 +400,9 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                           <div className="flex items-center justify-end gap-3">
                             {m.payment_proof_url && (
                               <ViewGroupProofButton memberId={m.id} storagePath={m.payment_proof_url} />
+                            )}
+                            {m.payment_proof_url && (
+                              <RejectGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
                             )}
                             <ConfirmGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
                             <RemovePlayerButton memberId={m.id} playerName={m.player.full_name} />

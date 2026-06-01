@@ -1080,6 +1080,43 @@ export async function confirmGroupPaymentAction(
   return { error: null, success: 'Pago confirmado. Jugador activado.' }
 }
 
+// ─── Admin: rechazar comprobante de inscripción ─────────────────────────────
+
+export async function rejectGroupPaymentAction(
+  _prev: GroupActionState,
+  formData: FormData,
+): Promise<GroupActionState> {
+  const { supabase } = await requireAdmin()
+
+  const memberId = (formData.get('memberId') as string | null)?.trim()
+  if (!memberId) return { error: 'ID de membresía requerido' }
+
+  const { data: member } = await supabase
+    .from('group_members')
+    .select('id, group_id, payment_proof_url')
+    .eq('id', memberId)
+    .single()
+
+  const m = member as { id: string; group_id: string; payment_proof_url: string | null } | null
+  if (!m) return { error: 'Membresía no encontrada.' }
+
+  if (m.payment_proof_url) {
+    await supabase.storage.from('payment-proofs').remove([m.payment_proof_url])
+  }
+
+  const { error } = await supabase
+    .from('group_members')
+    .update({ payment_proof_url: null, payment_status: 'pending_payment' })
+    .eq('id', memberId)
+
+  if (error) return { error: 'Error al rechazar el comprobante.' }
+
+  revalidatePath('/admin/groups')
+  revalidatePath(`/admin/groups/${m.group_id}`)
+  revalidatePath('/player/groups')
+  return { error: null, success: 'Comprobante rechazado. El jugador puede volver a enviar.' }
+}
+
 // ─── Agenda de sesiones grupales ───────────────────────────────────────────────
 
 // Devuelve todas las fechas de un mes que coinciden con un día de la semana (0=Dom)

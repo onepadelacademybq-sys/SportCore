@@ -4,6 +4,7 @@ import { getAvailableGroups, getPlayerGroups } from '@/actions/groups'
 import type { GroupSchedule } from '@/actions/groups'
 import { LevelBadge } from '@/components/groups/level-badge'
 import { JoinGroupButton } from '@/components/groups/join-group-button'
+import { GroupPaymentCard } from '@/components/groups/group-payment-card'
 
 export const metadata: Metadata = { title: 'Grupos de Entrenamiento — Jugador' }
 
@@ -31,8 +32,18 @@ export default async function PlayerGroupsPage() {
             {myGroups.map((m) => {
               const g = m.group
 
+              const isPendingPayment = m.status === 'pending_payment'
+              const proofSent = m.payment_status === 'paid'
+
               return (
-                <div key={m.id} className="rounded-lg border border-[#00C4CC]/30 bg-[#00C4CC]/5 p-4">
+                <div
+                  key={m.id}
+                  className={`rounded-lg border p-4 ${
+                    isPendingPayment
+                      ? 'border-orange-500/30 bg-orange-500/5'
+                      : 'border-[#00C4CC]/30 bg-[#00C4CC]/5'
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -46,6 +57,11 @@ export default async function PlayerGroupsPage() {
                         {m.status === 'active' && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#00C4CC]/15 text-[#00C4CC]">
                             Activo
+                          </span>
+                        )}
+                        {isPendingPayment && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/15 text-orange-400">
+                            Pago pendiente
                           </span>
                         )}
                       </div>
@@ -68,6 +84,15 @@ export default async function PlayerGroupsPage() {
                       <p className="text-xs text-muted-foreground">/mes</p>
                     </div>
                   </div>
+
+                  {isPendingPayment && (
+                    <GroupPaymentCard
+                      memberId={m.id}
+                      groupName={g.name}
+                      monthlyFee={m.monthly_fee ?? g.monthly_fee}
+                      proofSent={proofSent}
+                    />
+                  )}
                 </div>
               )
             })}
