@@ -28,6 +28,9 @@
     "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
+  "engines": {
+    "node": ">=22.12"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
