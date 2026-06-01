@@ -69,9 +69,8 @@ export async function middleware(request: NextRequest) {
   // Authenticated users hitting public auth pages → send to their dashboard
   if (isPublic) {
     const role = await resolveRole(user.id, supabase)
-    if (!role) return response // profile not created yet, let through
     const dashboardUrl = request.nextUrl.clone()
-    dashboardUrl.pathname = ROLE_DASHBOARD[role]
+    dashboardUrl.pathname = ROLE_DASHBOARD[role ?? 'player']
     return withSessionCookies(NextResponse.redirect(dashboardUrl), response)
   }
 

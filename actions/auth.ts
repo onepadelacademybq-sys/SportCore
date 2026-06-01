@@ -27,7 +27,7 @@ export async function loginAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword(parsed.data)
+  const { data: signInData, error } = await supabase.auth.signInWithPassword(parsed.data)
   if (error) {
     if (error.message === 'Invalid login credentials') {
       return { error: 'Email o contraseña incorrectos' }
@@ -38,7 +38,18 @@ export async function loginAction(
     return { error: error.message }
   }
 
-  redirect('/')
+  const userId = signInData.user?.id
+  if (userId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
+    const role = (profile?.role as 'admin' | 'coach' | 'player' | null) ?? 'player'
+    redirect(`/${role}/dashboard`)
+  }
+
+  redirect('/player/dashboard')
 }
 
 // ─── Register ─────────────────────────────────────────────────────────────────
@@ -112,9 +123,9 @@ export async function registerAction(
   }
 
   // If email confirmation is required, session will be null → redirect to login
-  // If auto-confirm is enabled, session exists → middleware handles dashboard redirect
+  // If auto-confirm is enabled, session exists → go directly to player dashboard
   if (signUpData.session) {
-    redirect('/')
+    redirect('/player/dashboard')
   }
 
   redirect('/login?registered=1')
