@@ -7,8 +7,6 @@ import { STROKE_GROUPS, type ShotGroup } from '@/lib/eval-strokes'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type { ShotGroup }
-
 export type TechnicalShot = {
   strokeGroup: ShotGroup
   strokeName:  string
