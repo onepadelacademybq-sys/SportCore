@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, Wallet, CalendarDays, UsersRound, ClipboardList, LayoutList, BookOpen, Clock, Users } from 'lucide-react'
-import { getUserProfile } from '@/actions/users'
+import { getUserProfile, adminUpdateProfileAction } from '@/actions/users'
 import type { CoachData } from '@/actions/users'
+import { EditProfileForm } from '@/components/users/edit-profile-form'
 import { formatDate, formatBookingDateTime, formatCOP } from '@/lib/format'
 import { RoleBadge } from '@/components/users/role-badge'
 import { LevelBadge } from '@/components/groups/level-badge'
@@ -273,6 +274,20 @@ export default async function AdminUserDetailPage({ params }: Props) {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Editar datos del perfil */}
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <h3 className="text-sm font-semibold">Editar perfil</h3>
+            <EditProfileForm
+              action={adminUpdateProfileAction}
+              initialValues={{
+                full_name: profile.full_name,
+                phone:     profile.phone,
+                address:   profile.address,
+              }}
+              targetId={profile.id}
+            />
+          </div>
+
           <UserActions userId={profile.id} currentRole={profile.role} isActive={profile.is_active} />
 
           {/* E-wallet — solo para jugadores */}

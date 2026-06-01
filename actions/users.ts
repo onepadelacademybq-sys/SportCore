@@ -317,6 +317,81 @@ export async function getUserProfile(id: string): Promise<UserProfileFull | null
   return { profile, bookings, groups, evaluations, assignments, payment, wallet }
 }
 
+// ─── Actualizar perfil ────────────────────────────────────────────────────────
+
+const UpdateProfileSchema = z.object({
+  full_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  phone:     z.string().optional(),
+  address:   z.string().optional(),
+})
+
+export async function updateOwnProfileAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const parsed = UpdateProfileSchema.safeParse({
+    full_name: formData.get('full_name'),
+    phone:     (formData.get('phone') as string) || undefined,
+    address:   (formData.get('address') as string) || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      full_name: parsed.data.full_name,
+      phone:     parsed.data.phone ?? null,
+      address:   parsed.data.address ?? null,
+    })
+    .eq('id', user.id)
+
+  if (error) return { error: 'No se pudo guardar el perfil. Intenta de nuevo.' }
+
+  revalidatePath('/player/profile')
+  revalidatePath('/player/dashboard')
+  return { error: null, success: 'Perfil actualizado correctamente.' }
+}
+
+export async function adminUpdateProfileAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await requireAdmin()
+
+  const targetId = formData.get('targetId') as string
+  if (!z.string().uuid().safeParse(targetId).success) return { error: 'Usuario inválido' }
+
+  const parsed = UpdateProfileSchema.safeParse({
+    full_name: formData.get('full_name'),
+    phone:     (formData.get('phone') as string) || undefined,
+    address:   (formData.get('address') as string) || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      full_name: parsed.data.full_name,
+      phone:     parsed.data.phone ?? null,
+      address:   parsed.data.address ?? null,
+    })
+    .eq('id', targetId)
+
+  if (error) {
+    console.error('[adminUpdateProfileAction]', error)
+    return { error: 'No se pudo guardar el perfil.' }
+  }
+
+  revalidatePath('/admin/users')
+  revalidatePath(`/admin/users/${targetId}`)
+  return { error: null, success: 'Perfil actualizado.' }
+}
+
 // ─── Acciones admin ─────────────────────────────────────────────────────────────
 
 const RoleSchema = z.enum(['admin', 'coach', 'player'])

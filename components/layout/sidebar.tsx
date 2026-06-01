@@ -62,6 +62,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: 'Reservas',         href: '/player/bookings',     icon: Calendar },
     { label: 'Grupos',           href: '/player/groups',       icon: UsersRound },
     { label: 'Torneos',          href: '/player/tournaments',  icon: Trophy },
+    { label: 'Mi Perfil',        href: '/player/profile',      icon: UserCircle },
   ],
 }
 
