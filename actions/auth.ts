@@ -87,13 +87,20 @@ export async function registerAction(
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    },
   })
   if (signUpError) {
     if (signUpError.message.includes('already registered')) {
       return { error: 'Ya existe una cuenta con ese email' }
     }
-    if (signUpError.message.includes('rate limit')) {
-      return { error: 'Demasiados intentos. Espera unos minutos antes de volver a intentarlo.' }
+    if (
+      signUpError.message.includes('rate limit') ||
+      signUpError.message.includes('over_email_send_rate_limit') ||
+      signUpError.message.includes('email rate limit')
+    ) {
+      return { error: 'Has realizado demasiados intentos. Por favor espera 5 minutos antes de intentarlo de nuevo.' }
     }
     return { error: signUpError.message }
   }
