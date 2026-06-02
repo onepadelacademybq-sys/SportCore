@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { requestGroupEnrollmentAction } from '@/actions/groups'
 import { Button } from '@/components/ui/button'
 
@@ -10,7 +11,12 @@ interface Props {
 }
 
 export function JoinGroupButton({ groupId, myStatus }: Props) {
+  const router = useRouter()
   const [state, action, isPending] = useActionState(requestGroupEnrollmentAction, { error: null })
+
+  useEffect(() => {
+    if (state.success) router.refresh()
+  }, [state.success, router])
 
   if (state.success) {
     return (

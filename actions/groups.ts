@@ -1101,7 +1101,8 @@ export async function rejectGroupPaymentAction(
   if (!m) return { error: 'Membresía no encontrada.' }
 
   if (m.payment_proof_url) {
-    await supabase.storage.from('payment-proofs').remove([m.payment_proof_url])
+    const admin = createAdminClient()
+    await admin.storage.from('payment-proofs').remove([m.payment_proof_url])
   }
 
   const { error } = await supabase
