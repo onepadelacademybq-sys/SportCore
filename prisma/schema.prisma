@@ -314,8 +314,30 @@ model Profile {
   // E-wallet
   classWallet        ClassWallet?
   walletTransactions WalletTransaction[]
+  guardianProfile    GuardianProfile?
 
   @@map("profiles")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO — Menores de edad
+// ─────────────────────────────────────────────
+
+model GuardianProfile {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  minorId              String   @unique @map("minor_id") @db.Uuid
+  guardianName         String   @map("guardian_name")
+  guardianDocument     String   @map("guardian_document")
+  guardianPhone        String   @map("guardian_phone")
+  guardianEmail        String   @map("guardian_email")
+  guardianRelationship String   @map("guardian_relationship")
+  consentAccepted      Boolean  @default(false) @map("consent_accepted")
+  consentDate          DateTime @default(now()) @map("consent_date") @db.Timestamptz(6)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  minor                Profile  @relation(fields: [minorId], references: [id], onDelete: Cascade)
+
+  @@map("guardian_profiles")
 }
 
 // ─────────────────────────────────────────────

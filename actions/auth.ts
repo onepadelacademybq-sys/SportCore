@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
@@ -54,6 +55,16 @@ export async function loginAction(
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 
+function isMinor(dateOfBirth: string): boolean {
+  const dob = new Date(dateOfBirth)
+  const today = new Date()
+  const age = today.getFullYear() - dob.getFullYear()
+  const hadBirthday =
+    today.getMonth() > dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate())
+  return age - (hadBirthday ? 0 : 1) < 18
+}
+
 const RegisterSchema = z.object({
   email: z.string().email('Ingresa un email válido'),
   password: z.string().min(8, 'Mínimo 8 caracteres'),
@@ -62,6 +73,19 @@ const RegisterSchema = z.object({
   phone: z.string().min(7, 'Teléfono inválido'),
   dateOfBirth: z.string().min(1, 'Fecha de nacimiento requerida'),
   address: z.string().min(5, 'Dirección inválida'),
+})
+
+const GuardianSchema = z.object({
+  guardianName:         z.string().min(2, 'Nombre del representante requerido'),
+  guardianDocument:     z.string().min(3, 'Documento del representante requerido'),
+  guardianPhone:        z.string().min(7, 'Teléfono del representante requerido'),
+  guardianEmail:        z.string().email('Email del representante inválido'),
+  guardianRelationship: z.enum(['padre', 'madre', 'tutor_legal', 'otro'], {
+    error: 'Selecciona la relación con el menor',
+  }),
+  guardianConsent: z.literal('on', {
+    error: 'Debes aceptar el tratamiento de datos del menor',
+  }),
 })
 
 export async function registerAction(
@@ -81,6 +105,22 @@ export async function registerAction(
 
   const { email, password, fullName, documentId, phone, dateOfBirth, address } =
     parsed.data
+
+  // Si es menor, validar datos del representante legal
+  const minor = isMinor(dateOfBirth)
+  let guardianData: z.infer<typeof GuardianSchema> | null = null
+  if (minor) {
+    const guardianParsed = GuardianSchema.safeParse({
+      guardianName:         formData.get('guardianName'),
+      guardianDocument:     formData.get('guardianDocument'),
+      guardianPhone:        formData.get('guardianPhone'),
+      guardianEmail:        formData.get('guardianEmail'),
+      guardianRelationship: formData.get('guardianRelationship'),
+      guardianConsent:      formData.get('guardianConsent'),
+    })
+    if (!guardianParsed.success) return { error: guardianParsed.error.issues[0].message }
+    guardianData = guardianParsed.data
+  }
 
   const supabase = await createClient()
 
@@ -127,6 +167,25 @@ export async function registerAction(
 
   if (profileError) {
     return { error: 'Error al crear el perfil. Intenta nuevamente.' }
+  }
+
+  // Guardar datos del representante legal si es menor
+  if (minor && guardianData) {
+    const admin = createAdminClient()
+    const { error: guardianError } = await admin.from('guardian_profiles').insert({
+      minor_id:              userId,
+      guardian_name:         guardianData.guardianName,
+      guardian_document:     guardianData.guardianDocument,
+      guardian_phone:        guardianData.guardianPhone,
+      guardian_email:        guardianData.guardianEmail,
+      guardian_relationship: guardianData.guardianRelationship,
+      consent_accepted:      true,
+      consent_date:          new Date().toISOString(),
+    })
+    if (guardianError) {
+      console.error('[registerAction] guardian_profiles:', guardianError)
+      // No bloqueamos el registro — el admin puede completar después
+    }
   }
 
   // If email confirmation is required, session will be null → redirect to login

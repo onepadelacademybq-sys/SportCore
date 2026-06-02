@@ -1,9 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronLeft, Wallet, CalendarDays, UsersRound, ClipboardList, LayoutList, BookOpen, Clock, Users } from 'lucide-react'
+import { ChevronLeft, Wallet, CalendarDays, UsersRound, ClipboardList, LayoutList, BookOpen, Clock, Users, ShieldCheck } from 'lucide-react'
 import { getUserProfile, adminUpdateProfileAction } from '@/actions/users'
 import type { CoachData } from '@/actions/users'
+import { getGuardianProfile } from '@/actions/guardians'
+import type { GuardianProfile } from '@/actions/guardians'
+import { RELATIONSHIP_LABELS } from '@/actions/guardians'
 import { EditProfileForm } from '@/components/users/edit-profile-form'
 import { formatDate, formatBookingDateTime, formatCOP } from '@/lib/format'
 import { RoleBadge } from '@/components/users/role-badge'
@@ -123,13 +126,28 @@ function CoachSections({ coach }: { coach: CoachData }) {
   )
 }
 
+function isMinor(dateOfBirth: string | null): boolean {
+  if (!dateOfBirth) return false
+  const dob = new Date(dateOfBirth)
+  const today = new Date()
+  const age = today.getFullYear() - dob.getFullYear()
+  const hadBirthday =
+    today.getMonth() > dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate())
+  return age - (hadBirthday ? 0 : 1) < 18
+}
+
 export default async function AdminUserDetailPage({ params }: Props) {
   const { id } = await params
-  const data = await getUserProfile(id)
+  const [data, guardian] = await Promise.all([
+    getUserProfile(id),
+    getGuardianProfile(id),
+  ])
   if (!data) notFound()
 
   const { profile, bookings, groups, evaluations, assignments, payment, wallet } = data
   const paidRate = payment.total > 0 ? Math.round((payment.paid / payment.total) * 100) : 0
+  const minor = isMinor(profile.date_of_birth)
 
   return (
     <div className="p-8 space-y-6 max-w-5xl">
@@ -141,10 +159,15 @@ export default async function AdminUserDetailPage({ params }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold">{profile.full_name}</h1>
             <RoleBadge role={profile.role} />
             {profile.padel_level && <LevelBadge level={profile.padel_level} />}
+            {minor && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400">
+                <ShieldCheck className="h-3 w-3" /> Menor de edad
+              </span>
+            )}
           </div>
           <p className="text-muted-foreground text-sm mt-1">{profile.email}</p>
         </div>
@@ -169,6 +192,33 @@ export default async function AdminUserDetailPage({ params }: Props) {
               <Field label="Registrado" value={formatDate(profile.created_at)} />
             </div>
           </Section>
+
+          {/* Representante legal — solo si es menor de edad */}
+          {minor && (
+            <Section title="Representante legal" icon={<ShieldCheck className="h-4 w-4" />}>
+              {guardian ? (
+                <>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                    <Field label="Nombre" value={guardian.guardian_name} />
+                    <Field label="Documento" value={guardian.guardian_document} />
+                    <Field label="Teléfono" value={guardian.guardian_phone} />
+                    <Field label="Email" value={guardian.guardian_email} />
+                    <Field label="Relación" value={RELATIONSHIP_LABELS[guardian.guardian_relationship] ?? guardian.guardian_relationship} />
+                    <Field label="Consentimiento otorgado" value={formatDate(guardian.consent_date)} />
+                  </div>
+                  {guardian.consent_accepted && (
+                    <p className="text-xs text-emerald-400 mt-2">
+                      ✓ Consentimiento de tratamiento de datos aceptado (Ley 1581 de 2012)
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-amber-400">
+                  Menor de edad sin datos de representante legal registrados.
+                </p>
+              )}
+            </Section>
+          )}
 
           {profile.role === 'coach' && data.coach ? (
             <CoachSections coach={data.coach} />
