@@ -18,12 +18,6 @@ export type GuardianProfile = {
   created_at: string
 }
 
-export const RELATIONSHIP_LABELS: Record<string, string> = {
-  padre:        'Padre',
-  madre:        'Madre',
-  tutor_legal:  'Tutor legal',
-  otro:         'Otro',
-}
 
 const GuardianSchema = z.object({
   guardianName:         z.string().min(2, 'Nombre del representante requerido'),
