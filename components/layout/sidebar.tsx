@@ -17,11 +17,11 @@ import {
   LayoutList,
   LogOut,
   UserCircle,
+  Bell,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { logoutAction } from '@/actions/auth'
-import { NotificationBell } from '@/components/layout/notification-bell'
 
 type Role = 'admin' | 'coach' | 'player'
 
@@ -142,7 +142,11 @@ export function Sidebar({ fullName, email, role }: SidebarProps) {
               {ROLE_LABEL[role]}
             </span>
           </div>
-          <NotificationBell />
+          {/* TEST: static bell — replace with NotificationBell once confirmed visible */}
+          <button className="relative p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Notificaciones">
+            <Bell className="h-4 w-4" />
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">1</span>
+          </button>
         </div>
         <Button
           variant="outline"
