@@ -1,12 +1,11 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createNotification } from '@/actions/notifications'
-
-type TrainingSupabase = Awaited<ReturnType<typeof createClient>>
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,17 +88,26 @@ export type MesocycleAssignment = {
 // ─── Notification helper ──────────────────────────────────────────────────────
 
 async function notifyMesocyclePlayers(
-  supabase: TrainingSupabase,
   mesocycleId: string,
   title: string,
   body: string,
 ): Promise<void> {
-  const { data: assignments } = await supabase
+  const admin = createAdminClient()
+
+  const { data: assignments, error: assignErr } = await admin
     .from('mesocycle_assignments')
     .select('player_id, group_id')
     .eq('mesocycle_id', mesocycleId)
 
-  if (!assignments || assignments.length === 0) return
+  if (assignErr) {
+    console.error('[notifyMesocyclePlayers] assignments query failed:', assignErr)
+    return
+  }
+
+  if (!assignments || assignments.length === 0) {
+    console.log('[notifyMesocyclePlayers] no assignments for mesocycle', mesocycleId)
+    return
+  }
 
   const playerIds = new Set<string>()
   const groupIds: string[] = []
@@ -110,16 +118,22 @@ async function notifyMesocyclePlayers(
   }
 
   if (groupIds.length > 0) {
-    const { data: members } = await supabase
+    const { data: members, error: membersErr } = await admin
       .from('group_members')
       .select('player_id')
       .in('group_id', groupIds)
       .eq('status', 'active')
 
+    if (membersErr) {
+      console.error('[notifyMesocyclePlayers] group_members query failed:', membersErr)
+    }
+
     for (const m of (members ?? []) as { player_id: string }[]) {
       playerIds.add(m.player_id)
     }
   }
+
+  console.log(`[notifyMesocyclePlayers] notifying ${playerIds.size} player(s) for mesocycle ${mesocycleId}`)
 
   await Promise.all(
     Array.from(playerIds).map((id) =>
@@ -635,7 +649,7 @@ export async function updateMesocycleAction(
 
   if (error) return { error: error.message }
 
-  await notifyMesocyclePlayers(supabase, mesocycleId, 'Plan actualizado', `Tu plan de entrenamiento "${name}" ha sido actualizado.`)
+  await notifyMesocyclePlayers(mesocycleId, 'Plan actualizado', `Tu plan de entrenamiento "${name}" ha sido actualizado.`)
 
   revalidatePath('/admin/planning')
   revalidatePath('/coach/planning')
@@ -882,7 +896,7 @@ export async function createSessionAction(
 
   if (mc) {
     const dateLabel = new Date(scheduledAt).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' })
-    await notifyMesocyclePlayers(supabase, (mc as { mesocycle_id: string }).mesocycle_id, 'Nueva sesión programada', `Se ha programado una nueva sesión: ${dateLabel}.`)
+    await notifyMesocyclePlayers((mc as { mesocycle_id: string }).mesocycle_id, 'Nueva sesión programada', `Se ha programado una nueva sesión: ${dateLabel}.`)
   }
 
   revalidatePath('/admin/planning')
@@ -933,7 +947,7 @@ export async function updateSessionAction(
     .single()
   const mesocycleIdForNotif = (sessData as any)?.microcycle?.mesocycle_id
   if (mesocycleIdForNotif) {
-    await notifyMesocyclePlayers(supabase, mesocycleIdForNotif, 'Sesión modificada', 'Una sesión de tu plan de entrenamiento ha sido modificada.')
+    await notifyMesocyclePlayers(mesocycleIdForNotif, 'Sesión modificada', 'Una sesión de tu plan de entrenamiento ha sido modificada.')
   }
 
   revalidatePath('/admin/planning')
@@ -980,7 +994,7 @@ export async function updateSessionStatusAction(
       .single()
     const mesocycleIdForNotif = (sessData as any)?.microcycle?.mesocycle_id
     if (mesocycleIdForNotif) {
-      await notifyMesocyclePlayers(supabase, mesocycleIdForNotif, 'Sesión completada ✓', 'Una sesión de tu plan de entrenamiento ha sido completada.')
+      await notifyMesocyclePlayers(mesocycleIdForNotif, 'Sesión completada ✓', 'Una sesión de tu plan de entrenamiento ha sido completada.')
     }
   }
 
