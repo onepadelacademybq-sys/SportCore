@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { logoutAction } from '@/actions/auth'
+import { NotificationBell } from '@/components/layout/notification-bell'
 
 type Role = 'admin' | 'coach' | 'player'
 
@@ -131,14 +132,17 @@ export function Sidebar({ fullName, email, role }: SidebarProps) {
 
       {/* User info + logout */}
       <div className="p-4 space-y-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold truncate">{fullName}</p>
-          <p className="text-xs text-muted-foreground truncate">{email}</p>
-          <span
-            className={`inline-block mt-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${ROLE_BADGE[role]}`}
-          >
-            {ROLE_LABEL[role]}
-          </span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold truncate">{fullName}</p>
+            <p className="text-xs text-muted-foreground truncate">{email}</p>
+            <span
+              className={`inline-block mt-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${ROLE_BADGE[role]}`}
+            >
+              {ROLE_LABEL[role]}
+            </span>
+          </div>
+          <NotificationBell />
         </div>
         <Button
           variant="outline"
