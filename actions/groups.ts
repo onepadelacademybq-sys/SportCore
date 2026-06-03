@@ -210,7 +210,7 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
     .order('joined_at', { ascending: true })
 
   if (error) console.error('[getGroupMembers]', error)
-  return (data ?? []) as unknown as GroupMember[]
+  return ((data ?? []) as any[]).filter((m) => m.player != null) as unknown as GroupMember[]
 }
 
 /** Registros de pago de un grupo para un mes específico */

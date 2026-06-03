@@ -231,8 +231,8 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                     {pendingPaymentMembers.map((m) => (
                       <tr key={m.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3">
-                          <p className="font-medium">{m.player.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{m.player.email}</p>
+                          <p className="font-medium">{m.player?.full_name ?? '—'}</p>
+                          <p className="text-xs text-muted-foreground">{m.player?.email ?? '—'}</p>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
                           {m.payment_proof_url ? (
@@ -251,10 +251,10 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                               <ViewGroupProofButton memberId={m.id} storagePath={m.payment_proof_url} />
                             )}
                             {m.payment_proof_url && (
-                              <RejectGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
+                              <RejectGroupPaymentButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
                             )}
-                            <ConfirmGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
-                            <RemovePlayerButton memberId={m.id} playerName={m.player.full_name} />
+                            <ConfirmGroupPaymentButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
+                            <RemovePlayerButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
                           </div>
                         </td>
                       </tr>
@@ -296,17 +296,17 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                     {activeMembers.map((m) => (
                       <tr key={m.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3">
-                          <p className="font-medium">{m.player.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{m.player.email}</p>
+                          <p className="font-medium">{m.player?.full_name ?? '—'}</p>
+                          <p className="text-xs text-muted-foreground">{m.player?.email ?? '—'}</p>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell text-xs text-muted-foreground">
-                          {m.player.padel_level ?? '—'}
+                          {m.player?.padel_level ?? '—'}
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell text-xs text-muted-foreground">
                           {new Date(m.joined_at).toLocaleDateString('es-ES')}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <RemovePlayerButton memberId={m.id} playerName={m.player.full_name} />
+                          <RemovePlayerButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
                         </td>
                       </tr>
                     ))}
@@ -336,14 +336,14 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                       <tr key={m.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3 w-8 text-xs text-muted-foreground font-mono">{i + 1}</td>
                         <td className="px-4 py-3">
-                          <p className="font-medium">{m.player.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{m.player.email}</p>
+                          <p className="font-medium">{m.player?.full_name ?? '—'}</p>
+                          <p className="text-xs text-muted-foreground">{m.player?.email ?? '—'}</p>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">
                           En espera desde {new Date(m.joined_at).toLocaleDateString('es-ES')}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <RemovePlayerButton memberId={m.id} playerName={m.player.full_name} />
+                          <RemovePlayerButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
                         </td>
                       </tr>
                     ))}
@@ -379,8 +379,8 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                     {pendingPaymentMembers.map((m) => (
                       <tr key={m.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3">
-                          <p className="font-medium">{m.player.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{m.player.email}</p>
+                          <p className="font-medium">{m.player?.full_name ?? '—'}</p>
+                          <p className="text-xs text-muted-foreground">{m.player?.email ?? '—'}</p>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell text-sm font-mono">
                           ${Number(m.monthly_fee ?? group.monthly_fee).toLocaleString('es-CO')}
@@ -402,10 +402,10 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                               <ViewGroupProofButton memberId={m.id} storagePath={m.payment_proof_url} />
                             )}
                             {m.payment_proof_url && (
-                              <RejectGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
+                              <RejectGroupPaymentButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
                             )}
-                            <ConfirmGroupPaymentButton memberId={m.id} playerName={m.player.full_name} />
-                            <RemovePlayerButton memberId={m.id} playerName={m.player.full_name} />
+                            <ConfirmGroupPaymentButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
+                            <RemovePlayerButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
                           </div>
                         </td>
                       </tr>
@@ -444,8 +444,8 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                       return (
                         <tr key={m.id} className="hover:bg-muted/20 transition-colors">
                           <td className="px-4 py-3">
-                            <p className="font-medium">{m.player.full_name}</p>
-                            <p className="text-xs text-muted-foreground">{m.player.email}</p>
+                            <p className="font-medium">{m.player?.full_name ?? '—'}</p>
+                            <p className="text-xs text-muted-foreground">{m.player?.email ?? '—'}</p>
                           </td>
                           <td className="px-4 py-3 hidden sm:table-cell text-xs text-muted-foreground">
                             {m.next_payment_due ?? '—'}
