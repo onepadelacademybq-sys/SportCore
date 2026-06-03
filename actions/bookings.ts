@@ -407,14 +407,21 @@ export async function confirmBookingAction(
 
   const { bookingId, courtId } = parsed.data
 
-  // Fetch booking to check module_classes and player_id
+  // Fetch booking to check module_classes, player_id, coach and times
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, player_id, module_classes, start_time')
+    .select('id, player_id, coach_id, module_classes, start_time, end_time, player:profiles!player_id(full_name)')
     .eq('id', bookingId)
     .single()
 
-  const b = booking as { player_id: string | null; module_classes: number | null; start_time: string } | null
+  const b = booking as {
+    player_id:     string | null
+    coach_id:      string | null
+    module_classes: number | null
+    start_time:    string
+    end_time:      string
+    player:        { full_name: string } | null
+  } | null
   if (!b) return { error: 'Reserva no encontrada' }
 
   const update: Record<string, unknown> = { status: 'confirmed' }
@@ -441,18 +448,18 @@ export async function confirmBookingAction(
   // Registrar ingresos/egresos automáticos de la reserva confirmada
   await recordBookingFinancials(supabase, bookingId, userId)
 
-  if (b.player_id) {
-    const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    })
-    await createNotification(
-      b.player_id,
-      'Reserva confirmada',
-      `Tu reserva del ${dateLabel} fue confirmada.`,
-      'booking_confirmed',
-      '/player/bookings',
-    )
-  }
+  const dateLabel  = new Date(b.start_time).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' })
+  const startLabel = new Date(b.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const endLabel   = new Date(b.end_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
+
+  await Promise.all([
+    b.player_id
+      ? createNotification(b.player_id, 'Reserva confirmada', `Tu reserva del ${dateLabel} de ${startLabel} a ${endLabel} fue confirmada.`, 'booking_confirmed', '/player/bookings')
+      : Promise.resolve(),
+    b.coach_id
+      ? createNotification(b.coach_id, 'Nueva clase confirmada', `Tienes una clase con ${b.player?.full_name ?? 'un jugador'} el ${dateLabel} de ${startLabel} a ${endLabel}.`, 'booking_confirmed', '/coach/bookings')
+      : Promise.resolve(),
+  ])
 
   revalidatePath('/admin/bookings')
   revalidatePath('/player/bookings')

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { STROKE_GROUPS, type ShotGroup } from '@/lib/eval-strokes'
+import { createNotification } from '@/actions/notifications'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,14 @@ export async function createEvaluation(
   revalidatePath('/admin/evaluations')
   revalidatePath('/coach/evaluations')
 
+  await createNotification(
+    playerId,
+    'Nueva evaluación programada',
+    `Se ha programado una evaluación: "${title}"`,
+    'evaluation_ready',
+    '/player/my-evaluations',
+  )
+
   return { id: (data as { id: string }).id }
 }
 
@@ -243,6 +252,22 @@ export async function saveTechnicalShots(
       })),
     )
     if (error) return { error: error.message }
+  }
+
+  const { data: evalMeta } = await supabase
+    .from('evaluations')
+    .select('player_id')
+    .eq('id', evaluationId)
+    .single()
+
+  if (evalMeta) {
+    await createNotification(
+      (evalMeta as { player_id: string }).player_id,
+      'Resultados técnicos registrados',
+      'Los resultados de tu evaluación técnica han sido registrados.',
+      'evaluation_ready',
+      '/player/my-evaluations',
+    )
   }
 
   revalidateEval(evaluationId)
@@ -400,6 +425,26 @@ export async function shareEvaluation(
     .eq('id', evaluationId)
 
   if (error) return { error: error.message }
+
+  if (share) {
+    const { data: evalMeta } = await supabase
+      .from('evaluations')
+      .select('player_id, title')
+      .eq('id', evaluationId)
+      .single()
+
+    if (evalMeta) {
+      const e = evalMeta as { player_id: string; title: string }
+      await createNotification(
+        e.player_id,
+        'Resultados de evaluación disponibles',
+        `Tu entrenador compartió los resultados de tu evaluación: "${e.title}"`,
+        'evaluation_ready',
+        '/player/my-evaluations',
+      )
+    }
+  }
+
   revalidateEval(evaluationId)
   return null
 }
