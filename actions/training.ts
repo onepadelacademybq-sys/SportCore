@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createNotification } from '@/actions/notifications'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -651,6 +652,14 @@ export async function assignMesocycleAction(
   if (!playerId && !groupId) return { error: 'Debes seleccionar un jugador o grupo' }
   if (playerId && groupId)   return { error: 'Selecciona solo un jugador o un grupo, no ambos' }
 
+  // Fetch mesocycle name for the notification message
+  const { data: meso } = await supabase
+    .from('mesocycles')
+    .select('name')
+    .eq('id', mesocycleId)
+    .single()
+  const mesoName = (meso as { name: string } | null)?.name ?? 'un plan de entrenamiento'
+
   const { error } = await supabase
     .from('mesocycle_assignments')
     .insert({ mesocycle_id: mesocycleId, player_id: playerId, group_id: groupId, assigned_by: userId })
@@ -658,6 +667,35 @@ export async function assignMesocycleAction(
   if (error) {
     if (error.code === '23505') return { error: 'Este mesociclo ya está asignado a ese jugador/grupo' }
     return { error: error.message }
+  }
+
+  // Notify individual player or all active group members
+  if (playerId) {
+    await createNotification(
+      playerId,
+      'Nueva planificación asignada',
+      `Se te asignó "${mesoName}". Revisa tu plan de entrenamiento.`,
+      'session_assigned',
+      '/player/my-trainings',
+    )
+  } else if (groupId) {
+    const { data: members } = await supabase
+      .from('group_members')
+      .select('player_id')
+      .eq('group_id', groupId)
+      .eq('status', 'active')
+
+    await Promise.all(
+      ((members ?? []) as { player_id: string }[]).map((m) =>
+        createNotification(
+          m.player_id,
+          'Nueva planificación asignada',
+          `Se asignó "${mesoName}" a tu grupo. Revisa tu plan de entrenamiento.`,
+          'session_assigned',
+          '/player/my-trainings',
+        )
+      )
+    )
   }
 
   revalidatePath(`/admin/planning/${mesocycleId}`)

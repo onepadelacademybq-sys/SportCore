@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { recordGroupIncome } from '@/actions/finances'
 import { nextClassDate, addOneMonth, formatDate } from '@/lib/groups/billing'
+import { createNotification } from '@/actions/notifications'
 
 // ─── Shared types ──────────────────────────────────────────────────────────────
 
@@ -1038,11 +1039,11 @@ export async function confirmGroupPaymentAction(
 
   const { data: member } = await supabase
     .from('group_members')
-    .select('id, group_id, status, next_payment_due')
+    .select('id, group_id, player_id, status, next_payment_due')
     .eq('id', memberId)
     .single()
 
-  const m = member as { id: string; group_id: string; status: string; next_payment_due: string | null } | null
+  const m = member as { id: string; group_id: string; player_id: string; status: string; next_payment_due: string | null } | null
   if (!m) return { error: 'Membresía no encontrada.' }
 
   // Calcular ciclo de pago anclado a la próxima clase
@@ -1073,6 +1074,14 @@ export async function confirmGroupPaymentAction(
     .eq('id', memberId)
 
   if (error) return { error: 'Error al confirmar el pago.' }
+
+  await createNotification(
+    m.player_id,
+    'Pago de grupo confirmado',
+    'Tu pago de inscripción fue confirmado. Ya eres parte activa del grupo.',
+    'payment_processed',
+    '/player/groups',
+  )
 
   revalidatePath('/admin/groups')
   revalidatePath(`/admin/groups/${m.group_id}`)

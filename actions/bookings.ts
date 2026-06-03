@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { creditClasses, debitClass } from '@/actions/wallet'
 import { recordBookingFinancials } from '@/actions/finances'
+import { createNotification, notifyAdmins } from '@/actions/notifications'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -302,6 +303,15 @@ export async function requestBookingAction(
     await recordBookingFinancials(supabase, (inserted as { id: string }).id, userId)
   }
 
+  const dateLabel = start.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+  const timeLabel = `${startTime}–${endTime}`
+  await notifyAdmins(
+    'Nueva reserva solicitada',
+    `Se solicitó una reserva para el ${dateLabel} de ${timeLabel}.`,
+    'announcement',
+    '/admin/bookings',
+  )
+
   revalidatePath('/player/bookings')
   return {
     error: null,
@@ -364,6 +374,13 @@ export async function uploadPaymentProofAction(
 
   if (dbError) return { error: 'Error al actualizar la reserva' }
 
+  await notifyAdmins(
+    'Comprobante de pago subido',
+    'Un jugador subió su comprobante de pago y espera verificación.',
+    'payment_processed',
+    '/admin/bookings',
+  )
+
   revalidatePath('/player/bookings')
   return { error: null, success: 'Comprobante enviado. El administrador verificará el pago.' }
 }
@@ -393,11 +410,11 @@ export async function confirmBookingAction(
   // Fetch booking to check module_classes and player_id
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, player_id, module_classes')
+    .select('id, player_id, module_classes, start_time')
     .eq('id', bookingId)
     .single()
 
-  const b = booking as { player_id: string | null; module_classes: number | null } | null
+  const b = booking as { player_id: string | null; module_classes: number | null; start_time: string } | null
   if (!b) return { error: 'Reserva no encontrada' }
 
   const update: Record<string, unknown> = { status: 'confirmed' }
@@ -423,6 +440,19 @@ export async function confirmBookingAction(
 
   // Registrar ingresos/egresos automáticos de la reserva confirmada
   await recordBookingFinancials(supabase, bookingId, userId)
+
+  if (b.player_id) {
+    const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    })
+    await createNotification(
+      b.player_id,
+      'Reserva confirmada',
+      `Tu reserva del ${dateLabel} fue confirmada.`,
+      'booking_confirmed',
+      '/player/bookings',
+    )
+  }
 
   revalidatePath('/admin/bookings')
   revalidatePath('/player/bookings')
@@ -459,11 +489,11 @@ export async function cancelBookingAction(
 
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, player_id, status, start_time')
+    .select('id, player_id, coach_id, status, start_time')
     .eq('id', bookingId)
     .single()
 
-  const b = booking as { player_id: string; status: string; start_time: string } | null
+  const b = booking as { player_id: string; coach_id: string | null; status: string; start_time: string } | null
   if (!b) return { error: 'Reserva no encontrada' }
 
   if (role !== 'admin') {
@@ -472,6 +502,10 @@ export async function cancelBookingAction(
     // Reservas pendientes (sin pago aún): cancelación libre, sin crédito wallet
     if (b.status === 'pending') {
       await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
+      if (b.coach_id) {
+        const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+        await createNotification(b.coach_id, 'Reserva cancelada', `Una reserva del ${dateLabel} fue cancelada por el jugador.`, 'booking_cancelled', '/coach/bookings')
+      }
       revalidatePath('/player/bookings')
       return { error: null, success: 'Reserva cancelada.' }
     }
@@ -492,6 +526,11 @@ export async function cancelBookingAction(
         .eq('id', bookingId)
 
       if (cancelErr) return { error: 'Error al cancelar la reserva.' }
+
+      if (b.coach_id) {
+        const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+        await createNotification(b.coach_id, 'Reserva cancelada', `Una reserva del ${dateLabel} fue cancelada por el jugador.`, 'booking_cancelled', '/coach/bookings')
+      }
 
       const slot      = getSlotType(b.start_time)
       const label     = SLOT_LABELS[slot]
@@ -525,6 +564,12 @@ export async function cancelBookingAction(
     .eq('id', bookingId)
 
   if (error) return { error: 'Error al cancelar la reserva' }
+
+  const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+  await Promise.all([
+    createNotification(b.player_id, 'Reserva cancelada', `Tu reserva del ${dateLabel} fue cancelada por el administrador.`, 'booking_cancelled', '/player/bookings'),
+    b.coach_id ? createNotification(b.coach_id, 'Reserva cancelada', `Una reserva del ${dateLabel} fue cancelada por el administrador.`, 'booking_cancelled', '/coach/bookings') : Promise.resolve(),
+  ])
 
   revalidatePath('/admin/bookings')
   revalidatePath('/player/bookings')
