@@ -79,8 +79,12 @@ export function NotificationBell() {
 
   function handleMarkAll() {
     startTransition(async () => {
-      await markAllAsRead()
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+      try {
+        await markAllAsRead()
+        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+      } catch {
+        // silently ignore — mutation errors shouldn't break the sidebar
+      }
     })
   }
 

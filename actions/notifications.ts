@@ -84,34 +84,43 @@ export async function notifyAdmins(
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getMyNotifications(): Promise<AppNotification[]> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
 
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('id, user_id, type, title, body, is_read, action_url, created_at')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(20)
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('id, user_id, type, title, body, is_read, action_url, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
 
-  if (error) console.error('[getMyNotifications]', error)
-  return (data ?? []) as AppNotification[]
+    if (error) console.error('[getMyNotifications]', error)
+    return (data ?? []) as AppNotification[]
+  } catch (err) {
+    console.error('[getMyNotifications] unexpected error:', err)
+    return []
+  }
 }
 
 export async function getUnreadCount(): Promise<number> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return 0
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return 0
 
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('is_read', false)
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
 
-  if (error) console.error('[getUnreadCount]', error)
-  return count ?? 0
+    if (error) console.error('[getUnreadCount]', error)
+    return count ?? 0
+  } catch {
+    return 0
+  }
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
