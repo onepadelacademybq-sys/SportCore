@@ -1,12 +1,15 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { STROKE_GROUPS, type ShotGroup } from '@/lib/eval-strokes'
-import { createNotification } from '@/actions/notifications'
+import { createNotification, notifyAdmins } from '@/actions/notifications'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export type EvaluationStatus = 'requested' | 'scheduled' | 'payment_pending' | 'confirmed' | 'completed'
 
 export type TechnicalShot = {
   strokeGroup: ShotGroup
@@ -77,13 +80,18 @@ export type PhysicalData = {
 }
 
 export type EvaluationSummary = {
-  id:          string
-  title:       string
-  evaluatedAt: string
-  isShared:    boolean
-  notes:       string | null
-  player:      { id: string; full_name: string }
-  coach:       { id: string; full_name: string } | null
+  id:               string
+  title:            string
+  evaluatedAt:      string
+  isShared:         boolean
+  notes:            string | null
+  evaluationStatus: EvaluationStatus
+  scheduledDate:    string | null
+  scheduledTime:    string | null
+  paymentProofUrl:  string | null
+  paymentAmount:    number | null
+  player:           { id: string; full_name: string }
+  coach:            { id: string; full_name: string } | null
 }
 
 export type ShotRow = {
@@ -193,7 +201,239 @@ function revalidateEval(id: string) {
   revalidatePath(`/player/my-evaluations`)
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
+// ─── Nuevo flujo de evaluaciones ─────────────────────────────────────────────
+
+export type EvaluationFlowState = { error: string | null; success?: string; id?: string }
+
+/** Jugador o admin solicita una evaluación. Estado: requested. */
+export async function requestEvaluationAction(
+  _prev: EvaluationFlowState,
+  formData: FormData,
+): Promise<EvaluationFlowState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const title    = (formData.get('title') as string)?.trim()
+  const notes    = (formData.get('notes') as string)?.trim() || null
+  // Admin puede especificar player_id; player usa su propio id
+  const playerId = (formData.get('playerId') as string)?.trim() || user.id
+
+  if (!title) return { error: 'El título es requerido' }
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('evaluations')
+    .insert({
+      player_id:         playerId,
+      coach_id:          null,
+      title,
+      notes,
+      evaluated_at:      new Date().toISOString(),
+      evaluation_status: 'requested',
+      payment_amount:    270000,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) return { error: error?.message ?? 'Error al solicitar la evaluación' }
+
+  const evalId = (data as { id: string }).id
+
+  await notifyAdmins(
+    'Nueva evaluación solicitada',
+    `Un jugador solicitó una evaluación: "${title}"`,
+    'evaluation_ready',
+    '/admin/evaluations',
+  )
+
+  revalidatePath('/admin/evaluations')
+  revalidatePath('/player/my-evaluations')
+  return { error: null, success: 'Evaluación solicitada. El administrador la agendará pronto.', id: evalId }
+}
+
+/** Admin agenda la evaluación (fecha, hora, coach, monto). Estado: scheduled. */
+export async function scheduleEvaluationAction(
+  _prev: EvaluationFlowState,
+  formData: FormData,
+): Promise<EvaluationFlowState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if ((profile as { role: string } | null)?.role !== 'admin') return { error: 'Sin permisos' }
+
+  const evalId       = (formData.get('evalId') as string)?.trim()
+  const scheduledDate = (formData.get('scheduledDate') as string)?.trim()
+  const scheduledTime = (formData.get('scheduledTime') as string)?.trim()
+  const coachId      = (formData.get('coachId') as string)?.trim() || null
+  const amount       = Number(formData.get('paymentAmount')) || 270000
+
+  if (!evalId || !scheduledDate || !scheduledTime) return { error: 'Fecha y hora son requeridas' }
+
+  const admin = createAdminClient()
+  const { data: ev } = await admin.from('evaluations').select('player_id, title').eq('id', evalId).single()
+  const e = ev as { player_id: string; title: string } | null
+  if (!e) return { error: 'Evaluación no encontrada' }
+
+  const { error } = await admin
+    .from('evaluations')
+    .update({
+      evaluation_status: 'scheduled',
+      scheduled_date:    scheduledDate,
+      scheduled_time:    scheduledTime,
+      coach_id:          coachId,
+      payment_amount:    amount,
+    })
+    .eq('id', evalId)
+
+  if (error) return { error: error.message }
+
+  const dateLabel = new Date(`${scheduledDate}T${scheduledTime}`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+  const timeLabel = scheduledTime.slice(0, 5)
+
+  await createNotification(
+    e.player_id,
+    'Evaluación agendada',
+    `Tu evaluación "${e.title}" fue agendada para el ${dateLabel} a las ${timeLabel}. Sube tu comprobante de pago para confirmar.`,
+    'evaluation_ready',
+    '/player/my-evaluations',
+  )
+
+  revalidatePath('/admin/evaluations')
+  revalidatePath('/player/my-evaluations')
+  return { error: null, success: 'Evaluación agendada correctamente.' }
+}
+
+const ALLOWED_PROOF_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
+const MAX_PROOF_SIZE = 5 * 1024 * 1024
+
+/** Jugador sube comprobante de pago. Estado: payment_pending. */
+export async function uploadEvaluationPaymentProofAction(
+  _prev: EvaluationFlowState,
+  formData: FormData,
+): Promise<EvaluationFlowState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const evalId = (formData.get('evalId') as string)?.trim()
+  if (!evalId) return { error: 'ID de evaluación requerido' }
+
+  const file = formData.get('paymentProof') as File | null
+  if (!file || file.size === 0) return { error: 'Selecciona un comprobante' }
+  if (!ALLOWED_PROOF_TYPES.includes(file.type)) return { error: 'Solo JPG, PNG o PDF' }
+  if (file.size > MAX_PROOF_SIZE) return { error: 'El archivo no puede superar 5 MB' }
+
+  const { data: ev } = await supabase
+    .from('evaluations')
+    .select('player_id, title, evaluation_status')
+    .eq('id', evalId)
+    .single()
+
+  const e = ev as { player_id: string; title: string; evaluation_status: string } | null
+  if (!e) return { error: 'Evaluación no encontrada' }
+  if (e.player_id !== user.id) return { error: 'Sin permisos' }
+  if (e.evaluation_status !== 'scheduled') return { error: 'Solo se puede subir comprobante en evaluaciones agendadas' }
+
+  const ext    = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg'
+  const path   = `${evalId}/${Date.now()}.${ext}`
+  const buffer = await file.arrayBuffer()
+  const admin  = createAdminClient()
+
+  const { error: uploadErr } = await admin.storage
+    .from('evaluation-proofs')
+    .upload(path, buffer, { contentType: file.type, upsert: true })
+
+  if (uploadErr) return { error: 'Error al subir el archivo. Intenta nuevamente.' }
+
+  const { error: dbErr } = await admin
+    .from('evaluations')
+    .update({ payment_proof_url: path, evaluation_status: 'payment_pending' })
+    .eq('id', evalId)
+
+  if (dbErr) return { error: 'Error al actualizar el estado' }
+
+  await notifyAdmins(
+    'Comprobante de evaluación subido',
+    `Un jugador subió su comprobante para la evaluación "${e.title}". Pendiente de confirmación.`,
+    'payment_processed',
+    '/admin/evaluations',
+  )
+
+  revalidatePath('/admin/evaluations')
+  revalidatePath('/player/my-evaluations')
+  return { error: null, success: 'Comprobante enviado. El administrador confirmará el pago.' }
+}
+
+/** Admin confirma el pago. Estado: confirmed. Notifica a jugador, coach y admins. */
+export async function confirmEvaluationPaymentAction(
+  _prev: EvaluationFlowState,
+  formData: FormData,
+): Promise<EvaluationFlowState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if ((profile as { role: string } | null)?.role !== 'admin') return { error: 'Sin permisos' }
+
+  const evalId = (formData.get('evalId') as string)?.trim()
+  if (!evalId) return { error: 'ID de evaluación requerido' }
+
+  const admin = createAdminClient()
+  const { data: ev } = await admin
+    .from('evaluations')
+    .select('player_id, coach_id, title, scheduled_date, scheduled_time')
+    .eq('id', evalId)
+    .single()
+
+  const e = ev as {
+    player_id:      string
+    coach_id:       string | null
+    title:          string
+    scheduled_date: string | null
+    scheduled_time: string | null
+  } | null
+  if (!e) return { error: 'Evaluación no encontrada' }
+
+  const { error } = await admin
+    .from('evaluations')
+    .update({ evaluation_status: 'confirmed' })
+    .eq('id', evalId)
+
+  if (error) return { error: error.message }
+
+  const dateLabel = e.scheduled_date
+    ? new Date(`${e.scheduled_date}T${e.scheduled_time ?? '00:00'}`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+    : 'fecha por definir'
+  const timeLabel = e.scheduled_time ? e.scheduled_time.slice(0, 5) : ''
+  const body = `Evaluación "${e.title}" confirmada para el ${dateLabel}${timeLabel ? ` a las ${timeLabel}` : ''}.`
+
+  await Promise.all([
+    createNotification(e.player_id, 'Evaluación confirmada', body, 'evaluation_ready', '/player/my-evaluations'),
+    e.coach_id
+      ? createNotification(e.coach_id, 'Evaluación confirmada', body, 'evaluation_ready', '/coach/evaluations')
+      : Promise.resolve(),
+  ])
+
+  revalidatePath('/admin/evaluations')
+  revalidatePath('/player/my-evaluations')
+  revalidatePath('/coach/evaluations')
+  return { error: null, success: 'Pago confirmado. La evaluación está activa.' }
+}
+
+/** Obtener URL firmada para el comprobante de pago de una evaluación. */
+export async function getEvaluationProofUrl(path: string): Promise<string | null> {
+  const admin = createAdminClient()
+  const { data } = await admin.storage
+    .from('evaluation-proofs')
+    .createSignedUrl(path, 60 * 60)
+  return data?.signedUrl ?? null
+}
+
+// ─── Mutations (datos de la evaluación) ──────────────────────────────────────
 
 export async function createEvaluation(
   playerId:    string,
@@ -451,6 +691,25 @@ export async function shareEvaluation(
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
+const EVAL_SELECT = 'id, title, evaluated_at, is_shared, notes, evaluation_status, scheduled_date, scheduled_time, payment_proof_url, payment_amount, player:profiles!player_id(id, full_name), coach:profiles!coach_id(id, full_name)'
+
+function mapEval(e: any): EvaluationSummary {
+  return {
+    id:               e.id,
+    title:            e.title,
+    evaluatedAt:      e.evaluated_at,
+    isShared:         e.is_shared,
+    notes:            e.notes,
+    evaluationStatus: e.evaluation_status as EvaluationStatus,
+    scheduledDate:    e.scheduled_date    ?? null,
+    scheduledTime:    e.scheduled_time    ?? null,
+    paymentProofUrl:  e.payment_proof_url ?? null,
+    paymentAmount:    e.payment_amount    ?? null,
+    player:           e.player,
+    coach:            e.coach,
+  }
+}
+
 export async function getAllEvaluations(coachId?: string): Promise<EvaluationSummary[]> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -460,23 +719,14 @@ export async function getAllEvaluations(coachId?: string): Promise<EvaluationSum
   const db = supabase as any
   let query = db
     .from('evaluations')
-    .select('id, title, evaluated_at, is_shared, notes, player:profiles!player_id(id, full_name), coach:profiles!coach_id(id, full_name)')
+    .select(EVAL_SELECT)
     .order('evaluated_at', { ascending: false })
 
   if (coachId) query = query.eq('coach_id', coachId)
 
   const { data } = await query
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return ((data ?? []) as any[]).map((e) => ({
-    id:          e.id,
-    title:       e.title,
-    evaluatedAt: e.evaluated_at,
-    isShared:    e.is_shared,
-    notes:       e.notes,
-    player:      e.player,
-    coach:       e.coach,
-  }))
+  return ((data ?? []) as any[]).map(mapEval)
 }
 
 export async function getPlayerEvaluations(playerId?: string): Promise<EvaluationSummary[]> {
@@ -489,20 +739,12 @@ export async function getPlayerEvaluations(playerId?: string): Promise<Evaluatio
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from('evaluations')
-    .select('id, title, evaluated_at, is_shared, notes, player:profiles!player_id(id, full_name), coach:profiles!coach_id(id, full_name)')
+    .select(EVAL_SELECT)
     .eq('player_id', targetId)
     .order('evaluated_at', { ascending: false })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return ((data ?? []) as any[]).map((e) => ({
-    id:          e.id,
-    title:       e.title,
-    evaluatedAt: e.evaluated_at,
-    isShared:    e.is_shared,
-    notes:       e.notes,
-    player:      e.player,
-    coach:       e.coach,
-  }))
+  return ((data ?? []) as any[]).map(mapEval)
 }
 
 export async function getEvaluation(id: string): Promise<EvaluationDetail | null> {

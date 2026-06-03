@@ -5,6 +5,7 @@ import { getMyEvolution, getPlayerEvaluations } from '@/actions/evaluations'
 import { PlayerEvolutionCharts }  from '@/components/evaluations/player-evolution-charts'
 import { PlayerKPIs }             from '@/components/evaluations/player-kpis'
 import { PlayerAnthroEvolution }  from '@/components/evaluations/player-anthro-evolution'
+import { PlayerEvalPanel }        from '@/components/evaluations/player-eval-panel'
 import type { PlayerEvolutionPoint } from '@/actions/evaluations'
 
 export const metadata: Metadata = { title: 'Mis Evaluaciones' }
@@ -59,7 +60,7 @@ export default async function PlayerMyEvaluationsPage() {
   if (!evolution) redirect('/login')
 
   const { points, groupKPIs, anthroPoints } = evolution
-  const shared = allEvals.filter(e => e.isShared)
+  const shared = allEvals.filter(e => e.isShared && e.evaluationStatus === 'completed')
 
   const { latest, delta, total } = evalStats(points)
   const level = techLevel(latest)
@@ -82,7 +83,10 @@ export default async function PlayerMyEvaluationsPage() {
         </p>
       </div>
 
-      {/* ── Empty state ── */}
+      {/* ── Panel de evaluaciones en curso ── */}
+      <PlayerEvalPanel pendingEvals={allEvals} />
+
+      {/* ── Empty state (resultados históricos) ── */}
       {points.length === 0 && (
         <div className="rounded-lg border border-border p-12 text-center space-y-2">
           <ClipboardList className="h-8 w-8 text-muted-foreground mx-auto" />
