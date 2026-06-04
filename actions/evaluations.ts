@@ -226,7 +226,6 @@ export async function requestEvaluationAction(
     .from('evaluations')
     .insert({
       player_id:         playerId,
-      coach_id:          null,
       title,
       notes,
       evaluated_at:      new Date().toISOString(),
