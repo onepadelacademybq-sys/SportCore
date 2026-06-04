@@ -5,12 +5,7 @@ import { getMyEvolution, getPlayerEvaluations } from '@/actions/evaluations'
 import { PlayerEvolutionCharts }  from '@/components/evaluations/player-evolution-charts'
 import { PlayerKPIs }             from '@/components/evaluations/player-kpis'
 import { PlayerAnthroEvolution }  from '@/components/evaluations/player-anthro-evolution'
-import dynamic from 'next/dynamic'
-
-const PlayerEvalPanel = dynamic(
-  () => import('@/components/evaluations/player-eval-panel').then(m => m.PlayerEvalPanel),
-  { ssr: false },
-)
+import { PlayerEvalPanelDynamic } from '@/components/evaluations/player-eval-panel-dynamic'
 import type { PlayerEvolutionPoint } from '@/actions/evaluations'
 
 export const metadata: Metadata = { title: 'Mis Evaluaciones' }
@@ -89,7 +84,7 @@ export default async function PlayerMyEvaluationsPage() {
       </div>
 
       {/* ── Panel de evaluaciones en curso ── */}
-      <PlayerEvalPanel pendingEvals={allEvals} />
+      <PlayerEvalPanelDynamic pendingEvals={allEvals} />
 
       {/* ── Empty state (resultados históricos) ── */}
       {points.length === 0 && (
