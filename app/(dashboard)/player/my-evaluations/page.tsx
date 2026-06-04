@@ -5,7 +5,12 @@ import { getMyEvolution, getPlayerEvaluations } from '@/actions/evaluations'
 import { PlayerEvolutionCharts }  from '@/components/evaluations/player-evolution-charts'
 import { PlayerKPIs }             from '@/components/evaluations/player-kpis'
 import { PlayerAnthroEvolution }  from '@/components/evaluations/player-anthro-evolution'
-import { PlayerEvalPanel }        from '@/components/evaluations/player-eval-panel'
+import dynamic from 'next/dynamic'
+
+const PlayerEvalPanel = dynamic(
+  () => import('@/components/evaluations/player-eval-panel').then(m => m.PlayerEvalPanel),
+  { ssr: false },
+)
 import type { PlayerEvolutionPoint } from '@/actions/evaluations'
 
 export const metadata: Metadata = { title: 'Mis Evaluaciones' }

@@ -1,7 +1,12 @@
 import type { Metadata } from 'next'
+import dynamic from 'next/dynamic'
 import { getAllEvaluations, getPlayers } from '@/actions/evaluations'
 import { getCoaches } from '@/actions/bookings'
-import { AdminEvalPanel } from '@/components/evaluations/admin-eval-panel'
+
+const AdminEvalPanel = dynamic(
+  () => import('@/components/evaluations/admin-eval-panel').then(m => m.AdminEvalPanel),
+  { ssr: false },
+)
 
 export const metadata: Metadata = { title: 'Evaluaciones' }
 
