@@ -147,7 +147,7 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
       group:training_groups!group_id(id, name),
       wallet_credits:wallet_transactions(slot_type, type)
     `)
-    .order('created_at', { ascending: false })
+    .order('start_time', { ascending: true })
 
   if (status && status !== 'all') {
     query = query.eq('status', status)
