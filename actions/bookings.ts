@@ -154,14 +154,24 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
   }
 
   const { data } = await query
-  return ((data ?? []) as any[]).map((b) => {
-    const credit = (b.wallet_credits ?? []).find((t: any) => t.type === 'credit')
-    return {
-      ...b,
-      wallet_credit_slot: credit?.slot_type ?? null,
-      wallet_credits: undefined,
-    }
-  }) as unknown as Booking[]
+  const eightDaysFromNow = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000)
+
+  return ((data ?? []) as any[])
+    .filter((b) => {
+      // Sesiones de grupo pendientes: solo mostrar si ocurren dentro de 8 días
+      if (b.group_id && b.status === 'pending') {
+        return new Date(b.start_time) <= eightDaysFromNow
+      }
+      return true
+    })
+    .map((b) => {
+      const credit = (b.wallet_credits ?? []).find((t: any) => t.type === 'credit')
+      return {
+        ...b,
+        wallet_credit_slot: credit?.slot_type ?? null,
+        wallet_credits: undefined,
+      }
+    }) as unknown as Booking[]
 }
 
 /** Bloques ocupados de un entrenador en el rango de fechas dado (para el calendario) */
