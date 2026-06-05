@@ -1189,7 +1189,7 @@ async function insertSessionsForMonth(
           created_by: adminId,
           start_time: startIso,
           end_time:   endIso,
-          status:     'confirmed',   // ya confirmadas para bloquear el calendario del entrenador
+          status:     'pending',
           notes:      `Clase grupal - ${group.name}`,
           price:      0,
         })
