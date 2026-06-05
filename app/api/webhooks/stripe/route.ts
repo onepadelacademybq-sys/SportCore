@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
         const subId  = session.subscription as string
         if (!orgId) break
 
-        const sub     = await import('@/lib/stripe/client').then(m => m.stripe.subscriptions.retrieve(subId))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sub     = await import('@/lib/stripe/client').then(m => m.stripe.subscriptions.retrieve(subId)) as any
         const priceId = sub.items.data[0]?.price.id ?? ''
         const plan    = planFromPriceId(priceId)
 
@@ -59,7 +60,8 @@ export async function POST(req: NextRequest) {
 
       // ── Suscripción actualizada (upgrade, downgrade, renovación) ───────
       case 'customer.subscription.updated': {
-        const sub   = event.data.object as Stripe.Subscription
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sub   = event.data.object as any
         const orgId = sub.metadata?.orgId
         if (!orgId) break
 
@@ -85,7 +87,8 @@ export async function POST(req: NextRequest) {
 
       // ── Suscripción cancelada ──────────────────────────────────────────
       case 'customer.subscription.deleted': {
-        const sub   = event.data.object as Stripe.Subscription
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sub   = event.data.object as any
         const orgId = sub.metadata?.orgId
         if (!orgId) break
 
@@ -98,9 +101,10 @@ export async function POST(req: NextRequest) {
 
       // ── Pago fallido ───────────────────────────────────────────────────
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice
-        const orgId   = (invoice.subscription_details?.metadata as Record<string,string> | null)?.orgId
-                     ?? (invoice as unknown as { metadata?: Record<string,string> }).metadata?.orgId
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const invoice = event.data.object as any
+        const orgId   = invoice.subscription_details?.metadata?.orgId
+                     ?? invoice.metadata?.orgId
         if (!orgId) break
 
         await prisma.organization.update({
@@ -120,7 +124,8 @@ export async function POST(req: NextRequest) {
 
       // ── Trial terminando en 3 días ─────────────────────────────────────
       case 'customer.subscription.trial_will_end': {
-        const sub   = event.data.object as Stripe.Subscription
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sub   = event.data.object as any
         const orgId = sub.metadata?.orgId
         if (!orgId) break
 

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { getPrisma } from '@/lib/prisma'
+import type { LeadStatus, LeadSource } from '@/app/generated/prisma/enums'
 import { RetentionBoard }  from '@/components/crm/retention-board'
 import { LeadsPipeline }   from '@/components/crm/leads-pipeline'
 import { CrmTabs }         from '@/components/crm/crm-tabs'
@@ -99,7 +100,22 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 }
 
 // Re-export types used by child components
-export type LeadWithInteraction = Awaited<ReturnType<typeof getPrisma>['lead']['findMany']>[number] & {
+export type LeadWithInteraction = {
+  id: string
+  name: string
+  phone: string
+  whatsapp: string | null
+  email: string | null
+  source: LeadSource
+  status: LeadStatus
+  sport: string | null
+  notes: string | null
+  lostReason: string | null
+  convertedAt: Date | null
+  profileId: string | null
+  assignedTo: string | null
+  createdAt: Date
+  updatedAt: Date
   interactions: { type: string; summary: string; createdAt: Date }[]
 }
 

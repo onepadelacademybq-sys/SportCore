@@ -16,7 +16,7 @@ import type {
   LeadStatus,
   LeadSource,
   InteractionType,
-} from '@/app/generated/prisma'
+} from '@/app/generated/prisma/enums'
 
 const prisma = getPrisma()
 
@@ -395,7 +395,7 @@ export async function recalculateRetentionScores() {
 
         await prisma.retentionScore.update({
           where:  { profileId: player.id },
-          update: { alertSentAt: now },
+          data: { alertSentAt: now },
         } as Parameters<typeof prisma.retentionScore.update>[0])
       }
     }
