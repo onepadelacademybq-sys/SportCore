@@ -16,7 +16,7 @@ const DAYS = [
   { value: 0, label: 'Dom' },
 ]
 
-const HOURS = Array.from({ length: 17 }, (_, i) => {
+const HOURS = Array.from({ length: 18 }, (_, i) => {
   const h = (i + 5).toString().padStart(2, '0')
   return `${h}:00`
 })
