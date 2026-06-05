@@ -1391,6 +1391,33 @@ export async function ensureFutureGroupSessions(groupId: string): Promise<void> 
   revalidatePath(`/admin/groups/${groupId}`)
 }
 
+// ─── Admin: eliminar grupo ─────────────────────────────────────────────────────
+
+export async function deleteGroupAction(
+  _prev: GroupActionState,
+  formData: FormData,
+): Promise<GroupActionState> {
+  const { supabase } = await requireAdmin()
+
+  const groupId = (formData.get('groupId') as string | null)?.trim()
+  if (!groupId) return { error: 'ID de grupo requerido' }
+
+  // Eliminar en orden para respetar FKs
+  await supabase.from('bookings').delete().eq('group_id', groupId)
+  await supabase.from('group_payments').delete().eq('group_id', groupId)
+  await supabase.from('group_members').delete().eq('group_id', groupId)
+  await supabase.from('group_schedules').delete().eq('group_id', groupId)
+
+  const { error } = await supabase.from('training_groups').delete().eq('id', groupId)
+  if (error) {
+    console.error('[deleteGroupAction]', error)
+    return { error: 'Error al eliminar el grupo.' }
+  }
+
+  revalidatePath('/admin/groups')
+  redirect('/admin/groups')
+}
+
 // ─── URL firmada para comprobante de pago de grupo ─────────────────────────
 
 export async function getGroupProofUrl(memberId: string, storagePath: string): Promise<string | null> {

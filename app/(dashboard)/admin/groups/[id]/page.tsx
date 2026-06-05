@@ -22,6 +22,7 @@ import { RejectGroupPaymentButton } from '@/components/groups/reject-group-payme
 import { ViewGroupProofButton } from '@/components/groups/view-group-proof-button'
 import { RecordPaymentForm } from '@/components/groups/record-payment-form'
 import { GeneratePaymentsButton } from '@/components/groups/generate-payments-button'
+import { DeleteGroupButton } from '@/components/groups/delete-group-button'
 
 export const metadata: Metadata = { title: 'Detalle de Grupo — Admin' }
 
@@ -551,10 +552,20 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
 
       {/* Tab: Edit */}
       {activeTab === 'edit' && (
-        <section className="space-y-4">
-          <h2 className="font-semibold">Editar grupo</h2>
-          <div className="rounded-lg border border-border bg-card p-6">
-            <GroupForm action={updateGroupAction} coaches={coaches} courts={courts} group={group} />
+        <section className="space-y-6">
+          <div className="space-y-4">
+            <h2 className="font-semibold">Editar grupo</h2>
+            <div className="rounded-lg border border-border bg-card p-6">
+              <GroupForm action={updateGroupAction} coaches={coaches} courts={courts} group={group} />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 space-y-3">
+            <h3 className="font-semibold text-destructive text-sm">Zona de peligro</h3>
+            <p className="text-xs text-muted-foreground">
+              Eliminar el grupo borrará permanentemente todos sus miembros, pagos y sesiones. Esta acción no se puede deshacer.
+            </p>
+            <DeleteGroupButton groupId={group.id} groupName={group.name} />
           </div>
         </section>
       )}
