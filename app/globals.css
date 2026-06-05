@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-urbanist);
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-dm-mono);
+  --font-heading: var(--font-syne);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,44 +48,44 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ─── Brand tokens — One Padel Academy — dark mode always on ─── */
+/* ─── Brand tokens — Lynkos SportCore · Lynkos ID palette ─── */
 :root {
-  --background:          #0B111E;
-  --foreground:          #FFFFFF;
-  --card:                #111A2E;
-  --card-foreground:     #FFFFFF;
-  --popover:             #111A2E;
-  --popover-foreground:  #FFFFFF;
-  --primary:             #00C4CC;
-  --primary-foreground:  #0B111E;
-  --secondary:           #1E293B;
-  --secondary-foreground:#FFFFFF;
-  --muted:               #1E293B;
-  --muted-foreground:    #8896AB;
-  --accent:              #006D77;
-  --accent-foreground:   #FFFFFF;
+  --background:          #030D1A;
+  --foreground:          #F0F6FF;
+  --card:                #071525;
+  --card-foreground:     #F0F6FF;
+  --popover:             #071525;
+  --popover-foreground:  #F0F6FF;
+  --primary:             #185FA5;
+  --primary-foreground:  #F0F6FF;
+  --secondary:           #0C1E33;
+  --secondary-foreground:#B5D4F4;
+  --muted:               #0C1E33;
+  --muted-foreground:    #5C7A96;
+  --accent:              #378ADD;
+  --accent-foreground:   #F0F6FF;
   --destructive:         #EF4444;
-  --border:              #1E293B;
-  --input:               #1E293B;
-  --ring:                #00C4CC;
+  --border:              #0F2A44;
+  --input:               #0F2A44;
+  --ring:                #185FA5;
   --radius:              0.625rem;
 
-  /* Charts — teal palette */
-  --chart-1: #00C4CC;
-  --chart-2: #006D77;
-  --chart-3: #0E7490;
-  --chart-4: #155E75;
-  --chart-5: #164E63;
+  /* Charts — Lynkos blue scale */
+  --chart-1: #185FA5;
+  --chart-2: #378ADD;
+  --chart-3: #B5D4F4;
+  --chart-4: #042C53;
+  --chart-5: #E6F1FB;
 
   /* Sidebar */
-  --sidebar:                    #111A2E;
-  --sidebar-foreground:         #FFFFFF;
-  --sidebar-primary:            #00C4CC;
-  --sidebar-primary-foreground: #0B111E;
-  --sidebar-accent:             #1E293B;
-  --sidebar-accent-foreground:  #FFFFFF;
-  --sidebar-border:             #1E293B;
-  --sidebar-ring:               #00C4CC;
+  --sidebar:                    #071525;
+  --sidebar-foreground:         #F0F6FF;
+  --sidebar-primary:            #185FA5;
+  --sidebar-primary-foreground: #F0F6FF;
+  --sidebar-accent:             #0C1E33;
+  --sidebar-accent-foreground:  #B5D4F4;
+  --sidebar-border:             #0F2A44;
+  --sidebar-ring:               #185FA5;
 }
 
 @layer base {
@@ -99,6 +99,6 @@
     @apply font-sans;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-urbanist), var(--font-inter), sans-serif;
+    font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
   }
 }

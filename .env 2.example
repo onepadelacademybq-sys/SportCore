@@ -1,5 +1,5 @@
 # =============================================================
-# LYNKOS SPORTCORE — Plantilla de variables de entorno
+# ONE PADEL — Plantilla de variables de entorno
 # Copia este archivo como .env.local y rellena los valores reales
 # Los valores aquí son ejemplos o placeholders — nunca datos reales
 # =============================================================
@@ -19,36 +19,23 @@ DATABASE_URL=postgresql://postgres.xxxx:password@aws-0-region.pooler.supabase.co
 DIRECT_URL=postgresql://postgres.xxxx:password@aws-0-region.pooler.supabase.com:5432/postgres
 
 # -------------------------------------------------------------
-# STRIPE — Pagos SaaS (suscripciones de academias)
+# STRIPE
 # -------------------------------------------------------------
 STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-# IDs de precios — crear en Stripe Dashboard > Products
-STRIPE_PRICE_STARTER_MONTHLY=price_...
-STRIPE_PRICE_PRO_MONTHLY=price_...
-STRIPE_PRICE_ENTERPRISE_MONTHLY=price_...
 
 # -------------------------------------------------------------
 # RESEND
 # -------------------------------------------------------------
 RESEND_API_KEY=re_...
-RESEND_FROM_EMAIL=SportCore <noreply@sportcore.app>
+RESEND_FROM_EMAIL=noreply@onepadel.com
 
 # -------------------------------------------------------------
 # APLICACIÓN
 # -------------------------------------------------------------
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_ACADEMY_NAME=One Padel
-
-# -------------------------------------------------------------
-# WHATSAPP BUSINESS — Meta Cloud API
-# Configurar en: developers.facebook.com → Tu App → WhatsApp → API Setup
-# -------------------------------------------------------------
-WHATSAPP_PHONE_NUMBER_ID=1234567890
-WHATSAPP_ACCESS_TOKEN=EAAxxxxxxxxxxxxxxx
-WHATSAPP_WEBHOOK_VERIFY_TOKEN=mi_token_secreto_aqui
-WHATSAPP_BUSINESS_ACCOUNT_ID=9876543210
 
 # -------------------------------------------------------------
 # SENTRY (opcional)

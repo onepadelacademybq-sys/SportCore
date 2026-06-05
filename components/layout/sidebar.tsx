@@ -17,6 +17,7 @@ import {
   LayoutList,
   LogOut,
   UserCircle,
+  MessageCircle,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: 'Finanzas',   href: '/admin/finances',  icon: CreditCard },
     { label: 'Torneos',    href: '/admin/tournaments', icon: Trophy },
     { label: 'Reportes',   href: '/admin/reports',   icon: BarChart3 },
+    { label: 'CRM',        href: '/admin/crm',        icon: MessageCircle },
   ],
   coach: [
     { label: 'Dashboard',    href: '/coach/dashboard',  icon: LayoutDashboard },
@@ -81,7 +83,7 @@ const ROLE_LABEL: Record<Role, string> = {
 const ROLE_BADGE: Record<Role, string> = {
   admin: 'bg-red-500/15 text-red-400',
   coach: 'bg-blue-500/15 text-blue-400',
-  player: 'bg-[#00C4CC]/15 text-[#00C4CC]',
+  player: 'bg-[#185FA5]/20 text-[#378ADD]',
 }
 
 interface SidebarProps {
@@ -99,14 +101,39 @@ export function Sidebar({ fullName, email, role }: SidebarProps) {
   return (
     <aside className="w-60 shrink-0 border-r bg-card flex flex-col h-screen sticky top-0">
       {/* Brand */}
-      <div className="px-5 py-6">
+      <div className="px-5 py-5">
         <Link href="/" className="block">
-          <p className="text-lg font-bold tracking-tight font-heading">
-            <span className="text-primary">One</span> Padel
-          </p>
-          <p className="text-xs text-muted-foreground tracking-widest uppercase mt-0.5">
-            Academia
-          </p>
+          <div className="flex items-center gap-2.5">
+            <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+              <line x1="50" y1="8"  x2="88" y2="35" stroke="#042C53" strokeWidth="2.5"/>
+              <line x1="50" y1="8"  x2="12" y2="35" stroke="#042C53" strokeWidth="2.5"/>
+              <line x1="50" y1="8"  x2="50" y2="55" stroke="#042C53" strokeWidth="2.5"/>
+              <line x1="88" y1="35" x2="12" y2="35" stroke="#042C53" strokeWidth="2.5"/>
+              <line x1="88" y1="35" x2="68" y2="78" stroke="#042C53" strokeWidth="2.5"/>
+              <line x1="12" y1="35" x2="32" y2="78" stroke="#042C53" strokeWidth="2.5"/>
+              <line x1="32" y1="78" x2="68" y2="78" stroke="#042C53" strokeWidth="2.5"/>
+              <line x1="50" y1="55" x2="88" y2="35" stroke="#185FA5" strokeWidth="2"/>
+              <line x1="50" y1="55" x2="12" y2="35" stroke="#185FA5" strokeWidth="2"/>
+              <line x1="50" y1="55" x2="68" y2="78" stroke="#185FA5" strokeWidth="2"/>
+              <line x1="50" y1="55" x2="32" y2="78" stroke="#185FA5" strokeWidth="2"/>
+              <line x1="50" y1="8"  x2="32" y2="78" stroke="#378ADD" strokeWidth="1.5" strokeDasharray="4 3"/>
+              <line x1="50" y1="8"  x2="68" y2="78" stroke="#378ADD" strokeWidth="1.5" strokeDasharray="4 3"/>
+              <circle cx="50" cy="8"  r="5.5" fill="#185FA5"/>
+              <circle cx="88" cy="35" r="5.5" fill="#185FA5"/>
+              <circle cx="12" cy="35" r="5.5" fill="#042C53"/>
+              <circle cx="50" cy="55" r="7"   fill="#185FA5"/>
+              <circle cx="32" cy="78" r="5.5" fill="#042C53"/>
+              <circle cx="68" cy="78" r="5.5" fill="#185FA5"/>
+            </svg>
+            <div>
+              <p className="text-sm font-bold tracking-tight font-heading leading-none">
+                Sport<span className="text-primary">Core</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground tracking-widest uppercase mt-0.5 leading-none">
+                by Lynkos ID
+              </p>
+            </div>
+          </div>
         </Link>
       </div>
 

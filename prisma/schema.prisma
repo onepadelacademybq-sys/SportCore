@@ -22,6 +22,19 @@ enum UserRole {
   player
 }
 
+enum OrgPlan {
+  starter
+  pro
+  enterprise
+}
+
+enum OrgStatus {
+  trialing
+  active
+  suspended
+  cancelled
+}
+
 enum PadelLevel {
   quinta_masculino   @map("5ta_masculino")
   sexta_masculino    @map("6ta_masculino")
@@ -228,6 +241,54 @@ enum NotificationType {
   announcement
 }
 
+// ─────────────────────────────────────────────
+// CRM + WHATSAPP ENUMS
+// ─────────────────────────────────────────────
+
+enum LeadStatus {
+  new
+  contacted
+  trial_scheduled
+  trial_done
+  converted
+  lost
+}
+
+enum LeadSource {
+  web_form
+  instagram
+  facebook
+  referral
+  walk_in
+  whatsapp
+  other
+}
+
+enum InteractionType {
+  whatsapp_sent
+  whatsapp_received
+  call
+  email
+  note
+  trial_class
+  follow_up
+}
+
+enum RetentionStatus {
+  active
+  at_risk
+  losing
+  churned
+}
+
+enum WaMessageStatus {
+  queued
+  sent
+  delivered
+  read
+  failed
+}
+
 enum GroupStatus {
   active
   paused
@@ -242,16 +303,45 @@ enum GroupPaymentStatus {
 }
 
 // ─────────────────────────────────────────────
+// MÓDULO 0 — Multi-tenancy (Organization)
+// ─────────────────────────────────────────────
+
+model Organization {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  slug             String    @unique
+  sport            String    @default("general")
+  plan             OrgPlan   @default(starter)
+  status           OrgStatus @default(trialing)
+  stripeCustomerId String?   @unique @map("stripe_customer_id")
+  stripeSubId      String?   @unique @map("stripe_sub_id")
+  planLimits       Json      @default("{\"max_resources\":6,\"max_members\":100,\"max_coaches\":3}") @map("plan_limits")
+  planStartedAt    DateTime? @map("plan_started_at") @db.Timestamptz(6)
+  planExpiresAt    DateTime? @map("plan_expires_at") @db.Timestamptz(6)
+  trialEndsAt      DateTime? @map("trial_ends_at") @db.Timestamptz(6)
+  terminology      Json      @default("{\"resource\":\"Cancha\",\"coach\":\"Entrenador\",\"player\":\"Jugador\"}") @map("terminology")
+  logoUrl          String?   @map("logo_url")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profiles Profile[]
+
+  @@map("organizations")
+}
+
+// ─────────────────────────────────────────────
 // MÓDULO 1 — Usuarios
 // ─────────────────────────────────────────────
 
 model Profile {
   id               String     @id @db.Uuid
+  organizationId   String?    @map("organization_id") @db.Uuid
   email            String     @unique
   fullName         String     @map("full_name")
   avatarUrl        String?    @map("avatar_url")
   role             UserRole
   phone            String?
+  whatsappPhone    String?    @map("whatsapp_phone")
   documentId       String?    @map("document_id")
   dateOfBirth      DateTime?  @map("date_of_birth") @db.Date
   address          String?
@@ -260,6 +350,8 @@ model Profile {
   isActive         Boolean    @default(true) @map("is_active")
   createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   // Módulo 13
   coachProfile     CoachProfile?
@@ -315,6 +407,13 @@ model Profile {
   classWallet        ClassWallet?
   walletTransactions WalletTransaction[]
   guardianProfile    GuardianProfile?
+
+  // CRM
+  leadsConverted     Lead[]          @relation("LeadProfile")
+  leadsAssigned      Lead[]          @relation("LeadAssignee")
+  interactions       Interaction[]   @relation("InteractionProfile")
+  interactionsCreated Interaction[]  @relation("InteractionCreator")
+  retentionScore     RetentionScore?
 
   @@map("profiles")
 }
@@ -1170,6 +1269,7 @@ model NotificationPreference {
   emailEvaluations Boolean  @default(true) @map("email_evaluations")
   emailTournaments Boolean  @default(true) @map("email_tournaments")
   inAppAll         Boolean  @default(true) @map("in_app_all")
+  whatsappEnabled  Boolean  @default(true) @map("whatsapp_enabled")
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1296,4 +1396,71 @@ model CoachRating {
 
   @@unique([coachId, playerId])
   @@map("coach_ratings")
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO CRM — Prospectos, Interacciones, Retención
+// ─────────────────────────────────────────────
+
+model Lead {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  phone       String
+  whatsapp    String?
+  email       String?
+  source      LeadSource  @default(web_form)
+  status      LeadStatus  @default(new)
+  sport       String?
+  notes       String?
+  lostReason  String?     @map("lost_reason")
+  convertedAt DateTime?   @map("converted_at") @db.Timestamptz(6)
+  profileId   String?     @map("profile_id") @db.Uuid
+  assignedTo  String?     @map("assigned_to") @db.Uuid
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile      Profile?      @relation("LeadProfile", fields: [profileId], references: [id], onDelete: SetNull)
+  assignee     Profile?      @relation("LeadAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  interactions Interaction[]
+
+  @@index([status])
+  @@index([source])
+  @@map("leads")
+}
+
+model Interaction {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId   String?         @map("profile_id") @db.Uuid
+  leadId      String?         @map("lead_id") @db.Uuid
+  type        InteractionType
+  summary     String
+  waMessageId String?         @map("wa_message_id")
+  waStatus    WaMessageStatus? @map("wa_status")
+  createdBy   String          @map("created_by") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profile          Profile? @relation("InteractionProfile", fields: [profileId], references: [id], onDelete: Cascade)
+  lead             Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdByProfile Profile  @relation("InteractionCreator", fields: [createdBy], references: [id])
+
+  @@index([profileId])
+  @@index([leadId])
+  @@index([type])
+  @@map("interactions")
+}
+
+model RetentionScore {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId        String          @unique @map("profile_id") @db.Uuid
+  score            Int             @default(100)
+  status           RetentionStatus @default(active)
+  lastClassAt      DateTime?       @map("last_class_at") @db.Timestamptz(6)
+  classesThisMonth Int             @default(0) @map("classes_this_month")
+  alertSentAt      DateTime?       @map("alert_sent_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("retention_scores")
 }

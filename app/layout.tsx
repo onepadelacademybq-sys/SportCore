@@ -1,24 +1,31 @@
 import type { Metadata } from 'next'
-import { Urbanist, Inter } from 'next/font/google'
+import { Syne, DM_Sans, DM_Mono } from 'next/font/google'
 import './globals.css'
 
-const urbanist = Urbanist({
-  variable: '--font-urbanist',
+const syne = Syne({
+  variable: '--font-syne',
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+  weight: ['400', '600', '700', '800'],
 })
 
-const inter = Inter({
-  variable: '--font-inter',
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
   subsets: ['latin'],
+  weight: ['300', '400', '500'],
+})
+
+const dmMono = DM_Mono({
+  variable: '--font-dm-mono',
+  subsets: ['latin'],
+  weight: ['400'],
 })
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | One Padel',
-    default: 'One Padel — Academia de Pádel',
+    template: '%s | SportCore',
+    default: 'SportCore — Gestión Deportiva · un producto de Lynkos ID',
   },
-  description: 'Plataforma de gestión para One Padel Academia',
+  description: 'Plataforma SaaS de gestión para academias deportivas. Un producto de Lynkos ID.',
 }
 
 export default function RootLayout({
@@ -28,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="dark">
-      <body className={`${urbanist.variable} ${inter.variable} antialiased`}>
+      <body className={`${syne.variable} ${dmSans.variable} ${dmMono.variable} antialiased`}>
         {children}
       </body>
     </html>
