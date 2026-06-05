@@ -14,7 +14,7 @@ const selectClass =
   'w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground ' +
   'focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50'
 
-const HOURS = Array.from({ length: 17 }, (_, i) => {
+const HOURS = Array.from({ length: 18 }, (_, i) => {
   const h = (i + 5).toString().padStart(2, '0')
   return `${h}:00`
 })
@@ -212,7 +212,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
               {timeCategory === 'am' ? 'Turno AM · 05:00–15:00'
-               : timeCategory === 'pm' ? 'Turno PM · 16:00–21:00'
+               : timeCategory === 'pm' ? 'Turno PM · 16:00–22:00'
                : 'Fin de semana / festivo'}
             </span>
             <span>
