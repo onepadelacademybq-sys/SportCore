@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getAllBookings, getCourts } from '@/actions/bookings'
 import { ConfirmBookingForm } from '@/components/bookings/confirm-booking-form'
 import { CancelBookingButton } from '@/components/bookings/confirm-booking-form'
+import { ConfirmGroupSessionButton } from '@/components/bookings/confirm-group-session-button'
 import { StatusBadge } from '@/components/bookings/status-badge'
 import { ViewProofButton } from '@/components/bookings/view-proof-button'
 import { formatBookingDateTime } from '@/lib/format'
@@ -90,8 +91,17 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                 <tr key={b.id} className="hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3">
                     <div>
-                      <p className="font-medium">{b.player?.full_name ?? '—'}</p>
-                      <p className="text-xs text-muted-foreground">{b.player?.email ?? ''}</p>
+                      {b.group ? (
+                        <>
+                          <p className="font-medium">{b.group.name}</p>
+                          <p className="text-xs text-muted-foreground">Clase grupal</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium">{b.player?.full_name ?? '—'}</p>
+                          <p className="text-xs text-muted-foreground">{b.player?.email ?? ''}</p>
+                        </>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
@@ -121,8 +131,11 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {b.status === 'paid' && (
+                      {b.status === 'paid' && !b.group_id && (
                         <ConfirmBookingForm bookingId={b.id} courts={courts} />
+                      )}
+                      {b.status === 'pending' && b.group_id && (
+                        <ConfirmGroupSessionButton sessionId={b.id} />
                       )}
                       {!['cancelled', 'completed'].includes(b.status) && (
                         <CancelBookingButton bookingId={b.id} />

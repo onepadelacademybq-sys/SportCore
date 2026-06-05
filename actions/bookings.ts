@@ -27,6 +27,8 @@ export type Booking = {
   expires_at: string | null
   module_classes: number | null
   created_at: string
+  group_id: string | null
+  group: { id: string; name: string } | null
   coach:  ProfileRef | null
   player: ProfileRef | null
   court:  CourtRef   | null
@@ -138,10 +140,11 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
   let query = supabase
     .from('bookings')
     .select(`
-      id, start_time, end_time, status, notes, payment_proof_url, price, expires_at, created_at,
+      id, start_time, end_time, status, notes, payment_proof_url, price, expires_at, created_at, group_id,
       coach:profiles!coach_id(id, full_name, email),
       player:profiles!player_id(id, full_name, email),
       court:courts!court_id(id, name),
+      group:training_groups!group_id(id, name),
       wallet_credits:wallet_transactions(slot_type, type)
     `)
     .order('created_at', { ascending: false })
