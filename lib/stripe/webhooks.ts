@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { stripe } from './client'
+import { getStripe } from './client'
 
 export async function constructStripeEvent(
   body: string,
@@ -8,7 +8,7 @@ export async function constructStripeEvent(
   const secret = process.env.STRIPE_WEBHOOK_SECRET
   if (!secret) throw new Error('STRIPE_WEBHOOK_SECRET no configurado')
 
-  return stripe.webhooks.constructEventAsync(body, signature, secret)
+  return getStripe().webhooks.constructEventAsync(body, signature, secret)
 }
 
 // Mapeo de price IDs de Stripe a planes internos

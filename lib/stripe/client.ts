@@ -1,23 +1,28 @@
 import Stripe from 'stripe'
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY no está configurada')
+let _stripe: Stripe | null = null
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY no está configurada')
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2026-05-27.dahlia',
+      typescript: true,
+    })
+  }
+  return _stripe
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2026-05-27.dahlia',
-  typescript: true,
-})
-
-// Planes de precios — IDs de Stripe (configurar en el dashboard de Stripe)
 export const STRIPE_PRICES: Record<string, string> = {
   starter_monthly:    process.env.STRIPE_PRICE_STARTER_MONTHLY    ?? '',
   pro_monthly:        process.env.STRIPE_PRICE_PRO_MONTHLY        ?? '',
   enterprise_monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY ?? '',
 }
 
-// Crea o recupera un customer de Stripe para una organización
 export async function getOrCreateStripeCustomer(orgId: string, email: string, name: string) {
+  const stripe = getStripe()
   const { getPrisma } = await import('@/lib/prisma')
   const prisma = getPrisma()
 
@@ -37,8 +42,8 @@ export async function getOrCreateStripeCustomer(orgId: string, email: string, na
   return customer
 }
 
-// Crea sesión de checkout para suscripción
 export async function createCheckoutSession(orgId: string, priceId: string, successUrl: string, cancelUrl: string) {
+  const stripe = getStripe()
   const { getPrisma } = await import('@/lib/prisma')
   const prisma = getPrisma()
 
@@ -61,9 +66,8 @@ export async function createCheckoutSession(orgId: string, priceId: string, succ
   })
 }
 
-// Crea portal de facturación para que el cliente gestione su suscripción
 export async function createBillingPortalSession(stripeCustomerId: string, returnUrl: string) {
-  return stripe.billingPortal.sessions.create({
+  return getStripe().billingPortal.sessions.create({
     customer:   stripeCustomerId,
     return_url: returnUrl,
   })

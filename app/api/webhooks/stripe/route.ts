@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         if (!orgId) break
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const sub     = await import('@/lib/stripe/client').then(m => m.stripe.subscriptions.retrieve(subId)) as any
+        const sub     = await import('@/lib/stripe/client').then(m => m.getStripe().subscriptions.retrieve(subId)) as any
         const priceId = sub.items.data[0]?.price.id ?? ''
         const plan    = planFromPriceId(priceId)
 

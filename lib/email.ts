@@ -1,13 +1,19 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM   = process.env.RESEND_FROM_EMAIL ?? 'SportCore <noreply@sportcore.app>'
-const APP    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sportcore.app'
+let _resend: Resend | null = null
+
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
+  return _resend
+}
+
+const FROM = process.env.RESEND_FROM_EMAIL ?? 'SportCore <noreply@sportcore.app>'
+const APP  = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sportcore.app'
 
 // ── Helper base ────────────────────────────────────────────────────────────
 
 async function send(to: string, subject: string, html: string) {
-  const { error } = await resend.emails.send({ from: FROM, to, subject, html })
+  const { error } = await getResend().emails.send({ from: FROM, to, subject, html })
   if (error) console.error('[Email] Resend error:', error)
 }
 
