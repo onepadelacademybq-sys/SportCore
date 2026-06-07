@@ -175,14 +175,19 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
 }
 
 /** Bloques ocupados de un entrenador en el rango de fechas dado (para el calendario) */
+export type CoachAvailabilityResult = {
+  busySlots:    { start_time: string; end_time: string }[]
+  availability: { day_of_week: number; start_time: string }[] | null
+}
+
 export async function getCoachAvailability(
   coachId: string,
   weekStart: string,
   weekEnd: string,
-): Promise<{ start_time: string; end_time: string }[]> {
+): Promise<CoachAvailabilityResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  if (!user) return { busySlots: [], availability: null }
 
   // 1. Individual bookings already confirmed/paid
   const { data: confirmedBookings } = await supabase
@@ -193,7 +198,7 @@ export async function getCoachAvailability(
     .lt('start_time', weekEnd)
     .gte('end_time', weekStart)
 
-  // 2. Group session bookings (pending but tied to a group)
+  // 2. Group session bookings (pending but tied to a group — coach's time is blocked)
   const { data: groupBookings } = await supabase
     .from('bookings')
     .select('start_time, end_time')
@@ -203,47 +208,23 @@ export async function getCoachAvailability(
     .lt('start_time', weekEnd)
     .gte('end_time', weekStart)
 
-  const busy: { start_time: string; end_time: string }[] = [
+  const busySlots: { start_time: string; end_time: string }[] = [
     ...((confirmedBookings ?? []) as { start_time: string; end_time: string }[]),
-    ...((groupBookings ?? []) as { start_time: string; end_time: string }[]),
+    ...((groupBookings   ?? []) as { start_time: string; end_time: string }[]),
   ]
 
-  // 3. Coach manual blocks — hours NOT in coach_availability are blocked.
-  //    Only applied when the coach has configured at least one available slot
-  //    (avoids blocking everything for coaches who haven't set up availability yet).
+  // 3. Coach availability — returned raw so the client can compare in local time
+  //    (avoids UTC vs. local-timezone mismatch if computed on the server).
   const { data: avail } = await supabase
     .from('coach_availability')
     .select('day_of_week, start_time')
     .eq('coach_id', coachId)
 
-  if (avail && avail.length > 0) {
-    const availSet = new Set(
-      (avail as { day_of_week: number; start_time: string }[]).map(
-        (a) => `${a.day_of_week}_${a.start_time.substring(0, 5)}`,
-      ),
-    )
+  const availability = avail && avail.length > 0
+    ? (avail as { day_of_week: number; start_time: string }[])
+    : null
 
-    const cursor = new Date(weekStart)
-    cursor.setHours(0, 0, 0, 0)
-    const weekEndDate = new Date(weekEnd)
-
-    while (cursor < weekEndDate) {
-      const dow = cursor.getDay()
-      for (let hour = 5; hour <= 21; hour++) {
-        const key = `${dow}_${String(hour).padStart(2, '0')}:00`
-        if (!availSet.has(key)) {
-          const slotStart = new Date(cursor)
-          slotStart.setHours(hour, 0, 0, 0)
-          const slotEnd = new Date(cursor)
-          slotEnd.setHours(hour + 1, 0, 0, 0)
-          busy.push({ start_time: slotStart.toISOString(), end_time: slotEnd.toISOString() })
-        }
-      }
-      cursor.setDate(cursor.getDate() + 1)
-    }
-  }
-
-  return busy
+  return { busySlots, availability }
 }
 
 // ─── Player: solicitar reserva ─────────────────────────────────────────────────

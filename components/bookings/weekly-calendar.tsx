@@ -34,6 +34,7 @@ function toLocalDateStr(d: Date): string {
 }
 
 interface BusySlot { start_time: string; end_time: string }
+type AvailabilitySlot = { day_of_week: number; start_time: string }
 
 interface Props {
   coachId:       string
@@ -44,9 +45,10 @@ interface Props {
 }
 
 export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectSlot, userRole }: Props) {
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [busySlots, setBusySlots]   = useState<BusySlot[]>([])
-  const [isFetching, setIsFetching] = useState(false)
+  const [weekOffset,        setWeekOffset]        = useState(0)
+  const [busySlots,         setBusySlots]         = useState<BusySlot[]>([])
+  const [coachAvailability, setCoachAvailability] = useState<AvailabilitySlot[] | null>(null)
+  const [isFetching,        setIsFetching]        = useState(false)
 
   // Earliest bookable moment — computed fresh on each render (won't auto-update
   // while open, but that's acceptable for a booking form)
@@ -76,18 +78,36 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
     setBusySlots([])
 
     getCoachAvailability(coachId, weekStartISO, weekEndISO)
-      .then(slots => { if (!cancelled) setBusySlots(slots) })
-      .catch(()   => { if (!cancelled) setBusySlots([]) })
+      .then(result => {
+        if (!cancelled) {
+          setBusySlots(result.busySlots)
+          setCoachAvailability(result.availability)
+        }
+      })
+      .catch(() => { if (!cancelled) { setBusySlots([]); setCoachAvailability(null) } })
       .finally(() => { if (!cancelled) setIsFetching(false) })
 
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coachId, weekOffset])
 
+  // Build availability set once per render (changes only when coachAvailability changes)
+  const availSet: Set<string> | null = coachAvailability
+    ? new Set(coachAvailability.map(a => `${a.day_of_week}_${a.start_time.substring(0, 5)}`))
+    : null
+
   function isBusy(day: Date, hour: number): boolean {
     const slotStart = new Date(day); slotStart.setHours(hour, 0, 0, 0)
     const slotEnd   = new Date(day); slotEnd.setHours(hour + 1, 0, 0, 0)
     return busySlots.some(b => new Date(b.start_time) < slotEnd && new Date(b.end_time) > slotStart)
+  }
+
+  // Slot is outside coach's configured availability.
+  // day.getDay() uses LOCAL time — matches the local HH:MM the coach set.
+  function isUnavailable(day: Date, hour: number): boolean {
+    if (!availSet) return false
+    const key = `${day.getDay()}_${String(hour).padStart(2, '0')}:00`
+    return !availSet.has(key)
   }
 
   // A slot is blocked when it starts before the earliest bookable moment.
@@ -179,10 +199,11 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
                 </div>
 
                 {weekDays.map((day, di) => {
-                  const busy     = isBusy(day, hour)
-                  const tooSoon  = isTooSoon(day, hour)
-                  const selected = isSelected(day, hour)
-                  const disabled = busy || tooSoon
+                  const busy        = isBusy(day, hour)
+                  const tooSoon     = isTooSoon(day, hour)
+                  const unavailable = isUnavailable(day, hour)
+                  const selected    = isSelected(day, hour)
+                  const disabled    = busy || tooSoon || unavailable
 
                   return (
                     <button
@@ -191,9 +212,10 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
                       disabled={disabled}
                       onClick={() => !disabled && handleClick(day, hour)}
                       title={
-                        selected  ? 'Seleccionado'
-                        : busy    ? 'Ocupado'
-                        : tooSoon ? 'No disponible aún'
+                        selected      ? 'Seleccionado'
+                        : busy        ? 'Ocupado'
+                        : unavailable ? 'Entrenador no disponible'
+                        : tooSoon     ? 'No disponible aún'
                         : `Reservar ${String(hour).padStart(2, '0')}:00`
                       }
                       className={`
@@ -202,6 +224,8 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
                           ? 'bg-[#00C4CC]'
                           : busy
                             ? 'bg-muted cursor-not-allowed'
+                          : unavailable
+                            ? 'bg-muted/50 cursor-not-allowed'
                             : tooSoon
                               ? 'bg-muted/25 cursor-default'
                               : 'bg-[#00C4CC]/20 hover:bg-[#00C4CC]/50 cursor-pointer'
