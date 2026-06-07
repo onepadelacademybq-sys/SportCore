@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { getCoachAvailability } from '@/actions/bookings'
+import { ChevronLeft, ChevronRight, X, Phone } from 'lucide-react'
+import { getCoachAvailability, type BusySlot } from '@/actions/bookings'
 import { Button } from '@/components/ui/button'
 
 // Slots de 1 hora: 05:00 – 20:00
@@ -33,8 +33,7 @@ function toLocalDateStr(d: Date): string {
   ].join('-')
 }
 
-interface BusySlot { start_time: string; end_time: string }
-type AvailabilitySlot = { day_of_week: number; start_time: string }
+type AvailableWindow = { day_of_week: number; start_time: string; end_time: string }
 
 interface Props {
   coachId:       string
@@ -44,14 +43,15 @@ interface Props {
   userRole:      'player' | 'admin' | 'coach'
 }
 
-export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectSlot, userRole }: Props) {
-  const [weekOffset,        setWeekOffset]        = useState(0)
-  const [busySlots,         setBusySlots]         = useState<BusySlot[]>([])
-  const [coachAvailability, setCoachAvailability] = useState<AvailabilitySlot[] | null>(null)
-  const [isFetching,        setIsFetching]        = useState(false)
+type SlotState = 'available' | 'selected' | 'busy-individual' | 'busy-group' | 'coach-unavailable' | 'too-soon'
 
-  // Earliest bookable moment — computed fresh on each render (won't auto-update
-  // while open, but that's acceptable for a booking form)
+export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectSlot, userRole }: Props) {
+  const [weekOffset,       setWeekOffset]       = useState(0)
+  const [busySlots,        setBusySlots]        = useState<BusySlot[]>([])
+  const [availableWindows, setAvailableWindows] = useState<AvailableWindow[] | null>(null)
+  const [isFetching,       setIsFetching]       = useState(false)
+  const [showContactBanner, setShowContactBanner] = useState(false)
+
   const earliestBookable = new Date(
     Date.now() + (ADVANCE_HOURS[userRole] ?? 48) * 60 * 60 * 1000,
   )
@@ -76,43 +76,47 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
     let cancelled = false
     setIsFetching(true)
     setBusySlots([])
+    setShowContactBanner(false)
 
     getCoachAvailability(coachId, weekStartISO, weekEndISO)
       .then(result => {
         if (!cancelled) {
           setBusySlots(result.busySlots)
-          setCoachAvailability(result.availability)
+          setAvailableWindows(result.availableWindows)
         }
       })
-      .catch(() => { if (!cancelled) { setBusySlots([]); setCoachAvailability(null) } })
+      .catch(() => { if (!cancelled) { setBusySlots([]); setAvailableWindows(null) } })
       .finally(() => { if (!cancelled) setIsFetching(false) })
 
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coachId, weekOffset])
 
-  // Build availability set once per render (changes only when coachAvailability changes)
-  const availSet: Set<string> | null = coachAvailability
-    ? new Set(coachAvailability.map(a => `${a.day_of_week}_${a.start_time.substring(0, 5)}`))
-    : null
+  // ── Clasificación de cada slot ──────────────────────────────────────────────
 
-  function isBusy(day: Date, hour: number): boolean {
+  function getBusyType(day: Date, hour: number): 'individual' | 'group' | null {
     const slotStart = new Date(day); slotStart.setHours(hour, 0, 0, 0)
     const slotEnd   = new Date(day); slotEnd.setHours(hour + 1, 0, 0, 0)
-    return busySlots.some(b => new Date(b.start_time) < slotEnd && new Date(b.end_time) > slotStart)
+    const match = busySlots.find(
+      b => new Date(b.start_time) < slotEnd && new Date(b.end_time) > slotStart,
+    )
+    if (!match) return null
+    return match.is_group ? 'group' : 'individual'
   }
 
-  // Slot is outside coach's configured availability.
-  // day.getDay() uses LOCAL time — matches the local HH:MM the coach set.
+  // Slot fuera de las ventanas de disponibilidad del entrenador.
+  // availableWindows === null → entrenador sin horario configurado → sin restricción.
   function isUnavailable(day: Date, hour: number): boolean {
-    if (!availSet) return false
-    const key = `${day.getDay()}_${String(hour).padStart(2, '0')}:00`
-    return !availSet.has(key)
+    if (!availableWindows) return false
+    const dow = day.getDay()
+    return !availableWindows.some(w => {
+      if (w.day_of_week !== dow) return false
+      const wStart = parseInt(w.start_time.substring(0, 2), 10)
+      const wEnd   = parseInt(w.end_time.substring(0, 2), 10)
+      return hour >= wStart && hour + 1 <= wEnd
+    })
   }
 
-  // A slot is blocked when it starts before the earliest bookable moment.
-  // Uses exact datetime — not just the day — so today's future slots remain available
-  // when the user's advance window allows it (e.g. admin can book 1h ahead).
   function isTooSoon(day: Date, hour: number): boolean {
     const slotStart = new Date(day)
     slotStart.setHours(hour, 0, 0, 0)
@@ -125,17 +129,55 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
     return toLocalDateStr(day) === selectedDate && `${h}:00` === selectedStart
   }
 
-  function handleClick(day: Date, hour: number) {
+  function resolveSlotState(day: Date, hour: number): SlotState {
+    if (isSelected(day, hour)) return 'selected'
+    const busyType = getBusyType(day, hour)
+    if (busyType === 'individual') return 'busy-individual'
+    if (busyType === 'group')      return 'busy-group'
+    if (isUnavailable(day, hour)) return 'coach-unavailable'
+    if (isTooSoon(day, hour))     return 'too-soon'
+    return 'available'
+  }
+
+  // ── Estilos por estado ──────────────────────────────────────────────────────
+
+  const slotStyles: Record<SlotState, string> = {
+    'available':        'bg-[#00C4CC]/20 hover:bg-[#00C4CC]/50 cursor-pointer',
+    'selected':         'bg-[#00C4CC] ring-2 ring-[#00C4CC] ring-offset-1',
+    'busy-individual':  'bg-rose-300 dark:bg-rose-700/70 cursor-not-allowed',
+    'busy-group':       'bg-violet-300 dark:bg-violet-700/70 cursor-not-allowed',
+    'coach-unavailable':'bg-slate-200 dark:bg-slate-700 cursor-not-allowed',
+    'too-soon':         'bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 cursor-pointer',
+  }
+
+  const slotTitles: Record<SlotState, string> = {
+    'available':         '',
+    'selected':          'Seleccionado',
+    'busy-individual':   'Clase individual reservada',
+    'busy-group':        'Sesión de grupo de entrenamiento',
+    'coach-unavailable': 'Entrenador no disponible',
+    'too-soon':          'Contactar administración',
+  }
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  function handleClick(day: Date, hour: number, state: SlotState) {
+    if (state === 'too-soon') {
+      setShowContactBanner(true)
+      return
+    }
+    if (state !== 'available') return
     const h    = String(hour).padStart(2, '0')
     const endH = String(hour + 1).padStart(2, '0')
     onSelectSlot(toLocalDateStr(day), `${h}:00`, `${endH}:00`)
   }
 
+  // ── Navegación ──────────────────────────────────────────────────────────────
+
   const startLabel = weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
   const endLabel   = weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
   const weekLabel  = `${startLabel} – ${endLabel}`
 
-  // Disable the "back" button when the entire previous week would be blocked
   const prevWeekMonday = new Date(baseMonday)
   prevWeekMonday.setDate(prevWeekMonday.getDate() - 7)
   const prevWeekLastSlot = new Date(prevWeekMonday)
@@ -143,16 +185,36 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
   prevWeekLastSlot.setHours(SLOT_HOURS[SLOT_HOURS.length - 1], 0, 0, 0)
   const canGoBack = prevWeekLastSlot >= earliestBookable
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   return (
     <div className="rounded-lg border border-border p-3 space-y-3">
       {/* Advance window notice */}
       <p className="text-[10px] text-muted-foreground">
-        {userRole === 'admin'
+        {userRole === 'admin' || userRole === 'coach'
           ? 'Reservas disponibles desde 1 hora en adelante.'
           : 'Reservas disponibles con mínimo 48 horas de anticipación.'}
       </p>
 
-      {/* Week navigation */}
+      {/* Banner de contacto (tooSoon) */}
+      {showContactBanner && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+          <Phone className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span className="flex-1">
+            Este horario requiere confirmación previa.{' '}
+            <strong>Contáctanos directamente</strong> para verificar disponibilidad.
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowContactBanner(false)}
+            className="shrink-0 opacity-60 hover:opacity-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Navegación de semana */}
       <div className="flex items-center justify-between gap-2">
         <Button
           type="button"
@@ -179,7 +241,7 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
       {/* Grid */}
       <div className={`overflow-x-auto transition-opacity duration-150 ${isFetching ? 'opacity-40' : 'opacity-100'}`}>
         <div className="min-w-[500px]">
-          {/* Day headers */}
+          {/* Cabecera de días */}
           <div className="grid grid-cols-[40px_repeat(7,1fr)] mb-1.5">
             <div />
             {weekDays.map((d, i) => (
@@ -190,7 +252,7 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
             ))}
           </div>
 
-          {/* Hour rows */}
+          {/* Filas de horas */}
           <div className="space-y-px">
             {SLOT_HOURS.map(hour => (
               <div key={hour} className="grid grid-cols-[40px_repeat(7,1fr)] gap-px">
@@ -199,38 +261,20 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
                 </div>
 
                 {weekDays.map((day, di) => {
-                  const busy        = isBusy(day, hour)
-                  const tooSoon     = isTooSoon(day, hour)
-                  const unavailable = isUnavailable(day, hour)
-                  const selected    = isSelected(day, hour)
-                  const disabled    = busy || tooSoon || unavailable
+                  const state = resolveSlotState(day, hour)
+                  const disabled = state !== 'available' && state !== 'too-soon'
 
                   return (
                     <button
                       key={di}
                       type="button"
                       disabled={disabled}
-                      onClick={() => !disabled && handleClick(day, hour)}
+                      onClick={() => handleClick(day, hour, state)}
                       title={
-                        selected      ? 'Seleccionado'
-                        : busy        ? 'Ocupado'
-                        : unavailable ? 'Entrenador no disponible'
-                        : tooSoon     ? 'No disponible aún'
-                        : `Reservar ${String(hour).padStart(2, '0')}:00`
+                        slotTitles[state] ||
+                        `Reservar ${String(hour).padStart(2, '0')}:00`
                       }
-                      className={`
-                        h-6 rounded-[3px] transition-colors
-                        ${selected
-                          ? 'bg-[#00C4CC]'
-                          : busy
-                            ? 'bg-muted cursor-not-allowed'
-                          : unavailable
-                            ? 'bg-muted/50 cursor-not-allowed'
-                            : tooSoon
-                              ? 'bg-muted/25 cursor-default'
-                              : 'bg-[#00C4CC]/20 hover:bg-[#00C4CC]/50 cursor-pointer'
-                        }
-                      `}
+                      className={`h-6 rounded-[3px] transition-colors ${slotStyles[state]}`}
                     />
                   )
                 })}
@@ -240,19 +284,31 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+      {/* Leyenda */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1">
           <span className="inline-block size-2.5 rounded-[2px] bg-[#00C4CC]/20 shrink-0" />
           Disponible
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block size-2.5 rounded-[2px] bg-muted shrink-0" />
-          Ocupado
-        </span>
-        <span className="flex items-center gap-1">
           <span className="inline-block size-2.5 rounded-[2px] bg-[#00C4CC] shrink-0" />
           Seleccionado
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block size-2.5 rounded-[2px] bg-rose-300 shrink-0" />
+          Clase individual
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block size-2.5 rounded-[2px] bg-violet-300 shrink-0" />
+          Grupo activo
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block size-2.5 rounded-[2px] bg-slate-200 shrink-0" />
+          No disponible
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block size-2.5 rounded-[2px] bg-amber-100 shrink-0" />
+          Consultar admin
         </span>
       </div>
     </div>

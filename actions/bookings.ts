@@ -175,9 +175,11 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
 }
 
 /** Bloques ocupados de un entrenador en el rango de fechas dado (para el calendario) */
+export type BusySlot = { start_time: string; end_time: string; is_group: boolean }
+
 export type CoachAvailabilityResult = {
-  busySlots:    { start_time: string; end_time: string }[]
-  availability: { day_of_week: number; start_time: string }[] | null
+  busySlots:        BusySlot[]
+  availableWindows: { day_of_week: number; start_time: string; end_time: string }[] | null
 }
 
 export async function getCoachAvailability(
@@ -187,22 +189,53 @@ export async function getCoachAvailability(
 ): Promise<CoachAvailabilityResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { busySlots: [], availability: null }
+  if (!user) return { busySlots: [], availableWindows: null }
 
-  // Only confirmed/paid bookings block the calendar.
-  // Pending individual bookings and unconfirmed group sessions are excluded
-  // so the calendar accurately reflects what has actually been reserved.
-  const { data: busyData } = await supabase
+  // Clases individuales: bloquean solo si están pagadas o confirmadas
+  const { data: individualData } = await supabase
     .from('bookings')
     .select('start_time, end_time')
     .eq('coach_id', coachId)
+    .is('group_id', null)
     .in('status', ['paid', 'confirmed'])
     .lt('start_time', weekEnd)
     .gte('end_time', weekStart)
 
-  const busySlots = (busyData ?? []) as { start_time: string; end_time: string }[]
+  const individualBusy: BusySlot[] = (individualData ?? []).map(row => ({
+    start_time: row['start_time'] as string,
+    end_time:   row['end_time'] as string,
+    is_group:   false,
+  }))
 
-  return { busySlots, availability: null }
+  // Sesiones grupales: bloquean si el grupo está activo (sin importar status de la reserva)
+  const { data: groupData } = await supabase
+    .from('bookings')
+    .select('start_time, end_time, group:training_groups!group_id(status)')
+    .eq('coach_id', coachId)
+    .not('group_id', 'is', null)
+    .not('status', 'eq', 'cancelled')
+    .lt('start_time', weekEnd)
+    .gte('end_time', weekStart)
+
+  const groupBusy: BusySlot[] = ((groupData ?? []) as any[])
+    .filter(b => b.group?.status === 'active')
+    .map(b => ({ start_time: b.start_time, end_time: b.end_time, is_group: true }))
+
+  // Ventanas de disponibilidad del entrenador (horas en que SÍ trabaja)
+  const { data: availData } = await supabase
+    .from('coach_availability')
+    .select('day_of_week, start_time, end_time')
+    .eq('coach_id', coachId)
+    .order('day_of_week')
+
+  const availableWindows = availData && availData.length > 0
+    ? (availData as { day_of_week: number; start_time: string; end_time: string }[])
+    : null
+
+  return {
+    busySlots: [...individualBusy, ...groupBusy],
+    availableWindows,
+  }
 }
 
 // ─── Player: solicitar reserva ─────────────────────────────────────────────────
@@ -266,17 +299,31 @@ export async function requestBookingAction(
   if (durationMin < 30)  return { error: 'La duración mínima es 30 minutos' }
   if (durationMin > 120) return { error: 'La duración máxima es 2 horas' }
 
-  // Verificar disponibilidad: solo reservas confirmadas o pagadas bloquean el slot
-  const { data: conflict } = await supabase
+  // Clases individuales confirmadas/pagadas bloquean el slot
+  const { data: individualConflict } = await supabase
     .from('bookings')
     .select('id')
     .eq('coach_id', coachId)
+    .is('group_id', null)
     .in('status', ['paid', 'confirmed'])
     .lt('start_time', end.toISOString())
     .gt('end_time', start.toISOString())
     .limit(1)
 
-  if (conflict && conflict.length > 0) {
+  // Sesiones grupales de grupo activo también bloquean
+  const { data: groupConflictData } = await supabase
+    .from('bookings')
+    .select('id, group:training_groups!group_id(status)')
+    .eq('coach_id', coachId)
+    .not('group_id', 'is', null)
+    .not('status', 'eq', 'cancelled')
+    .lt('start_time', end.toISOString())
+    .gt('end_time', start.toISOString())
+
+  const hasGroupConflict = ((groupConflictData ?? []) as any[])
+    .some(b => b.group?.status === 'active')
+
+  if ((individualConflict && individualConflict.length > 0) || hasGroupConflict) {
     return { error: 'El entrenador ya tiene una reserva en ese horario' }
   }
 
