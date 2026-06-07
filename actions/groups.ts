@@ -1140,11 +1140,13 @@ function datesInMonth(year: number, month: number, dayOfWeek: number): Date[] {
   return dates
 }
 
-// Combina una fecha y un string "HH:MM:SS" → "YYYY-MM-DDTHH:MM:SS"
+// Combina una fecha y un string "HH:MM:SS" → ISO 8601 con offset Colombia (UTC-5).
+// El sufijo -05:00 es obligatorio: sin él PostgreSQL interpreta el string como UTC,
+// almacenando el horario 5 horas antes de lo que el entrenador configuró.
 function toDateTime(date: Date, timeStr: string): string {
   const [h, m, s] = timeStr.split(':').map(Number)
   const pad = (n: number) => String(Math.floor(n)).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(h)}:${pad(m)}:${pad(s ?? 0)}`
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(h)}:${pad(m)}:${pad(s ?? 0)}-05:00`
 }
 
 type GroupRef = { id: string; name: string; coach_id: string; default_court_id: string | null }

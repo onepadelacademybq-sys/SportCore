@@ -276,8 +276,10 @@ export async function requestBookingAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const { coachId, date, startTime, endTime, notes, peopleCount, price, moduleClasses, paymentMethod } = parsed.data
-  const start = new Date(`${date}T${startTime}:00`)
-  const end   = new Date(`${date}T${endTime}:00`)
+  // Offset Colombia (UTC-5) explícito: sin él, Node.js en Vercel (UTC) interpretaría
+  // la hora local como UTC, almacenando la reserva 5 horas antes de lo que eligió el jugador.
+  const start = new Date(`${date}T${startTime}:00-05:00`)
+  const end   = new Date(`${date}T${endTime}:00-05:00`)
 
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return { error: 'Fecha u hora inválida' }
