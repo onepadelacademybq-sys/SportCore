@@ -213,18 +213,9 @@ export async function getCoachAvailability(
     ...((groupBookings   ?? []) as { start_time: string; end_time: string }[]),
   ]
 
-  // 3. Coach availability — returned raw so the client can compare in local time
-  //    (avoids UTC vs. local-timezone mismatch if computed on the server).
-  const { data: avail } = await supabase
-    .from('coach_availability')
-    .select('day_of_week, start_time')
-    .eq('coach_id', coachId)
-
-  const availability = avail && avail.length > 0
-    ? (avail as { day_of_week: number; start_time: string }[])
-    : null
-
-  return { busySlots, availability }
+  // availability is not used for blocking (weekly recurring pattern causes false positives).
+  // Returned as null — architecture kept for future explicit block feature.
+  return { busySlots, availability: null }
 }
 
 // ─── Player: solicitar reserva ─────────────────────────────────────────────────
