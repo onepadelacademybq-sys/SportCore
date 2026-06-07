@@ -189,8 +189,10 @@ export async function getCoachAvailability(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { busySlots: [], availability: null }
 
-  // 1. Individual bookings already confirmed/paid
-  const { data: confirmedBookings } = await supabase
+  // Only confirmed/paid bookings block the calendar.
+  // Pending individual bookings and unconfirmed group sessions are excluded
+  // so the calendar accurately reflects what has actually been reserved.
+  const { data: busyData } = await supabase
     .from('bookings')
     .select('start_time, end_time')
     .eq('coach_id', coachId)
@@ -198,23 +200,8 @@ export async function getCoachAvailability(
     .lt('start_time', weekEnd)
     .gte('end_time', weekStart)
 
-  // 2. Group session bookings (pending but tied to a group — coach's time is blocked)
-  const { data: groupBookings } = await supabase
-    .from('bookings')
-    .select('start_time, end_time')
-    .eq('coach_id', coachId)
-    .eq('status', 'pending')
-    .not('group_id', 'is', null)
-    .lt('start_time', weekEnd)
-    .gte('end_time', weekStart)
+  const busySlots = (busyData ?? []) as { start_time: string; end_time: string }[]
 
-  const busySlots: { start_time: string; end_time: string }[] = [
-    ...((confirmedBookings ?? []) as { start_time: string; end_time: string }[]),
-    ...((groupBookings   ?? []) as { start_time: string; end_time: string }[]),
-  ]
-
-  // availability is not used for blocking (weekly recurring pattern causes false positives).
-  // Returned as null — architecture kept for future explicit block feature.
   return { busySlots, availability: null }
 }
 
@@ -279,12 +266,12 @@ export async function requestBookingAction(
   if (durationMin < 30)  return { error: 'La duración mínima es 30 minutos' }
   if (durationMin > 120) return { error: 'La duración máxima es 2 horas' }
 
-  // Verificar disponibilidad del entrenador (sin solapamientos activos)
+  // Verificar disponibilidad: solo reservas confirmadas o pagadas bloquean el slot
   const { data: conflict } = await supabase
     .from('bookings')
     .select('id')
     .eq('coach_id', coachId)
-    .not('status', 'in', '("cancelled")')
+    .in('status', ['paid', 'confirmed'])
     .lt('start_time', end.toISOString())
     .gt('end_time', start.toISOString())
     .limit(1)
