@@ -184,7 +184,8 @@ export async function getCoachAvailability(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  const { data } = await supabase
+  // 1. Individual bookings already confirmed/paid
+  const { data: confirmedBookings } = await supabase
     .from('bookings')
     .select('start_time, end_time')
     .eq('coach_id', coachId)
@@ -192,7 +193,57 @@ export async function getCoachAvailability(
     .lt('start_time', weekEnd)
     .gte('end_time', weekStart)
 
-  return (data ?? []) as { start_time: string; end_time: string }[]
+  // 2. Group session bookings (pending but tied to a group)
+  const { data: groupBookings } = await supabase
+    .from('bookings')
+    .select('start_time, end_time')
+    .eq('coach_id', coachId)
+    .eq('status', 'pending')
+    .not('group_id', 'is', null)
+    .lt('start_time', weekEnd)
+    .gte('end_time', weekStart)
+
+  const busy: { start_time: string; end_time: string }[] = [
+    ...((confirmedBookings ?? []) as { start_time: string; end_time: string }[]),
+    ...((groupBookings ?? []) as { start_time: string; end_time: string }[]),
+  ]
+
+  // 3. Coach manual blocks — hours NOT in coach_availability are blocked.
+  //    Only applied when the coach has configured at least one available slot
+  //    (avoids blocking everything for coaches who haven't set up availability yet).
+  const { data: avail } = await supabase
+    .from('coach_availability')
+    .select('day_of_week, start_time')
+    .eq('coach_id', coachId)
+
+  if (avail && avail.length > 0) {
+    const availSet = new Set(
+      (avail as { day_of_week: number; start_time: string }[]).map(
+        (a) => `${a.day_of_week}_${a.start_time.substring(0, 5)}`,
+      ),
+    )
+
+    const cursor = new Date(weekStart)
+    cursor.setHours(0, 0, 0, 0)
+    const weekEndDate = new Date(weekEnd)
+
+    while (cursor < weekEndDate) {
+      const dow = cursor.getDay()
+      for (let hour = 5; hour <= 21; hour++) {
+        const key = `${dow}_${String(hour).padStart(2, '0')}:00`
+        if (!availSet.has(key)) {
+          const slotStart = new Date(cursor)
+          slotStart.setHours(hour, 0, 0, 0)
+          const slotEnd = new Date(cursor)
+          slotEnd.setHours(hour + 1, 0, 0, 0)
+          busy.push({ start_time: slotStart.toISOString(), end_time: slotEnd.toISOString() })
+        }
+      }
+      cursor.setDate(cursor.getDate() + 1)
+    }
+  }
+
+  return busy
 }
 
 // ─── Player: solicitar reserva ─────────────────────────────────────────────────
