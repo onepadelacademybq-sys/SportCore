@@ -50,8 +50,8 @@ function colDateStr(day: Date): string {
   ].join('-')
 }
 
-// Slots de 1 hora: 05:00 – 20:00 Colombia
-const SLOT_HOURS = Array.from({ length: 16 }, (_, i) => i + 5)
+// Slots de 1 hora: 05:00 – 21:00 Colombia (último slot: 21:00-22:00)
+const SLOT_HOURS = Array.from({ length: 17 }, (_, i) => i + 5)
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
