@@ -1176,14 +1176,18 @@ async function insertSessionsForMonth(
     .gte('start_time', monthStart)
     .lt('start_time', monthEnd)
 
-  const seen = new Set((existing ?? []).map((b: any) => b.start_time.slice(0, 16)))
+  // Normalizar a UTC para comparar: "2026-06-09T07:00:00-05:00" y "2026-06-09T12:00:00Z"
+  // representan el mismo instante → slice(0,16) sobre el ISO UTC es el identificador único.
+  const seen = new Set(
+    (existing ?? []).map((b: any) => new Date(b.start_time as string).toISOString().slice(0, 16)),
+  )
 
   const rows: Record<string, unknown>[] = []
   for (const sched of schedules) {
     for (const date of datesInMonth(year, month, sched.day_of_week)) {
       const startIso = toDateTime(date, sched.start_time)
       const endIso   = toDateTime(date, sched.end_time)
-      if (!seen.has(startIso.slice(0, 16))) {
+      if (!seen.has(new Date(startIso).toISOString().slice(0, 16))) {
         rows.push({
           group_id:   group.id,
           coach_id:   group.coach_id,
@@ -1195,7 +1199,7 @@ async function insertSessionsForMonth(
           notes:      `Clase grupal - ${group.name}`,
           price:      0,
         })
-        seen.add(startIso.slice(0, 16))
+        seen.add(new Date(startIso).toISOString().slice(0, 16))
       }
     }
   }
