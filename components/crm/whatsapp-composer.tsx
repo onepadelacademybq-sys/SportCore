@@ -56,7 +56,7 @@ export function WhatsAppComposer({ phone, name, profileId, leadId, onClose }: Pr
       />
 
       {/* Panel */}
-      <div className="fixed bottom-6 right-6 z-50 w-96 bg-card border rounded-2xl shadow-2xl overflow-hidden">
+      <div className="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] sm:w-96 bg-card border rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 bg-green-600">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">

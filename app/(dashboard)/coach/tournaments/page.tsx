@@ -21,7 +21,7 @@ export default async function CoachTournamentsPage() {
   const tournaments = await getOpenTournaments()
 
   return (
-    <div className="p-8 space-y-6 max-w-3xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Trophy className="h-6 w-6 text-amber-400" />

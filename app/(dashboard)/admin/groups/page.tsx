@@ -28,7 +28,7 @@ export default async function AdminGroupsPage() {
   const month = MONTH_NAMES[now.getMonth() + 1]
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-5xl">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>

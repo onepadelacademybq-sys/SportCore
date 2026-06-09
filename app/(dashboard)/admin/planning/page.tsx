@@ -18,7 +18,7 @@ export default async function AdminPlanningPage() {
   const hasContent = players.length > 0 || groups.length > 0
 
   return (
-    <div className="p-8 space-y-8 max-w-4xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-4xl">
       <div>
         <h1 className="text-2xl font-bold">Planificación</h1>
         <p className="text-muted-foreground text-sm mt-1">

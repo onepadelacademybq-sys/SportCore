@@ -84,7 +84,8 @@ export function TransactionsTable({ transactions, categories, emptyLabel }: Prop
           {emptyLabel}
         </div>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-lg border border-border overflow-x-auto">
+          <div className="min-w-[520px]">
           <div
             className="grid text-[10px] font-semibold text-muted-foreground uppercase tracking-wide bg-muted/30 px-4 py-2"
             style={{ gridTemplateColumns: '110px 1fr 130px 120px' }}
@@ -110,6 +111,7 @@ export function TransactionsTable({ transactions, categories, emptyLabel }: Prop
               </span>
             </div>
           ))}
+          </div>
         </div>
       )}
     </div>

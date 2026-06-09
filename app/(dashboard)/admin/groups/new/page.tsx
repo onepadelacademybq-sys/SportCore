@@ -11,7 +11,7 @@ export default async function NewGroupPage() {
   const [coaches, courts] = await Promise.all([getCoaches(), getCourts()])
 
   return (
-    <div className="p-8 max-w-2xl space-y-6">
+    <div className="p-4 md:p-8 max-w-2xl space-y-6">
       <div>
         <Link
           href="/admin/groups"

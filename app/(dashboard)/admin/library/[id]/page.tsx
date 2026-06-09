@@ -40,7 +40,7 @@ export default async function AdminExerciseDetailPage({ params, searchParams }: 
   const isEditTab = tab === 'edit'
 
   return (
-    <div className="p-8 max-w-3xl space-y-6">
+    <div className="p-4 md:p-8 max-w-3xl space-y-6">
       {/* Back */}
       <Link
         href="/admin/library"

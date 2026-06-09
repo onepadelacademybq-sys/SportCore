@@ -19,7 +19,7 @@ export default async function PlayerGroupsPage() {
   ])
 
   return (
-    <div className="p-8 space-y-10 max-w-3xl">
+    <div className="p-4 md:p-8 space-y-10 max-w-3xl">
       {/* My current groups */}
       {myGroups.length > 0 && (
         <section className="space-y-4">

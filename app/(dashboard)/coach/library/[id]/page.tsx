@@ -40,7 +40,7 @@ export default async function CoachExerciseDetailPage({ params, searchParams }: 
   const canEdit = true // coach can edit their own; backend enforces the permission
 
   return (
-    <div className="p-8 max-w-3xl space-y-6">
+    <div className="p-4 md:p-8 max-w-3xl space-y-6">
       <Link
         href="/coach/library"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

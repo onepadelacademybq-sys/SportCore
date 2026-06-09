@@ -51,7 +51,7 @@ export default async function AdminCrmPage() {
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-7xl">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">CRM</h1>

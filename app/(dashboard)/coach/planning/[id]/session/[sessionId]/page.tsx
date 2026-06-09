@@ -41,7 +41,7 @@ export default async function CoachSessionDetailPage({ params }: PageProps) {
   )!
 
   return (
-    <div className="p-8 max-w-4xl space-y-6">
+    <div className="p-4 md:p-8 max-w-4xl space-y-6">
       <Link
         href={`/coach/planning/${mesocycleId}`}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

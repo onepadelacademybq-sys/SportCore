@@ -56,7 +56,7 @@ export default async function PlayerTournamentsPage() {
   const playerList = (players ?? []) as Array<{ id: string; full_name: string }>
 
   return (
-    <div className="p-8 space-y-8 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-5xl">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">

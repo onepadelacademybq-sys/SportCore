@@ -59,7 +59,7 @@ export default async function CoachMesocycleDetailPage({ params, searchParams }:
   const doneSessions  = mesocycle.microcycles.flatMap((mc) => mc.sessions).filter((s) => s.status === 'completed').length
 
   return (
-    <div className="p-8 max-w-4xl space-y-6">
+    <div className="p-4 md:p-8 max-w-4xl space-y-6">
       <Link
         href="/coach/planning"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

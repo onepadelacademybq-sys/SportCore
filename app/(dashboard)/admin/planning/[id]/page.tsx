@@ -59,7 +59,7 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
   const doneSessions   = mesocycle.microcycles.flatMap((mc) => mc.sessions).filter((s) => s.status === 'completed').length
 
   return (
-    <div className="p-8 max-w-4xl space-y-6">
+    <div className="p-4 md:p-8 max-w-4xl space-y-6">
       {/* Back */}
       <Link
         href="/admin/planning"

@@ -63,7 +63,8 @@ export function UsersList({ users }: { users: UserListItem[] }) {
           No se encontraron usuarios.
         </div>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-lg border border-border overflow-x-auto">
+          <div className="min-w-[540px]">
           <div
             className="grid text-[10px] font-semibold text-muted-foreground uppercase tracking-wide bg-muted/30 px-4 py-2"
             style={{ gridTemplateColumns: '1fr 130px 110px 90px' }}
@@ -99,6 +100,7 @@ export function UsersList({ users }: { users: UserListItem[] }) {
               </span>
             </Link>
           ))}
+          </div>
         </div>
       )}
 

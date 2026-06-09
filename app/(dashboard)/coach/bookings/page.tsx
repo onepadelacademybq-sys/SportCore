@@ -13,7 +13,7 @@ export default async function CoachBookingsPage() {
   const completed = bookings.filter((b) => b.status === 'completed')
 
   return (
-    <div className="p-8 space-y-8 max-w-3xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-3xl">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Mis Clases</h1>

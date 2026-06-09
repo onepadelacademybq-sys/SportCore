@@ -145,7 +145,7 @@ export default async function PlayerDashboardPage() {
   ]
 
   return (
-    <div className="p-8 space-y-8 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-5xl">
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 flex-wrap">

@@ -10,7 +10,7 @@ export default async function CoachNewExercisePage() {
   const allTags = await getTags()
 
   return (
-    <div className="p-8 max-w-2xl space-y-6">
+    <div className="p-4 md:p-8 max-w-2xl space-y-6">
       <div>
         <Link
           href="/coach/library"

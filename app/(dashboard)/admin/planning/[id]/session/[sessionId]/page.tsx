@@ -42,7 +42,7 @@ export default async function AdminSessionDetailPage({ params }: PageProps) {
   )!
 
   return (
-    <div className="p-8 max-w-4xl space-y-6">
+    <div className="p-4 md:p-8 max-w-4xl space-y-6">
       {/* Back */}
       <Link
         href={`/admin/planning/${mesocycleId}`}

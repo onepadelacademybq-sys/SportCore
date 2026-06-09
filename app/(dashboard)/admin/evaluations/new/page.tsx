@@ -22,7 +22,7 @@ export default async function AdminNewEvaluationPage({ searchParams }: Props) {
   ])
 
   return (
-    <div className="p-8 space-y-6 max-w-4xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-4xl">
       <div>
         <h1 className="text-2xl font-bold">Nueva evaluación</h1>
         <p className="text-muted-foreground text-sm mt-1">Protocolo V3 — completa los módulos disponibles</p>

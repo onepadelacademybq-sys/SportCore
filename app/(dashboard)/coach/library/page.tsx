@@ -98,7 +98,7 @@ export default async function CoachLibraryPage({ searchParams }: PageProps) {
   const params = await searchParams
 
   return (
-    <div className="p-8 space-y-6 max-w-6xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-6xl">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Biblioteca de Ejercicios</h1>

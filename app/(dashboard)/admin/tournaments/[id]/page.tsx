@@ -159,7 +159,7 @@ export default async function AdminTournamentDetailPage({
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-5xl">
       {/* Header */}
       <div>
         <Link
@@ -475,7 +475,7 @@ export default async function AdminTournamentDetailPage({
             </div>
           ) : (
             <div className="border rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[560px]">
                 <thead>
                   <tr className="border-b bg-muted/40">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Equipo / Jugador</th>
@@ -630,7 +630,7 @@ export default async function AdminTournamentDetailPage({
                     Tabla de posiciones
                   </h3>
                   <div className="border rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm min-w-[560px]">
                       <thead>
                         <tr className="border-b bg-muted/40">
                           <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-10">#</th>
@@ -671,7 +671,7 @@ export default async function AdminTournamentDetailPage({
               <div className="space-y-3">
                 {isAmericano && <h3 className="text-sm font-semibold text-muted-foreground">Historial de partidos</h3>}
                 <div className="border rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[560px]">
                     <thead>
                       <tr className="border-b bg-muted/40">
                         <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ronda</th>

@@ -33,7 +33,7 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
   ])
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-5xl">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Reservas</h1>
@@ -65,7 +65,7 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
           No hay reservas con este estado.
         </p>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-lg border border-border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">

@@ -42,7 +42,7 @@ export default async function PlayerBookingsPage() {
   const archived = bookings.filter((b) => ['cancelled', 'completed'].includes(b.status))
 
   return (
-    <div className="p-8 space-y-8 max-w-3xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-3xl">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Mis Reservas</h1>

@@ -31,7 +31,7 @@ export default async function PlayerMyTrainingsPage() {
 
   if (mesocycles.length === 0) {
     return (
-      <div className="p-8 max-w-3xl">
+      <div className="p-4 md:p-8 max-w-3xl">
         <h1 className="text-2xl font-bold mb-2">Mis Entrenamientos</h1>
         <p className="text-muted-foreground text-sm mb-12">Tu planificación de entrenamiento asignada</p>
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -44,7 +44,7 @@ export default async function PlayerMyTrainingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl space-y-8">
+    <div className="p-4 md:p-8 max-w-3xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Mis Entrenamientos</h1>
         <p className="text-muted-foreground text-sm mt-1">Tu planificación de entrenamiento asignada</p>

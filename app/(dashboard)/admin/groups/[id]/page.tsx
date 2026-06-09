@@ -72,7 +72,7 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
     : { year: periodYear, month: periodMonth + 1 }
 
   return (
-    <div className="p-8 space-y-8 max-w-4xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-4xl">
       {/* Breadcrumb */}
       <div>
         <Link
@@ -219,8 +219,8 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                 <AlertCircle className="h-4 w-4" />
                 Pagos de inscripción pendientes ({pendingPaymentMembers.length})
               </h2>
-              <div className="rounded-lg border border-orange-500/20 overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="rounded-lg border border-orange-500/20 overflow-x-auto">
+                <table className="w-full text-sm min-w-[560px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jugador</th>
@@ -284,7 +284,7 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
               </p>
             ) : (
               <div className="rounded-lg border border-border overflow-hidden">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[560px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jugador</th>
@@ -331,7 +331,7 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                 Lista de espera ({waitlistMembers.length})
               </h2>
               <div className="rounded-lg border border-amber-500/20 overflow-hidden">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[560px]">
                   <tbody className="divide-y divide-border">
                     {waitlistMembers.map((m, i) => (
                       <tr key={m.id} className="hover:bg-muted/20 transition-colors">
@@ -366,8 +366,8 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                 <AlertCircle className="h-4 w-4" />
                 Pagos de inscripción pendientes ({pendingPaymentMembers.length})
               </h2>
-              <div className="rounded-lg border border-orange-500/20 overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="rounded-lg border border-orange-500/20 overflow-x-auto">
+                <table className="w-full text-sm min-w-[560px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jugador</th>
@@ -430,7 +430,7 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
               </p>
             ) : (
               <div className="rounded-lg border border-border overflow-hidden">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[560px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jugador</th>

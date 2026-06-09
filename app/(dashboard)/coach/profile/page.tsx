@@ -75,7 +75,7 @@ export default async function CoachProfilePage() {
   const profile = await getMyCoachProfile()
 
   return (
-    <div className="p-8 space-y-8 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-5xl">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Mi Perfil</h1>

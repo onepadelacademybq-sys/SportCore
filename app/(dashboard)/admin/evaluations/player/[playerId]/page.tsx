@@ -53,7 +53,7 @@ export default async function PlayerEvolutionPage({ params }: Props) {
   const { latest, best, delta, total } = evalStats(points)
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-5xl">
       {/* ── Header ───────────────────────────────────────────────── */}
       <div>
         <Link href="/admin/evaluations">
@@ -105,7 +105,8 @@ export default async function PlayerEvolutionPage({ params }: Props) {
 
       {/* ── Evaluation table ─────────────────────────────────────── */}
       {points.length > 0 && (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-lg border border-border overflow-x-auto">
+          <div className="min-w-[480px]">
           {/* Header */}
           <div
             className="grid text-[10px] font-medium text-muted-foreground bg-muted/40 px-4 py-2 uppercase tracking-wide"
@@ -144,6 +145,7 @@ export default async function PlayerEvolutionPage({ params }: Props) {
               </Link>
             )
           })}
+          </div>
         </div>
       )}
 

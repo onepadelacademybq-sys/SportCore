@@ -73,7 +73,7 @@ export default async function PlayerMyEvaluationsPage() {
   )
 
   return (
-    <div className="p-8 space-y-8 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-5xl">
 
       {/* ── Header ── */}
       <div>
@@ -170,7 +170,8 @@ export default async function PlayerMyEvaluationsPage() {
             </p>
           </div>
         ) : (
-          <div className="rounded-lg border border-border overflow-hidden">
+          <div className="rounded-lg border border-border overflow-x-auto">
+            <div className="min-w-[480px]">
             {/* Table header */}
             <div
               className="grid text-[10px] font-semibold text-muted-foreground uppercase tracking-wide bg-muted/30 px-4 py-2"
@@ -218,6 +219,7 @@ export default async function PlayerMyEvaluationsPage() {
                 </div>
               )
             })}
+            </div>
           </div>
         )}
       </div>

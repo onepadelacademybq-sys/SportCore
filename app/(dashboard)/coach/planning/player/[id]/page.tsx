@@ -31,7 +31,7 @@ export default async function CoachPlayerPlanningPage({ params }: PageProps) {
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-4xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-4xl">
       <Link
         href="/coach/planning"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
