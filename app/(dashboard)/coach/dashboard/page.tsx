@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatBookingDateTime } from '@/lib/format'
@@ -12,7 +13,8 @@ const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 export default async function CoachDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const coachId = user!.id
+  if (!user) redirect('/login')
+  const coachId = user.id
 
   const now        = new Date()
   const nowIso     = now.toISOString()

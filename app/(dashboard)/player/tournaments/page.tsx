@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOpenTournaments, getMyTournamentEntries, entryLabel } from '@/actions/tournaments'
 import { RegisterForm } from '@/components/tournaments/register-form'
@@ -29,7 +30,8 @@ const ENTRY_STATUS: Record<string, { label: string; className: string; icon: Rea
 export default async function PlayerTournamentsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const playerId = user!.id
+  if (!user) redirect('/login')
+  const playerId = user.id
 
   const [tournaments, myEntries, { data: players }] = await Promise.all([
     getOpenTournaments(),

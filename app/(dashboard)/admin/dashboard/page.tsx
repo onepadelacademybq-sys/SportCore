@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatBookingDateTime, formatCOP } from '@/lib/format'
@@ -13,6 +14,8 @@ export const metadata: Metadata = { title: 'Dashboard — Admin' }
 export default async function AdminDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login')
 
   const today      = new Date()
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
@@ -28,7 +31,7 @@ export default async function AdminDashboardPage() {
     { data: upcomingBookings },
     { data: groups },
   ] = await Promise.all([
-    supabase.from('profiles').select('full_name').eq('id', user!.id).single(),
+    supabase.from('profiles').select('full_name').eq('id', user.id).single(),
 
     supabase.from('profiles').select('*', { count: 'exact', head: true })
       .eq('role', 'player').eq('is_active', true),

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatBookingDateTime } from '@/lib/format'
@@ -37,7 +38,8 @@ const MEMBER_STATUS: Record<string, { label: string; className: string }> = {
 export default async function PlayerDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const playerId = user!.id
+  if (!user) redirect('/login')
+  const playerId = user.id
   const nowIso   = new Date().toISOString()
 
   const [
