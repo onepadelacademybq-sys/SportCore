@@ -125,11 +125,20 @@ export async function registerAction(
 
   const supabase = await createClient()
 
+  // Los metadatos se pasan a signUp para que el trigger on_auth_user_created
+  // pueda crear el perfil automáticamente en la misma transacción DB.
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      data: {
+        full_name:     fullName,
+        phone,
+        document_id:   documentId,
+        date_of_birth: dateOfBirth,
+        address,
+      },
     },
   })
   if (signUpError) {
@@ -155,16 +164,22 @@ export async function registerAction(
   const userId = signUpData.user.id
   if (!userId) return { error: 'No se pudo crear el usuario' }
 
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id: userId,
-    email,
-    full_name: fullName,
-    document_id: documentId,
-    phone,
-    date_of_birth: dateOfBirth,
-    address,
-    role: 'player',
-  })
+  // El trigger on_auth_user_created crea el perfil automáticamente.
+  // Si el trigger aún no está activo en la DB (entorno de desarrollo sin migración aplicada),
+  // insertar manualmente como fallback.
+  const { error: profileError } = await supabase.from('profiles').upsert(
+    {
+      id:            userId,
+      email,
+      full_name:     fullName,
+      document_id:   documentId,
+      phone,
+      date_of_birth: dateOfBirth,
+      address,
+      role:          'player',
+    },
+    { onConflict: 'id', ignoreDuplicates: true },
+  )
 
   if (profileError) {
     return { error: 'Error al crear el perfil. Intenta nuevamente.' }
