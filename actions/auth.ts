@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendWelcomeEmail } from '@/lib/email'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
@@ -184,8 +183,6 @@ export async function registerAction(
   if (profileError) {
     return { error: 'Error al crear el perfil. Intenta nuevamente.' }
   }
-
-  void sendWelcomeEmail(email, fullName, process.env.NEXT_PUBLIC_ACADEMY_NAME ?? 'One Padel')
 
   // Guardar datos del representante legal si es menor
   if (minor && guardianData) {
