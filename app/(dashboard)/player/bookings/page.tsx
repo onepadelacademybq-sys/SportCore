@@ -30,7 +30,12 @@ function canCancelWithCredit(b: Booking): boolean {
 
 export const metadata: Metadata = { title: 'Mis Reservas' }
 
-export default async function PlayerBookingsPage() {
+export default async function PlayerBookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ payment?: string }>
+}) {
+  const { payment } = await searchParams
   const [coaches, bookings, wallet, transactions] = await Promise.all([
     getCoaches(),
     getPlayerBookings(),
@@ -50,6 +55,18 @@ export default async function PlayerBookingsPage() {
           Solicita clases con tu entrenador y gestiona tus reservas
         </p>
       </div>
+
+      {/* Banner retorno Stripe */}
+      {payment === 'success' && (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
+          ✅ Pago completado. Tu reserva ha sido confirmada automáticamente.
+        </div>
+      )}
+      {payment === 'cancelled' && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
+          ⚠️ Pago cancelado. Tu reserva sigue pendiente — puedes pagar por transferencia o intentarlo de nuevo.
+        </div>
+      )}
 
       {/* E-wallet card */}
       <Card className="border-[#00C4CC]/30 bg-[#00C4CC]/5">

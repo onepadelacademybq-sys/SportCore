@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { constructStripeEvent, planFromPriceId, PLAN_LIMITS } from '@/lib/stripe/webhooks'
 import { getPrisma } from '@/lib/prisma'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { recordBookingFinancials } from '@/actions/finances'
 import { sendSubscriptionActivated, sendPaymentFailed, sendTrialEnding } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
@@ -21,9 +23,41 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
 
-      // ── Checkout completado → activar suscripción ──────────────────────
+      // ── Checkout completado ────────────────────────────────────────────
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
+
+        // ── Pago de reserva individual ─────────────────────────────────
+        if (session.mode === 'payment' && session.metadata?.payment_type === 'booking') {
+          const bookingId = session.metadata.booking_id
+          if (!bookingId) break
+
+          const admin = createAdminClient()
+
+          // Verificar que la reserva aún existe y no fue cancelada/expirada
+          const { data: booking } = await admin
+            .from('bookings')
+            .select('id, status, player_id')
+            .eq('id', bookingId)
+            .single()
+
+          const b = booking as { id: string; status: string; player_id: string } | null
+          if (!b || b.status === 'cancelled') {
+            // Pago recibido pero reserva expirada → se debe hacer reembolso manual
+            console.error(`[Stripe webhook] Reserva ${bookingId} expirada o cancelada tras pago`)
+            break
+          }
+
+          await admin
+            .from('bookings')
+            .update({ status: 'confirmed', expires_at: null })
+            .eq('id', bookingId)
+
+          await recordBookingFinancials(admin, bookingId, b.player_id)
+          break
+        }
+
+        // ── Suscripción de academia (SaaS) ─────────────────────────────
         if (session.mode !== 'subscription') break
 
         const orgId  = session.metadata?.orgId

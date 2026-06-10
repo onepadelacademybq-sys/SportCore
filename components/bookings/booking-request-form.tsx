@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useActionState } from 'react'
+import { useState, useActionState, useEffect } from 'react'
 import { requestBookingAction } from '@/actions/bookings'
 import type { CoachOption } from '@/actions/bookings'
 import { WeeklyCalendar } from './weekly-calendar'
@@ -81,7 +81,12 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
   const [endTime,      setEndTime]      = useState(HOURS[13])
   const [peopleCount,    setPeopleCount]    = useState<1 | 2 | 3 | 4>(1)
   const [selectedModule, setSelectedModule] = useState<null | 8 | 16>(null)
-  const [paymentMethod,  setPaymentMethod]  = useState<'transfer' | 'wallet'>('transfer')
+  const [paymentMethod,  setPaymentMethod]  = useState<'transfer' | 'wallet' | 'stripe'>('transfer')
+
+  // Redirigir a Stripe Checkout cuando el servidor devuelve stripeUrl
+  useEffect(() => {
+    if (state.stripeUrl) window.location.href = state.stripeUrl
+  }, [state.stripeUrl])
 
   const earliestBookable = new Date(Date.now() + (ADVANCE_HOURS[userRole] ?? 48) * 60 * 60 * 1000)
   const minDate = earliestBookable.toISOString().split('T')[0]
@@ -278,25 +283,41 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
       {date && (
         <div className="space-y-2">
           <Label>Método de pago</Label>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {/* Transferencia */}
             <button
               type="button"
               onClick={() => setPaymentMethod('transfer')}
-              className={`flex-1 py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
+              className={`py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
                 paymentMethod === 'transfer'
                   ? 'border-[#00C4CC] bg-[#00C4CC]/10 font-medium'
                   : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
               }`}
             >
-              <p className="text-sm">Transferencia bancaria</p>
-              <p className="text-[10px] text-muted-foreground">Sube el comprobante después de reservar</p>
+              <p className="text-sm">Transferencia</p>
+              <p className="text-[10px] text-muted-foreground">Sube el comprobante después</p>
             </button>
 
+            {/* Tarjeta (Stripe) */}
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('stripe')}
+              className={`py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
+                paymentMethod === 'stripe'
+                  ? 'border-primary bg-primary/10 font-medium'
+                  : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+              }`}
+            >
+              <p className="text-sm">Tarjeta de crédito</p>
+              <p className="text-[10px] text-muted-foreground">Pago seguro vía Stripe</p>
+            </button>
+
+            {/* E-wallet */}
             {availableClasses > 0 ? (
               <button
                 type="button"
                 onClick={() => setPaymentMethod('wallet')}
-                className={`flex-1 py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
+                className={`py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
                   paymentMethod === 'wallet'
                     ? 'border-[#00C4CC] bg-[#00C4CC]/10 font-medium'
                     : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
@@ -308,11 +329,9 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
                 </p>
               </button>
             ) : (
-              <div className="flex-1 py-2.5 px-3 rounded-md border border-border bg-muted/20 opacity-50 cursor-not-allowed">
+              <div className="py-2.5 px-3 rounded-md border border-border bg-muted/20 opacity-50 cursor-not-allowed">
                 <p className="text-sm text-muted-foreground">Usar mis clases</p>
-                <p className="text-[10px] text-muted-foreground">
-                  Compra un paquete de clases para habilitar esta opción
-                </p>
+                <p className="text-[10px] text-muted-foreground">Sin clases disponibles</p>
               </div>
             )}
           </div>
@@ -341,7 +360,9 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
       </div>
 
       <Button type="submit" disabled={isPending || coaches.length === 0} className="w-full sm:w-auto">
-        {isPending ? 'Solicitando...' : 'Solicitar reserva'}
+        {isPending
+          ? (paymentMethod === 'stripe' ? 'Redirigiendo a Stripe...' : 'Solicitando...')
+          : (paymentMethod === 'stripe' ? 'Reservar y pagar con tarjeta →' : 'Solicitar reserva')}
       </Button>
 
       {coaches.length === 0 && (

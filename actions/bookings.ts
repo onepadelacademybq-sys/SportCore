@@ -11,7 +11,7 @@ import { z } from 'zod'
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
-export type BookingState = { error: string | null; success?: string }
+export type BookingState = { error: string | null; success?: string; stripeUrl?: string }
 
 type ProfileRef = { id: string; full_name: string; email: string }
 type CourtRef   = { id: string; name: string }
@@ -249,7 +249,7 @@ const RequestSchema = z.object({
   peopleCount:   z.coerce.number().int().min(1).max(4).optional(),
   price:         z.coerce.number().min(0).optional(),
   moduleClasses: z.coerce.number().int().refine(v => [0, 8, 16].includes(v)).optional(),
-  paymentMethod: z.enum(['transfer', 'wallet']).optional(),
+  paymentMethod: z.enum(['transfer', 'wallet', 'stripe']).optional(),
 })
 
 export async function requestBookingAction(
@@ -330,7 +330,10 @@ export async function requestBookingAction(
   }
 
   const useWallet  = paymentMethod === 'wallet'
-  const expiresAt  = useWallet ? null : new Date(Date.now() + 15 * 60 * 1000).toISOString()
+  const useStripe  = paymentMethod === 'stripe'
+  // Stripe necesita 30 min mínimo; transferencia 15 min
+  const expiresMin = useStripe ? 30 : 15
+  const expiresAt  = useWallet ? null : new Date(Date.now() + expiresMin * 60 * 1000).toISOString()
   const initStatus = useWallet ? 'confirmed' : 'pending'
 
   if (useWallet) {
@@ -354,29 +357,54 @@ export async function requestBookingAction(
 
   if (error || !inserted) {
     console.error('[requestBookingAction]', error)
-    // If we already debited, try to undo — best-effort
     if (useWallet) {
-      await supabase.from('class_wallet').update({}).eq('player_id', userId) // no-op trigger to log
+      await supabase.from('class_wallet').update({}).eq('player_id', userId)
     }
     return { error: 'Error al crear la reserva. Intenta nuevamente.' }
   }
 
-  // If wallet was used, update the transaction with the real booking id
+  const bookingId = (inserted as { id: string }).id
+
+  // Wallet: actualizar transacción + registrar finanzas
   if (useWallet) {
     await supabase
       .from('wallet_transactions')
-      .update({ booking_id: inserted.id })
+      .update({ booking_id: bookingId })
       .eq('player_id', userId)
       .is('booking_id', null)
       .order('created_at', { ascending: false })
       .limit(1)
 
-    // Reserva con wallet queda confirmada al instante → registrar costos (cancha + coach)
-    await recordBookingFinancials(supabase, (inserted as { id: string }).id, userId)
+    await recordBookingFinancials(supabase, bookingId, userId)
   }
 
   const dateLabel = start.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
   const timeLabel = `${startTime}–${endTime}`
+
+  // Stripe: crear Checkout Session y devolver la URL al cliente
+  if (useStripe && process.env.STRIPE_SECRET_KEY) {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single()
+
+      const { createBookingCheckoutSession } = await import('@/lib/stripe/checkout')
+      const stripeUrl = await createBookingCheckoutSession(
+        bookingId,
+        price ?? 0,
+        (profile as { email: string } | null)?.email ?? '',
+        `Reserva de clase · ${dateLabel} ${timeLabel}`,
+      )
+      revalidatePath('/player/bookings')
+      return { error: null, stripeUrl }
+    } catch (err) {
+      console.error('[requestBookingAction] Stripe checkout:', err)
+      // Si Stripe falla, la reserva queda pendiente y el jugador puede subir comprobante
+    }
+  }
+
   await notifyAdmins(
     'Nueva reserva solicitada',
     `Se solicitó una reserva para el ${dateLabel} de ${timeLabel}.`,
