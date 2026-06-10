@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { creditClasses, debitClass } from '@/actions/wallet'
 import { recordBookingFinancials } from '@/actions/finances'
 import { createNotification, notifyAdmins } from '@/actions/notifications'
+import { sendBookingConfirmedEmail } from '@/lib/email'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -482,7 +483,7 @@ export async function confirmBookingAction(
   // Fetch booking to check module_classes, player_id, coach and times
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, player_id, coach_id, module_classes, start_time, end_time, player:profiles!player_id(full_name)')
+    .select('id, player_id, coach_id, module_classes, start_time, end_time, player:profiles!player_id(full_name, email)')
     .eq('id', bookingId)
     .single()
 
@@ -492,7 +493,7 @@ export async function confirmBookingAction(
     module_classes: number | null
     start_time:    string
     end_time:      string
-    player:        { full_name: string } | null
+    player:        { full_name: string; email: string } | null
   } | null
   if (!b) return { error: 'Reserva no encontrada' }
 
@@ -524,12 +525,17 @@ export async function confirmBookingAction(
   const startLabel = new Date(b.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
   const endLabel   = new Date(b.end_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
 
+  const academyName = process.env.NEXT_PUBLIC_ACADEMY_NAME ?? 'One Padel'
+
   await Promise.all([
     b.player_id
       ? createNotification(b.player_id, 'Reserva confirmada', `Tu reserva del ${dateLabel} de ${startLabel} a ${endLabel} fue confirmada.`, 'booking_confirmed', '/player/bookings')
       : Promise.resolve(),
     b.coach_id
       ? createNotification(b.coach_id, 'Nueva clase confirmada', `Tienes una clase con ${b.player?.full_name ?? 'un jugador'} el ${dateLabel} de ${startLabel} a ${endLabel}.`, 'booking_confirmed', '/coach/bookings')
+      : Promise.resolve(),
+    b.player?.email
+      ? sendBookingConfirmedEmail(b.player.email, b.player.full_name, dateLabel, `${startLabel} a ${endLabel}`, academyName)
       : Promise.resolve(),
   ])
 

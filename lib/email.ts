@@ -21,14 +21,14 @@ function layout(title: string, body: string) {
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><title>${title}</title></head>
-<body style="font-family:sans-serif;background:#f4f4f5;padding:32px 0;margin:0">
-  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7">
-    <div style="background:#0d5c63;padding:24px 32px">
+<body style="font-family:sans-serif;background:#f0f4f8;padding:32px 0;margin:0">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #d1dde9">
+    <div style="background:#185FA5;padding:24px 32px">
       <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.5px">SportCore</p>
       <p style="margin:4px 0 0;font-size:11px;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase">Plataforma de Gestión Deportiva</p>
     </div>
     <div style="padding:32px">${body}</div>
-    <div style="padding:16px 32px;background:#f9f9fb;border-top:1px solid #e4e4e7">
+    <div style="padding:16px 32px;background:#f8fafc;border-top:1px solid #d1dde9">
       <p style="margin:0;font-size:11px;color:#71717a;text-align:center">
         SportCore · ${APP} · Este correo es automático, no responder.
       </p>
@@ -38,7 +38,7 @@ function layout(title: string, body: string) {
 }
 
 function btn(text: string, url: string) {
-  return `<a href="${url}" style="display:inline-block;background:#0d5c63;color:#fff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;margin-top:16px">${text}</a>`
+  return `<a href="${url}" style="display:inline-block;background:#185FA5;color:#fff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;margin-top:16px">${text}</a>`
 }
 
 // ── Emails de suscripción SaaS ─────────────────────────────────────────────
@@ -73,16 +73,17 @@ export function sendTrialEnding(to: string, name: string) {
 
 // ── Emails transaccionales (para estudiantes/miembros) ─────────────────────
 
-export function sendBookingConfirmedEmail(to: string, name: string, fecha: string, hora: string, recurso: string) {
+export function sendBookingConfirmedEmail(to: string, name: string, fecha: string, hora: string, academia: string) {
   const body = `
     <h2 style="margin:0 0 8px;font-size:20px">¡Reserva confirmada! ✅</h2>
     <p style="color:#52525b;line-height:1.6">Hola ${name}, tu reserva ha sido confirmada:</p>
-    <div style="background:#f0f9fa;border:1px solid #d0e8ea;border-radius:8px;padding:16px;margin:16px 0">
+    <div style="background:#e8f0fb;border:1px solid #b5d4f4;border-radius:8px;padding:16px;margin:16px 0">
       <p style="margin:0;font-size:14px"><strong>Fecha:</strong> ${fecha}</p>
       <p style="margin:8px 0 0;font-size:14px"><strong>Hora:</strong> ${hora}</p>
-      <p style="margin:8px 0 0;font-size:14px"><strong>Espacio:</strong> ${recurso}</p>
+      <p style="margin:8px 0 0;font-size:14px"><strong>Academia:</strong> ${academia}</p>
     </div>
-    <p style="color:#52525b;font-size:13px">Recuerda llegar 5 minutos antes. ¡Te esperamos!</p>`
+    <p style="color:#52525b;font-size:13px">Recuerda llegar 5 minutos antes. ¡Te esperamos!</p>
+    ${btn('Ver mis reservas →', `${APP}/player/bookings`)}`
   return send(to, '✅ Reserva confirmada — SportCore', layout('Reserva confirmada', body))
 }
 
