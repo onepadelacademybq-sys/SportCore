@@ -6,6 +6,8 @@ import { getUserProfile, adminUpdateProfileAction } from '@/actions/users'
 import type { CoachData } from '@/actions/users'
 import { getGuardianProfile } from '@/actions/guardians'
 import type { GuardianProfile } from '@/actions/guardians'
+import { getProfileInteractions } from '@/actions/crm'
+import { UserInteractionsPanel } from '@/components/crm/user-interactions-panel'
 import { RELATIONSHIP_LABELS } from '@/lib/guardian-labels'
 import { EditProfileForm } from '@/components/users/edit-profile-form'
 import { formatDate, formatBookingDateTime, formatCOP } from '@/lib/format'
@@ -139,9 +141,10 @@ function isMinor(dateOfBirth: string | null): boolean {
 
 export default async function AdminUserDetailPage({ params }: Props) {
   const { id } = await params
-  const [data, guardian] = await Promise.all([
+  const [data, guardian, interactions] = await Promise.all([
     getUserProfile(id),
     getGuardianProfile(id),
+    getProfileInteractions(id),
   ])
   if (!data) notFound()
 
@@ -219,6 +222,14 @@ export default async function AdminUserDetailPage({ params }: Props) {
               )}
             </Section>
           )}
+
+          {/* Historial CRM — visible para todos los roles */}
+          <UserInteractionsPanel
+            profileId={profile.id}
+            profileName={profile.full_name}
+            phone={profile.phone}
+            initial={interactions as any[]}
+          />
 
           {profile.role === 'coach' && data.coach ? (
             <CoachSections coach={data.coach} />

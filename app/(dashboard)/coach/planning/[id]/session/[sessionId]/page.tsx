@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
-import { getMesocycleById, changeSessionStatusAction } from '@/actions/training'
+import { getMesocycleById, changeSessionStatusAction, getSessionPlayers } from '@/actions/training'
 import { getExercises } from '@/actions/exercises'
-import { BlockPanel } from '@/components/training/block-panel'
+import { BlockPanel }         from '@/components/training/block-panel'
 import { SessionStatusBadge } from '@/components/training/status-badge'
+import { AttendancePanel }    from '@/components/training/attendance-panel'
 import { Button } from '@/components/ui/button'
 
 export const metadata: Metadata = { title: 'Sesión — Entrenador' }
@@ -23,9 +24,10 @@ interface PageProps {
 export default async function CoachSessionDetailPage({ params }: PageProps) {
   const { id: mesocycleId, sessionId } = await params
 
-  const [mesocycle, allExercises] = await Promise.all([
+  const [mesocycle, allExercises, sessionPlayers] = await Promise.all([
     getMesocycleById(mesocycleId),
     getExercises(),
+    getSessionPlayers(sessionId),
   ])
 
   if (!mesocycle) notFound()
@@ -108,6 +110,14 @@ export default async function CoachSessionDetailPage({ params }: PageProps) {
           )
         })}
       </div>
+
+      {session.status !== 'cancelled' && (
+        <AttendancePanel
+          sessionId={session.id}
+          players={sessionPlayers.players}
+          initialAttendance={sessionPlayers.attendance}
+        />
+      )}
     </div>
   )
 }

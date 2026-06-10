@@ -1178,3 +1178,157 @@ export async function recordAttendanceAction(
   revalidatePath('/coach/planning')
   return { error: null, success: `Asistencia registrada para ${rows.length} jugadores.` }
 }
+
+// ─── Coach Trainings view ─────────────────────────────────────────────────────
+
+export type CoachSession = {
+  id:              string
+  scheduledAt:     string   // ISO
+  durationMin:     number
+  status:          'scheduled' | 'completed' | 'cancelled'
+  coachNotes:      string | null
+  attendanceCount: number
+  mesocycleId:     string
+  mesocycleName:   string
+  weekNumber:      number
+}
+
+/** Todas las sesiones de los mesociclos creados por el coach autenticado. */
+export async function getCoachSessions(): Promise<CoachSession[]> {
+  const { supabase, userId } = await requireCoachOrAdmin()
+
+  const { data: mesos } = await supabase
+    .from('mesocycles')
+    .select('id, name')
+    .eq('created_by', userId)
+
+  if (!mesos || mesos.length === 0) return []
+
+  const mesoIds  = (mesos as { id: string; name: string }[]).map((m) => m.id)
+  const mesoName = new Map((mesos as { id: string; name: string }[]).map((m) => [m.id, m.name]))
+
+  const { data: micros } = await supabase
+    .from('microcycles')
+    .select('id, mesocycle_id, week_number')
+    .in('mesocycle_id', mesoIds)
+
+  if (!micros || micros.length === 0) return []
+
+  const microIds = (micros as any[]).map((m) => m.id)
+  const microMap = new Map((micros as any[]).map((m) => [m.id, m]))
+
+  const { data: sessions } = await supabase
+    .from('training_sessions')
+    .select('id, microcycle_id, scheduled_at, duration_min, status, coach_notes')
+    .in('microcycle_id', microIds)
+    .order('scheduled_at', { ascending: false })
+
+  if (!sessions || sessions.length === 0) return []
+
+  const sessionIds = (sessions as any[]).map((s) => s.id)
+
+  const { data: attRows } = await supabase
+    .from('session_attendance')
+    .select('session_id')
+    .in('session_id', sessionIds)
+
+  const countMap = new Map<string, number>()
+  for (const a of (attRows ?? []) as { session_id: string }[]) {
+    countMap.set(a.session_id, (countMap.get(a.session_id) ?? 0) + 1)
+  }
+
+  return (sessions as any[]).map((s) => {
+    const micro = microMap.get(s.microcycle_id)
+    return {
+      id:              s.id as string,
+      scheduledAt:     s.scheduled_at as string,
+      durationMin:     s.duration_min as number,
+      status:          s.status as CoachSession['status'],
+      coachNotes:      s.coach_notes as string | null,
+      attendanceCount: countMap.get(s.id) ?? 0,
+      mesocycleId:     micro?.mesocycle_id ?? '',
+      mesocycleName:   mesoName.get(micro?.mesocycle_id) ?? '',
+      weekNumber:      micro?.week_number ?? 0,
+    }
+  })
+}
+
+/** Jugadores asignados al mesociclo de una sesión + asistencia ya registrada. */
+export async function getSessionPlayers(sessionId: string): Promise<{
+  players: { id: string; fullName: string; avatarUrl: string | null }[]
+  attendance: Record<string, { status: string; notes: string | null }>
+}> {
+  const { supabase } = await requireCoachOrAdmin()
+
+  // Existing attendance records for this session
+  const { data: attendanceData } = await supabase
+    .from('session_attendance')
+    .select('player_id, status, notes')
+    .eq('session_id', sessionId)
+
+  const attendance: Record<string, { status: string; notes: string | null }> = {}
+  for (const a of (attendanceData ?? []) as { player_id: string; status: string; notes: string | null }[]) {
+    attendance[a.player_id] = { status: a.status, notes: a.notes }
+  }
+
+  // Trace session → microcycle → mesocycle
+  const { data: sessionRow } = await supabase
+    .from('training_sessions')
+    .select('microcycle_id')
+    .eq('id', sessionId)
+    .single()
+
+  if (!sessionRow) return { players: [], attendance }
+
+  const { data: microcycleRow } = await supabase
+    .from('microcycles')
+    .select('mesocycle_id')
+    .eq('id', (sessionRow as any).microcycle_id)
+    .single()
+
+  if (!microcycleRow) return { players: [], attendance }
+
+  // Assignments for the mesocycle
+  const { data: assignments } = await supabase
+    .from('mesocycle_assignments')
+    .select('player_id, group_id')
+    .eq('mesocycle_id', (microcycleRow as any).mesocycle_id)
+
+  const playerIds = new Set<string>()
+  const groupIds: string[] = []
+
+  for (const a of (assignments ?? []) as { player_id: string | null; group_id: string | null }[]) {
+    if (a.player_id) playerIds.add(a.player_id)
+    if (a.group_id)  groupIds.push(a.group_id)
+  }
+
+  // Expand group assignments to individual members
+  if (groupIds.length > 0) {
+    const { data: members } = await supabase
+      .from('group_members')
+      .select('player_id')
+      .in('group_id', groupIds)
+      .eq('status', 'active')
+
+    for (const m of (members ?? []) as { player_id: string }[]) {
+      playerIds.add(m.player_id)
+    }
+  }
+
+  if (playerIds.size === 0) return { players: [], attendance }
+
+  // Fetch profiles
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .in('id', Array.from(playerIds))
+    .order('full_name', { ascending: true })
+
+  const players = ((profiles ?? []) as any[]).map((p) => ({
+    id:        p.id as string,
+    fullName:  p.full_name as string,
+    avatarUrl: (p.avatar_url as string | null) ?? null,
+  }))
+
+  return { players, attendance }
+}

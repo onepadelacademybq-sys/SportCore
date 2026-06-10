@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { MessageCircle, AlertTriangle, CheckCircle, XCircle, TrendingDown } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { MessageCircle, AlertTriangle, CheckCircle, XCircle, TrendingDown, RefreshCw } from 'lucide-react'
 import { WhatsAppComposer } from './whatsapp-composer'
+import { recalculateRetentionScores } from '@/actions/crm'
 import type { RetentionGroups, RetentionEntry } from '@/app/(dashboard)/admin/crm/page'
 
 const GROUPS: {
@@ -55,9 +56,23 @@ const GROUPS: {
 interface Props { retention: RetentionGroups }
 
 export function RetentionBoard({ retention }: Props) {
-  const [waTarget, setWaTarget] = useState<{ phone: string; name: string; profileId: string } | null>(null)
+  const [waTarget,   setWaTarget]   = useState<{ phone: string; name: string; profileId: string } | null>(null)
+  const [isPending,  startTransition] = useTransition()
+  const [recalcMsg,  setRecalcMsg]  = useState<string | null>(null)
 
   const total = Object.values(retention).flat().length
+
+  function handleRecalculate() {
+    setRecalcMsg(null)
+    startTransition(async () => {
+      try {
+        await recalculateRetentionScores()
+        setRecalcMsg('Scores actualizados')
+      } catch {
+        setRecalcMsg('Error al recalcular')
+      }
+    })
+  }
 
   return (
     <div>
@@ -65,8 +80,18 @@ export function RetentionBoard({ retention }: Props) {
         <p className="text-sm text-muted-foreground">
           {total} estudiante{total !== 1 ? 's' : ''} con seguimiento activo
         </p>
-        <div className="text-xs text-muted-foreground">
-          Se recalcula diariamente
+        <div className="flex items-center gap-3">
+          {recalcMsg && (
+            <span className="text-xs text-muted-foreground">{recalcMsg}</span>
+          )}
+          <button
+            onClick={handleRecalculate}
+            disabled={isPending}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3 w-3 ${isPending ? 'animate-spin' : ''}`} />
+            {isPending ? 'Recalculando…' : 'Recalcular ahora'}
+          </button>
         </div>
       </div>
 

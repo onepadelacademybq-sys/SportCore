@@ -111,6 +111,37 @@ export async function getLeads(status?: LeadStatus) {
   })
 }
 
+export async function getLeadInteractions(leadId: string) {
+  return prisma.interaction.findMany({
+    where: { leadId },
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
+export async function getProfileInteractions(profileId: string) {
+  return prisma.interaction.findMany({
+    where: { profileId },
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
+export async function updateLead(
+  leadId: string,
+  data: {
+    name?: string
+    phone?: string
+    whatsapp?: string | null
+    email?: string | null
+    sport?: string | null
+    notes?: string | null
+  }
+) {
+  await getAuthUserId()
+  const lead = await prisma.lead.update({ where: { id: leadId }, data })
+  revalidatePath('/admin/crm')
+  return lead
+}
+
 // ── INTERACCIONES ──────────────────────────────────────────────────────────
 
 export async function logInteraction(data: {
