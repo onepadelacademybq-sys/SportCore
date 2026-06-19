@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth as requireAuthShared } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -44,25 +45,8 @@ export type ExerciseFilters = {
 
 // ─── Auth guards ──────────────────────────────────────────────────────────────
 
-async function requireAuth() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profile = data as { id: string; role: string } | null
-  if (!profile) redirect('/login')
-
-  return { supabase, userId: user.id, role: profile.role }
-}
-
 async function requireCoachOrAdmin() {
-  const ctx = await requireAuth()
+  const ctx = await requireAuthShared()
   if (ctx.role === 'player') redirect('/player/dashboard')
   return ctx
 }
@@ -254,7 +238,7 @@ export async function createExerciseAction(
   _prev: ExerciseState,
   formData: FormData,
 ): Promise<ExerciseState> {
-  const { supabase, userId } = await requireCoachOrAdmin()
+  const { supabase, userId, organizationId } = await requireCoachOrAdmin()
 
   const parsed = ExerciseUpsertSchema.safeParse({
     name:                 formData.get('name'),
@@ -284,6 +268,7 @@ export async function createExerciseAction(
   const { data: exercise, error: exerciseErr } = await supabase
     .from('exercises')
     .insert({
+      organization_id:        organizationId,
       created_by:             userId,
       name,
       theme,

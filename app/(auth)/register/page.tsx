@@ -37,7 +37,7 @@ export default function RegisterPage() {
     <Card>
       <CardHeader>
         <CardTitle>Crear cuenta</CardTitle>
-        <CardDescription>Completa tus datos para unirte a One Padel</CardDescription>
+        <CardDescription>Crea tu cuenta para gestionar tu academia</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="space-y-4">
@@ -239,7 +239,7 @@ export default function RegisterPage() {
                     <Link href="/privacy" target="_blank" className="text-foreground font-medium hover:underline">
                       Política de Privacidad
                     </Link>{' '}
-                    de One Padel Academy.
+                    de SportCore.
                   </label>
                 </div>
               </div>
@@ -270,7 +270,7 @@ export default function RegisterPage() {
               <Link href="/privacy" target="_blank" className="text-foreground font-medium hover:underline">
                 Política de Privacidad
               </Link>
-              {' '}de One Padel Academy
+              {' '}de SportCore
             </label>
           </div>
 

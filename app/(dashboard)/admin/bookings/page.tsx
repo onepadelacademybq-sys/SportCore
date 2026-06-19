@@ -96,6 +96,18 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                           <p className="font-medium">{b.group.name}</p>
                           <p className="text-xs text-muted-foreground">Clase grupal</p>
                         </>
+                      ) : b.notes?.startsWith('[Reserva pública]') ? (
+                        <>
+                          <p className="font-medium">
+                            {b.notes.replace('[Reserva pública] ', '').split(' · ')[0]}
+                          </p>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">
+                            Reserva pública
+                          </span>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {b.notes.replace('[Reserva pública] ', '').split(' · ').slice(1).join(' · ')}
+                          </p>
+                        </>
                       ) : (
                         <>
                           <p className="font-medium">{b.player?.full_name ?? '—'}</p>
@@ -131,7 +143,7 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {b.status === 'paid' && !b.group_id && (
+                      {(b.status === 'paid' || (b.status === 'pending' && !b.player && !b.group_id && b.notes?.startsWith('[Reserva pública]'))) && !b.group_id && (
                         <ConfirmBookingForm bookingId={b.id} courts={courts} />
                       )}
                       {b.status === 'pending' && b.group_id && (

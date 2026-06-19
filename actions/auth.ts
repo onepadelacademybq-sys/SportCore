@@ -154,7 +154,17 @@ export async function registerAction(
   const userId = signUpData.user.id
   if (!userId) return { error: 'No se pudo crear el usuario' }
 
-  const { error: profileError } = await supabase.from('profiles').insert({
+  // Assign to the existing organization (single-tenant: always the first one).
+  // In multi-tenant, the registration URL will carry the org slug and resolve here.
+  const adminClient = createAdminClient()
+  const { data: orgRow } = await adminClient
+    .from('organizations')
+    .select('id')
+    .limit(1)
+    .single()
+  const orgId = (orgRow as { id: string } | null)?.id ?? null
+
+  const { error: profileError } = await adminClient.from('profiles').insert({
     id: userId,
     email,
     full_name: fullName,
@@ -163,6 +173,7 @@ export async function registerAction(
     date_of_birth: dateOfBirth,
     address,
     role: 'player',
+    organization_id: orgId,
   })
 
   if (profileError) {

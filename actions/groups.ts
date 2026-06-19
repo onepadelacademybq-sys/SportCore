@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAuth as requireAuthShared, requireRole } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -98,26 +99,11 @@ export type GroupSession = {
 // ─── Auth guards ───────────────────────────────────────────────────────────────
 
 async function requireAuth() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profile = data as { id: string; role: string } | null
-  if (!profile) redirect('/login')
-
-  return { supabase, userId: user.id, role: profile.role }
+  return requireAuthShared()
 }
 
 async function requireAdmin() {
-  const ctx = await requireAuth()
-  if (ctx.role !== 'admin') redirect('/admin/dashboard')
-  return ctx
+  return requireRole(['admin'])
 }
 
 // ─── Queries ───────────────────────────────────────────────────────────────────
@@ -394,7 +380,7 @@ export async function createGroupAction(
   _prev: GroupActionState,
   formData: FormData,
 ): Promise<GroupActionState> {
-  const { supabase, userId } = await requireAdmin()
+  const { supabase, userId, organizationId } = await requireAdmin()
 
   const parsed = GroupUpsertSchema.safeParse({
     name:           formData.get('name'),
@@ -415,6 +401,7 @@ export async function createGroupAction(
   const { data: group, error: groupErr } = await supabase
     .from('training_groups')
     .insert({
+      organization_id:  organizationId,
       name,
       coach_id:         coachId,
       level,
@@ -465,7 +452,7 @@ export async function createGroupAction(
       start_time:  s.startTime,
       end_time:    s.endTime,
     }))
-    await generateGroupSessionsInternal(supabase, groupRef, scheduleRefs, userId)
+    await generateGroupSessionsInternal(supabase, groupRef, scheduleRefs, userId, organizationId)
   }
 
   revalidatePath('/admin/groups')
@@ -682,7 +669,7 @@ export async function recordPaymentAction(
   _prev: GroupActionState,
   formData: FormData,
 ): Promise<GroupActionState> {
-  const { supabase, userId } = await requireAdmin()
+  const { supabase, userId, organizationId } = await requireAdmin()
 
   const parsed = RecordPaymentSchema.safeParse({
     groupId:     formData.get('groupId'),
@@ -768,6 +755,7 @@ export async function recordPaymentAction(
     periodMonth,
     date: txDate,
     userId,
+    organizationId,
   })
 
   revalidatePath('/admin/groups')
@@ -1159,6 +1147,7 @@ async function insertSessionsForMonth(
   year: number,
   month: number,
   adminId: string,
+  organizationId: string,
 ): Promise<number> {
   if (!schedules.length) return 0
 
@@ -1189,6 +1178,7 @@ async function insertSessionsForMonth(
       const endIso   = toDateTime(date, sched.end_time)
       if (!seen.has(new Date(startIso).toISOString().slice(0, 16))) {
         rows.push({
+          organization_id: organizationId,
           group_id:   group.id,
           coach_id:   group.coach_id,
           court_id:   group.default_court_id,
@@ -1216,6 +1206,7 @@ async function generateGroupSessionsInternal(
   group: GroupRef,
   schedules: ScheduleRef[],
   adminId: string,
+  organizationId: string,
 ): Promise<number> {
   const today = new Date()
   const y = today.getFullYear()
@@ -1223,8 +1214,8 @@ async function generateGroupSessionsInternal(
   const ny = m === 12 ? y + 1 : y
   const nm = m === 12 ? 1 : m + 1
   return (
-    (await insertSessionsForMonth(supabase, group, schedules, y, m, adminId)) +
-    (await insertSessionsForMonth(supabase, group, schedules, ny, nm, adminId))
+    (await insertSessionsForMonth(supabase, group, schedules, y, m, adminId, organizationId)) +
+    (await insertSessionsForMonth(supabase, group, schedules, ny, nm, adminId, organizationId))
   )
 }
 
@@ -1233,7 +1224,7 @@ export async function generateGroupSessionsAction(
   _prev: GroupActionState,
   formData: FormData,
 ): Promise<GroupActionState> {
-  const { supabase, userId } = await requireAdmin()
+  const { supabase, userId, organizationId } = await requireAdmin()
 
   const groupId = (formData.get('groupId') as string | null)?.trim()
   if (!groupId) return { error: 'ID de grupo requerido' }
@@ -1249,7 +1240,7 @@ export async function generateGroupSessionsAction(
   const schedules = ((group as any).schedules ?? []) as ScheduleRef[]
   if (!schedules.length) return { error: 'El grupo no tiene horarios definidos.' }
 
-  const count = await generateGroupSessionsInternal(supabase, group as any, schedules, userId)
+  const count = await generateGroupSessionsInternal(supabase, group as any, schedules, userId, organizationId)
 
   revalidatePath(`/admin/groups/${groupId}`)
   return {

@@ -91,7 +91,7 @@ export default function LoginPage() {
     <Card>
       <CardHeader>
         <CardTitle>Iniciar sesión</CardTitle>
-        <CardDescription>Ingresa con tu cuenta de One Padel</CardDescription>
+        <CardDescription>Accede a tu plataforma deportiva</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Suspense>

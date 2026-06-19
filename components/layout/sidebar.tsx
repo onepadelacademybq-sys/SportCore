@@ -16,11 +16,13 @@ import {
   UsersRound,
   BookOpen,
   LayoutList,
+  LayoutGrid,
   LogOut,
   UserCircle,
   MessageCircle,
   Menu,
   X,
+  Zap,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
@@ -42,17 +44,19 @@ interface NavItem {
 
 const NAV: Record<Role, NavItem[]> = {
   admin: [
-    { label: 'Dashboard',  href: '/admin/dashboard', icon: LayoutDashboard },
-    { label: 'Reservas',   href: '/admin/bookings',  icon: Calendar },
-    { label: 'Grupos',     href: '/admin/groups',    icon: UsersRound },
-    { label: 'Biblioteca',    href: '/admin/library',   icon: BookOpen },
-    { label: 'Planificación', href: '/admin/planning',   icon: LayoutList },
-    { label: 'Evaluaciones', href: '/admin/evaluations', icon: ClipboardList },
-    { label: 'Usuarios',     href: '/admin/users',      icon: Users },
-    { label: 'Finanzas',   href: '/admin/finances',  icon: CreditCard },
-    { label: 'Torneos',    href: '/admin/tournaments', icon: Trophy },
-    { label: 'Reportes',   href: '/admin/reports',   icon: BarChart3 },
-    { label: 'CRM',        href: '/admin/crm',        icon: MessageCircle },
+    { label: 'Dashboard',     href: '/admin/dashboard',   icon: LayoutDashboard },
+    { label: 'Espacios',      href: '/admin/courts',      icon: LayoutGrid },
+    { label: 'Reservas',      href: '/admin/bookings',    icon: Calendar },
+    { label: 'Grupos',        href: '/admin/groups',      icon: UsersRound },
+    { label: 'Biblioteca',    href: '/admin/library',     icon: BookOpen },
+    { label: 'Planificación', href: '/admin/planning',    icon: LayoutList },
+    { label: 'Evaluaciones',  href: '/admin/evaluations', icon: ClipboardList },
+    { label: 'Usuarios',      href: '/admin/users',       icon: Users },
+    { label: 'Finanzas',      href: '/admin/finances',    icon: CreditCard },
+    { label: 'Torneos',       href: '/admin/tournaments', icon: Trophy },
+    { label: 'Reportes',      href: '/admin/reports',     icon: BarChart3 },
+    { label: 'CRM',           href: '/admin/crm',         icon: MessageCircle },
+    { label: 'Plan',          href: '/admin/billing',     icon: Zap },
   ],
   coach: [
     { label: 'Dashboard',    href: '/coach/dashboard',  icon: LayoutDashboard },

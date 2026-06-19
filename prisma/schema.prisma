@@ -60,6 +60,14 @@ enum CourtSurface {
   hormigon
 }
 
+enum ResourceType {
+  cancha
+  campo
+  carril
+  pista
+  sala
+}
+
 enum CourtStatus {
   active
   maintenance
@@ -324,7 +332,24 @@ model Organization {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profiles Profile[]
+  profiles             Profile[]
+  courts               Court[]
+  bookings             Booking[]
+  trainingGroups       TrainingGroup[]
+  mesocycles           Mesocycle[]
+  exercises            Exercise[]
+  evaluations          Evaluation[]
+  evaluationTemplates  EvaluationTemplate[]
+  tournaments          Tournament[]
+  financialTransactions FinancialTransaction[]
+  bankAccounts         BankAccount[]
+  invoices             Invoice[]
+  payments             Payment[]
+  expenses             Expense[]
+  leads                Lead[]
+  announcements        Announcement[]
+  equipment            Equipment[]
+  academySettings      AcademySetting?
 
   @@map("organizations")
 }
@@ -477,17 +502,20 @@ model WalletTransaction {
 // ─────────────────────────────────────────────
 
 model Court {
-  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String
-  type       CourtType
-  surface    CourtSurface
-  status     CourtStatus @default(active)
-  hourlyRate Decimal     @default(0) @map("hourly_rate") @db.Decimal(10, 2)
-  imageUrl   String?     @map("image_url")
-  notes      String?
-  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?      @map("organization_id") @db.Uuid
+  name           String
+  type           CourtType
+  surface        CourtSurface
+  resourceType   ResourceType @default(cancha) @map("resource_type")
+  status         CourtStatus  @default(active)
+  hourlyRate     Decimal      @default(0) @map("hourly_rate") @db.Decimal(10, 2)
+  imageUrl       String?      @map("image_url")
+  notes          String?
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  organization     Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bookings         Booking[]
   bookingWaitlist  BookingWaitlist[]
   trainingSessions TrainingSession[]
@@ -498,14 +526,17 @@ model Court {
 }
 
 model Equipment {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  category  String
-  quantity  Int      @default(0)
-  condition String   @default("good")
-  notes     String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  name           String
+  category       String
+  quantity       Int      @default(0)
+  condition      String   @default("good")
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("equipment")
 }
@@ -516,6 +547,7 @@ model Equipment {
 
 model Booking {
   id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String?       @map("organization_id") @db.Uuid
   courtId         String?       @map("court_id") @db.Uuid  // assigned by admin at confirmation
   coachId         String?       @map("coach_id") @db.Uuid  // booking priority: coach availability
   playerId        String?       @map("player_id") @db.Uuid
@@ -536,11 +568,12 @@ model Booking {
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  court   Court?         @relation(fields: [courtId], references: [id])
-  coach   Profile?       @relation("CoachBookings", fields: [coachId], references: [id])
-  player  Profile?       @relation("PlayerBookings", fields: [playerId], references: [id])
-  group   TrainingGroup? @relation(fields: [groupId], references: [id])
-  creator Profile        @relation("CreatedByBookings", fields: [createdBy], references: [id])
+  organization       Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  court              Court?              @relation(fields: [courtId], references: [id])
+  coach              Profile?            @relation("CoachBookings", fields: [coachId], references: [id])
+  player             Profile?            @relation("PlayerBookings", fields: [playerId], references: [id])
+  group              TrainingGroup?      @relation(fields: [groupId], references: [id])
+  creator            Profile             @relation("CreatedByBookings", fields: [createdBy], references: [id])
   session            TrainingSession?    @relation(fields: [sessionId], references: [id])
   walletTransactions WalletTransaction[]
   financialTransactions FinancialTransaction[]
@@ -569,6 +602,7 @@ model BookingWaitlist {
 
 model Exercise {
   id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String?       @map("organization_id") @db.Uuid
   createdBy            String        @map("created_by") @db.Uuid
   name                 String
   theme                ExerciseTheme
@@ -583,6 +617,7 @@ model Exercise {
   createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  organization   Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creator        Profile                @relation(fields: [createdBy], references: [id])
   tagAssignments ExerciseTagAssignment[]
   favorites      ExerciseFavorite[]
@@ -629,6 +664,7 @@ model ExerciseFavorite {
 
 model Mesocycle {
   id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String?         @map("organization_id") @db.Uuid
   createdBy       String          @map("created_by") @db.Uuid
   name            String
   generalObjective String         @map("general_objective")
@@ -640,9 +676,10 @@ model Mesocycle {
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  creator     Profile               @relation(fields: [createdBy], references: [id])
-  assignments MesocycleAssignment[]
-  microcycles Microcycle[]
+  organization Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator      Profile               @relation(fields: [createdBy], references: [id])
+  assignments  MesocycleAssignment[]
+  microcycles  Microcycle[]
 
   @@map("mesocycles")
 }
@@ -751,6 +788,7 @@ model SessionAttendance {
 
 model TrainingGroup {
   id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?     @map("organization_id") @db.Uuid
   name           String
   coachId        String      @map("coach_id") @db.Uuid
   level          PadelLevel
@@ -762,8 +800,9 @@ model TrainingGroup {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  coach        Profile     @relation(fields: [coachId], references: [id])
-  defaultCourt Court?      @relation(fields: [defaultCourtId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  coach        Profile       @relation(fields: [coachId], references: [id])
+  defaultCourt Court?        @relation(fields: [defaultCourtId], references: [id])
   schedules    GroupSchedule[]
   members      GroupMember[]
   groupPayments GroupPayment[]
@@ -832,17 +871,19 @@ model GroupPayment {
 // ─────────────────────────────────────────────
 
 model EvaluationTemplate {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdBy   String   @map("created_by") @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  createdBy      String   @map("created_by") @db.Uuid
   name        String
   description String?
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  creator     Profile               @relation(fields: [createdBy], references: [id])
-  criteria    EvaluationCriterion[]
-  evaluations Evaluation[]
+  organization Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator      Profile               @relation(fields: [createdBy], references: [id])
+  criteria     EvaluationCriterion[]
+  evaluations  Evaluation[]
 
   @@map("evaluation_templates")
 }
@@ -867,6 +908,7 @@ model EvaluationCriterion {
 
 model Evaluation {
   id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String?    @map("organization_id") @db.Uuid
   playerId        String     @map("player_id") @db.Uuid
   coachId         String     @map("coach_id") @db.Uuid
   templateId      String?    @map("template_id") @db.Uuid
@@ -882,10 +924,11 @@ model Evaluation {
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  player   Profile             @relation("PlayerEvaluations", fields: [playerId], references: [id])
-  coach    Profile             @relation("CoachEvaluations", fields: [coachId], references: [id])
-  template EvaluationTemplate? @relation(fields: [templateId], references: [id])
-  results  EvaluationResult[]
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  player       Profile             @relation("PlayerEvaluations", fields: [playerId], references: [id])
+  coach        Profile             @relation("CoachEvaluations", fields: [coachId], references: [id])
+  template     EvaluationTemplate? @relation(fields: [templateId], references: [id])
+  results      EvaluationResult[]
 
   technicalShots EvalTechnicalShot[]
   tacticalGames  EvalTacticalGame[]
@@ -1023,8 +1066,9 @@ model EvaluationResult {
 // ─────────────────────────────────────────────
 
 model Tournament {
-  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdBy   String           @map("created_by") @db.Uuid
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?          @map("organization_id") @db.Uuid
+  createdBy      String           @map("created_by") @db.Uuid
   name        String
   format      TournamentFormat
   category    String
@@ -1043,9 +1087,10 @@ model Tournament {
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  creatorProfile Profile    @relation(fields: [createdBy], references: [id])
-  entries TournamentEntry[]
-  matches TournamentMatch[]
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creatorProfile Profile           @relation(fields: [createdBy], references: [id])
+  entries        TournamentEntry[]
+  matches        TournamentMatch[]
 
   @@map("tournaments")
 }
@@ -1103,6 +1148,7 @@ model TournamentMatch {
 
 model Invoice {
   id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String?       @map("organization_id") @db.Uuid
   playerId        String        @map("player_id") @db.Uuid
   invoiceNumber   String        @unique @map("invoice_number")
   netAmount       Decimal       @map("net_amount") @db.Decimal(10, 2)
@@ -1116,14 +1162,16 @@ model Invoice {
   stripeInvoiceId String?       @unique @map("stripe_invoice_id")
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  player   Profile   @relation(fields: [playerId], references: [id])
-  payments Payment[]
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  player       Profile       @relation(fields: [playerId], references: [id])
+  payments     Payment[]
 
   @@map("invoices")
 }
 
 model Payment {
   id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String?       @map("organization_id") @db.Uuid
   playerId              String        @map("player_id") @db.Uuid
   invoiceId             String?       @map("invoice_id") @db.Uuid
   type                  PaymentType
@@ -1138,6 +1186,7 @@ model Payment {
   createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   player        Profile        @relation(fields: [playerId], references: [id])
   invoice       Invoice?       @relation(fields: [invoiceId], references: [id])
   groupPayments GroupPayment[]
@@ -1166,6 +1215,7 @@ model Subscription {
 
 model Expense {
   id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String?         @map("organization_id") @db.Uuid
   registeredBy       String          @map("registered_by") @db.Uuid
   category           ExpenseCategory
   concept            String
@@ -1176,7 +1226,8 @@ model Expense {
   notes              String?
   createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  registrar Profile @relation(fields: [registeredBy], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  registrar    Profile       @relation(fields: [registeredBy], references: [id])
 
   @@map("expenses")
 }
@@ -1203,8 +1254,9 @@ enum AccountType {
 }
 
 model FinancialTransaction {
-  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  type          FinancialTxType
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?           @map("organization_id") @db.Uuid
+  type           FinancialTxType
   category      FinancialCategory
   amount        Decimal           @db.Decimal(12, 2)
   description   String
@@ -1215,10 +1267,11 @@ model FinancialTransaction {
   createdBy     String            @map("created_by") @db.Uuid
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  booking     Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  group       TrainingGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  bankAccount BankAccount?   @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
-  creator     Profile        @relation(fields: [createdBy], references: [id])
+  organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  booking      Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  group        TrainingGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  bankAccount  BankAccount?   @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
+  creator      Profile        @relation(fields: [createdBy], references: [id])
 
   @@index([type, date])
   @@index([category])
@@ -1228,6 +1281,7 @@ model FinancialTransaction {
 
 model BankAccount {
   id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?     @map("organization_id") @db.Uuid
   name           String      // nombre de la cuenta (alias interno)
   bankName       String      @map("bank_name")
   accountNumber  String?     @map("account_number") // últimos 4 dígitos
@@ -1237,6 +1291,7 @@ model BankAccount {
   isActive       Boolean     @default(true) @map("is_active")
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  organization Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   transactions FinancialTransaction[]
 
   @@map("bank_accounts")
@@ -1278,8 +1333,9 @@ model NotificationPreference {
 }
 
 model Announcement {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdBy     String    @map("created_by") @db.Uuid
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  createdBy      String    @map("created_by") @db.Uuid
   title         String
   body          String
   targetRole    UserRole? @map("target_role")
@@ -1287,8 +1343,9 @@ model Announcement {
   sentAt        DateTime? @map("sent_at") @db.Timestamptz(6)
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  creator     Profile        @relation(fields: [createdBy], references: [id])
-  targetGroup TrainingGroup? @relation(fields: [targetGroupId], references: [id])
+  organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator      Profile        @relation(fields: [createdBy], references: [id])
+  targetGroup  TrainingGroup? @relation(fields: [targetGroupId], references: [id])
 
   @@map("announcements")
 }
@@ -1299,6 +1356,7 @@ model Announcement {
 
 model AcademySetting {
   id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId            String?  @unique @map("organization_id") @db.Uuid
   name                      String   @default("One Padel")
   logoUrl                   String?  @map("logo_url")
   address                   String?
@@ -1311,6 +1369,8 @@ model AcademySetting {
   cancellationDeadlineHours Int      @default(24) @map("cancellation_deadline_hours")
   stripePublishableKey      String?  @map("stripe_publishable_key")
   updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("academy_settings")
 }
@@ -1403,8 +1463,9 @@ model CoachRating {
 // ─────────────────────────────────────────────
 
 model Lead {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?     @map("organization_id") @db.Uuid
+  name           String
   phone       String
   whatsapp    String?
   email       String?
@@ -1419,6 +1480,7 @@ model Lead {
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   profile      Profile?      @relation("LeadProfile", fields: [profileId], references: [id], onDelete: SetNull)
   assignee     Profile?      @relation("LeadAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
   interactions Interaction[]

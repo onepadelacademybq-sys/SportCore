@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { requireAuth } from '@/lib/auth'
 import { getPrisma } from '@/lib/prisma'
 import {
   sendTextMessage,
@@ -22,11 +22,9 @@ const prisma = getPrisma()
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-async function getAuthUserId(): Promise<string> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('No autenticado')
-  return user.id
+async function getAuthContext(): Promise<{ userId: string; organizationId: string }> {
+  const { userId, organizationId } = await requireAuth()
+  return { userId, organizationId }
 }
 
 // ── LEADS ──────────────────────────────────────────────────────────────────
@@ -40,11 +38,12 @@ export async function createLead(data: {
   sport?: string
   notes?: string
 }) {
-  const userId = await getAuthUserId()
+  const { userId, organizationId } = await getAuthContext()
 
   const lead = await prisma.lead.create({
     data: {
       ...data,
+      organizationId,
       assignedTo: userId,
     },
   })
@@ -76,7 +75,7 @@ export async function updateLeadStatus(
   status: LeadStatus,
   options?: { notes?: string; lostReason?: string; profileId?: string }
 ) {
-  const userId = await getAuthUserId()
+  const { userId } = await getAuthContext()
 
   const lead = await prisma.lead.update({
     where: { id: leadId },
@@ -136,7 +135,7 @@ export async function updateLead(
     notes?: string | null
   }
 ) {
-  await getAuthUserId()
+  await getAuthContext()
   const lead = await prisma.lead.update({ where: { id: leadId }, data })
   revalidatePath('/admin/crm')
   return lead
@@ -150,7 +149,7 @@ export async function logInteraction(data: {
   type: InteractionType
   summary: string
 }) {
-  const userId = await getAuthUserId()
+  const { userId } = await getAuthContext()
 
   const interaction = await prisma.interaction.create({
     data: { ...data, createdBy: userId },
@@ -212,7 +211,7 @@ export async function logIncomingWhatsApp(data: {
 // ── WHATSAPP — Envío manual desde el panel ─────────────────────────────────
 
 export async function sendWhatsAppToProfile(profileId: string, text: string) {
-  const userId = await getAuthUserId()
+  const { userId } = await getAuthContext()
 
   const profile = await prisma.profile.findUniqueOrThrow({
     where: { id: profileId },
@@ -240,7 +239,7 @@ export async function sendWhatsAppToProfile(profileId: string, text: string) {
 }
 
 export async function sendWhatsAppToLead(leadId: string, text: string) {
-  const userId = await getAuthUserId()
+  const { userId } = await getAuthContext()
 
   const lead = await prisma.lead.findUniqueOrThrow({
     where: { id: leadId },

@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { getStripe } from './client'
+import { getStripe, STRIPE_PRICES } from './client'
 
 export async function constructStripeEvent(
   body: string,
@@ -11,18 +11,18 @@ export async function constructStripeEvent(
   return getStripe().webhooks.constructEventAsync(body, signature, secret)
 }
 
-// Mapeo de price IDs de Stripe a planes internos
+// Mapeo de price IDs de Stripe a planes internos (todas las modalidades)
 export function planFromPriceId(priceId: string): 'starter' | 'pro' | 'enterprise' {
-  const map: Record<string, 'starter' | 'pro' | 'enterprise'> = {
-    [process.env.STRIPE_PRICE_STARTER_MONTHLY    ?? '__starter__']:    'starter',
-    [process.env.STRIPE_PRICE_PRO_MONTHLY        ?? '__pro__']:        'pro',
-    [process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY ?? '__enterprise__']: 'enterprise',
+  for (const [plan, prices] of Object.entries(STRIPE_PRICES) as [string, Record<string, string>][]) {
+    if (Object.values(prices).includes(priceId)) {
+      return plan as 'starter' | 'pro' | 'enterprise'
+    }
   }
-  return map[priceId] ?? 'starter'
+  return 'starter'
 }
 
 export const PLAN_LIMITS: Record<string, object> = {
-  starter:    { max_resources: 6,  max_members: 100, max_coaches: 3 },
-  pro:        { max_resources: 15, max_members: 300, max_coaches: 8 },
+  starter:    { max_resources: 3,  max_members: 60,  max_coaches: 2 },
+  pro:        { max_resources: 7,  max_members: 250, max_coaches: 6 },
   enterprise: { max_resources: 99, max_members: 999, max_coaches: 99 },
 }

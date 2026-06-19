@@ -221,10 +221,19 @@ export async function requestEvaluationAction(
 
   if (!title) return { error: 'El título es requerido' }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.organization_id) redirect('/onboarding')
+  const organizationId = profile.organization_id as string
+
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('evaluations')
     .insert({
+      organization_id:   organizationId,
       player_id:         playerId,
       title,
       notes,
@@ -444,9 +453,17 @@ export async function createEvaluation(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.organization_id) redirect('/onboarding')
+
   const { data, error } = await supabase
     .from('evaluations')
     .insert({
+      organization_id: profile.organization_id as string,
       player_id:    playerId,
       coach_id:     coachId,
       title,

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatBookingDateTime, formatCOP } from '@/lib/format'
 import {
   Users, UserCog, Calendar, TrendingUp,
-  Clock, CheckCircle, AlertCircle,
+  Clock, CheckCircle, AlertCircle, ExternalLink,
 } from 'lucide-react'
 
 export const metadata: Metadata = { title: 'Dashboard — Admin' }
@@ -31,7 +31,11 @@ export default async function AdminDashboardPage() {
     { data: upcomingBookings },
     { data: groups },
   ] = await Promise.all([
-    supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+    supabase
+      .from('profiles')
+      .select('full_name, organization_id, organization:organizations!organization_id(slug)')
+      .eq('id', user.id)
+      .single(),
 
     supabase.from('profiles').select('*', { count: 'exact', head: true })
       .eq('role', 'player').eq('is_active', true),
@@ -66,7 +70,8 @@ export default async function AdminDashboardPage() {
       .order('name'),
   ])
 
-  const fullName   = (profile as any)?.full_name ?? 'Admin'
+  const fullName  = (profile as any)?.full_name ?? 'Admin'
+  const orgSlug   = (profile as any)?.organization?.slug as string | undefined
   const monthIncome = (incomeRows ?? []).reduce((s, r) => s + Number(r.amount), 0)
 
   const groupsWithSlots = ((groups ?? []) as any[]).map((g) => {
@@ -87,13 +92,28 @@ export default async function AdminDashboardPage() {
     <div className="p-4 md:p-8 space-y-8 max-w-5xl">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Bienvenido, {fullName}</h1>
-          <span className="text-xs font-medium bg-red-500/15 text-red-400 px-2.5 py-1 rounded-full">
-            Administrador
-          </span>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">Bienvenido, {fullName}</h1>
+              <span className="text-xs font-medium bg-red-500/15 text-red-400 px-2.5 py-1 rounded-full">
+                Administrador
+              </span>
+            </div>
+            <p className="text-muted-foreground mt-1 text-sm">Resumen general de la academia</p>
+          </div>
+          {orgSlug && (
+            <Link
+              href={`/club/${orgSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-md px-3 py-1.5 bg-card transition-colors shrink-0"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Ver página pública
+            </Link>
+          )}
         </div>
-        <p className="text-muted-foreground mt-1 text-sm">Resumen general de la academia</p>
       </div>
 
       {/* KPI cards */}

@@ -3,8 +3,8 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | One Padel',
-    default: 'One Padel',
+    template: '%s | SportCore',
+    default: 'SportCore',
   },
 }
 
@@ -15,10 +15,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="text-center">
           <Link href="/" className="inline-block">
             <h1 className="text-3xl font-bold tracking-tight font-heading">
-              <span className="text-primary">One</span> Padel
+              <span className="text-primary">Sport</span>Core
             </h1>
             <p className="text-muted-foreground text-xs tracking-widest uppercase mt-1">
-              Academia de Pádel
+              Gestión Deportiva
             </p>
           </Link>
         </div>

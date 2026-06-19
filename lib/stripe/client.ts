@@ -15,10 +15,28 @@ export function getStripe(): Stripe {
   return _stripe
 }
 
-export const STRIPE_PRICES: Record<string, string> = {
-  starter_monthly:    process.env.STRIPE_PRICE_STARTER_MONTHLY    ?? '',
-  pro_monthly:        process.env.STRIPE_PRICE_PRO_MONTHLY        ?? '',
-  enterprise_monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY ?? '',
+export type BillingModality = 'monthly' | 'quarterly' | 'deferred' | 'annual'
+export type BillingPlan    = 'starter' | 'pro' | 'enterprise'
+
+export const STRIPE_PRICES: Record<BillingPlan, Record<BillingModality, string>> = {
+  starter: {
+    monthly:   process.env.STRIPE_PRICE_STARTER_MONTHLY    ?? '',
+    quarterly: process.env.STRIPE_PRICE_STARTER_QUARTERLY  ?? '',
+    deferred:  process.env.STRIPE_PRICE_STARTER_DEFERRED   ?? '',
+    annual:    process.env.STRIPE_PRICE_STARTER_ANNUAL     ?? '',
+  },
+  pro: {
+    monthly:   process.env.STRIPE_PRICE_PRO_MONTHLY        ?? '',
+    quarterly: process.env.STRIPE_PRICE_PRO_QUARTERLY      ?? '',
+    deferred:  process.env.STRIPE_PRICE_PRO_DEFERRED       ?? '',
+    annual:    process.env.STRIPE_PRICE_PRO_ANNUAL         ?? '',
+  },
+  enterprise: {
+    monthly:   process.env.STRIPE_PRICE_CLUB_MONTHLY       ?? '',
+    quarterly: process.env.STRIPE_PRICE_CLUB_QUARTERLY     ?? '',
+    deferred:  process.env.STRIPE_PRICE_CLUB_DEFERRED      ?? '',
+    annual:    process.env.STRIPE_PRICE_CLUB_ANNUAL        ?? '',
+  },
 }
 
 export async function getOrCreateStripeCustomer(orgId: string, email: string, name: string) {

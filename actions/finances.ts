@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireAuth, requireRole } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { courtCost, coachPayment, DEFAULT_COACH_RATES, type CoachRates } from '@/lib/finances/pricing'
@@ -61,29 +61,8 @@ export type BankAccount = {
 
 export type FinanceActionState = { error: string | null; success?: string }
 
-// ─── Guards ───────────────────────────────────────────────────────────────────
-
-async function requireAuth() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profile = data as { id: string; role: string } | null
-  if (!profile) redirect('/login')
-
-  return { supabase, userId: user.id, role: profile.role }
-}
-
 async function requireAdmin() {
-  const ctx = await requireAuth()
-  if (ctx.role !== 'admin') redirect('/admin/dashboard')
-  return ctx
+  return requireRole(['admin'])
 }
 
 // ─── Utilidades de fecha ──────────────────────────────────────────────────────
@@ -118,6 +97,7 @@ export async function recordBookingFinancials(
   supabase: Supa,
   bookingId: string,
   userId: string,
+  organizationId: string,
 ): Promise<void> {
   // Idempotencia: salir si ya existen transacciones para esta reserva
   const { data: existing } = await supabase
@@ -155,6 +135,7 @@ export async function recordBookingFinancials(
 
   if (price > 0) {
     rows.push({
+      organization_id: organizationId,
       type: 'income',
       category: 'booking_income',
       amount: price,
@@ -171,6 +152,7 @@ export async function recordBookingFinancials(
     const court = courtCost(start, end)
     if (court > 0) {
       rows.push({
+        organization_id: organizationId,
         type: 'expense',
         category: 'court_cost',
         amount: court,
@@ -186,6 +168,7 @@ export async function recordBookingFinancials(
       const pay = coachPayment(start, end, rates)
       if (pay > 0) {
         rows.push({
+          organization_id: organizationId,
           type: 'expense',
           category: 'coach_payment',
           amount: pay,
@@ -234,12 +217,14 @@ export async function recordGroupIncome(
     periodMonth: number
     date: string
     userId: string
+    organizationId: string
   },
 ): Promise<void> {
   if (!params.amount || params.amount === 0) return
 
   const mm = String(params.periodMonth).padStart(2, '0')
   await supabase.from('financial_transactions').insert({
+    organization_id: params.organizationId,
     type: 'income',
     category: 'group_income',
     amount: params.amount,
@@ -356,7 +341,7 @@ export async function createManualExpense(
   _prev: FinanceActionState,
   formData: FormData,
 ): Promise<FinanceActionState> {
-  const { supabase, userId } = await requireAdmin()
+  const { supabase, userId, organizationId } = await requireAdmin()
 
   const parsed = ManualTxSchema.safeParse({
     amount: formData.get('amount'),
@@ -368,6 +353,7 @@ export async function createManualExpense(
 
   const { amount, description, date, bankAccountId } = parsed.data
   const { error } = await supabase.from('financial_transactions').insert({
+    organization_id: organizationId,
     type: 'expense',
     category: 'manual_expense',
     amount,
@@ -390,7 +376,7 @@ export async function createManualIncome(
   _prev: FinanceActionState,
   formData: FormData,
 ): Promise<FinanceActionState> {
-  const { supabase, userId } = await requireAdmin()
+  const { supabase, userId, organizationId } = await requireAdmin()
 
   const parsed = ManualTxSchema.safeParse({
     amount: formData.get('amount'),
@@ -402,6 +388,7 @@ export async function createManualIncome(
 
   const { amount, description, date, bankAccountId } = parsed.data
   const { error } = await supabase.from('financial_transactions').insert({
+    organization_id: organizationId,
     type: 'income',
     category: 'manual_income',
     amount,
@@ -445,7 +432,7 @@ export async function createBankAccountAction(
   _prev: FinanceActionState,
   formData: FormData,
 ): Promise<FinanceActionState> {
-  const { supabase } = await requireAdmin()
+  const { supabase, organizationId } = await requireAdmin()
 
   const parsed = BankAccountSchema.safeParse({
     name: formData.get('name'),
@@ -459,6 +446,7 @@ export async function createBankAccountAction(
 
   const { name, bankName, accountNumber, accountType, currentBalance, currency } = parsed.data
   const { error } = await supabase.from('bank_accounts').insert({
+    organization_id: organizationId,
     name,
     bank_name: bankName,
     account_number: accountNumber ?? null,

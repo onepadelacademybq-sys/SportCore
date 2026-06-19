@@ -3,7 +3,32 @@ import { createClient } from '@/lib/supabase/middleware'
 
 type Role = 'admin' | 'coach' | 'player'
 
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/auth']
+// Subdomains that belong to the main app, not to a tenant club
+const APP_SUBDOMAINS = new Set(['www', 'app', 'api', 'admin', 'staging'])
+
+// Extracts the tenant slug from the request:
+//   - Production: first label of hostname when it's not an app subdomain
+//     e.g. "one-padel.sportcore.co" → "one-padel"
+//   - Local dev / preview: ?_org=<slug> query param
+function getTenantSlug(request: NextRequest): string | null {
+  const orgParam = request.nextUrl.searchParams.get('_org')
+  if (orgParam) return orgParam
+
+  const hostname = request.nextUrl.hostname
+  const parts = hostname.split('.')
+  if (parts.length >= 3 && !APP_SUBDOMAINS.has(parts[0])) {
+    return parts[0]
+  }
+  return null
+}
+
+// Routes that don't require auth. /club/* is always public (club landing pages).
+// /onboarding is public to allow new org setup after registration.
+const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/auth']
+
+// Routes that are truly public and should never redirect authenticated users
+// to their dashboard (they might want to browse the club page even while logged in)
+const ALWAYS_PUBLIC = ['/club']
 
 const ROLE_DASHBOARD: Record<Role, string> = {
   admin: '/admin/dashboard',
@@ -53,6 +78,26 @@ function withSessionCookies(
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // ── Tenant subdomain detection ────────────────────────────────────────────
+  // If the request comes from a club subdomain (or ?_org= in dev), rewrite to
+  // /club/[slug] so the public landing page is served. Auth is not required.
+  const tenantSlug = getTenantSlug(request)
+  if (tenantSlug && !pathname.startsWith('/club/')) {
+    const rewriteUrl = request.nextUrl.clone()
+    // Preserve sub-paths (e.g. slug.sportcore.co/book → /club/slug/book)
+    rewriteUrl.pathname = `/club/${tenantSlug}${pathname === '/' ? '' : pathname}`
+    rewriteUrl.searchParams.delete('_org')
+    const rewriteResponse = NextResponse.rewrite(rewriteUrl)
+    rewriteResponse.headers.set('x-org-slug', tenantSlug)
+    return rewriteResponse
+  }
+
+  // Always-public routes: serve without any auth check or redirect
+  if (ALWAYS_PUBLIC.some((r) => pathname === r || pathname.startsWith(r + '/'))) {
+    return NextResponse.next()
+  }
+
   const isPublic = PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))
 
   const { supabase, response, user } = await createClient(request)
@@ -60,13 +105,19 @@ export async function middleware(request: NextRequest) {
   // Unauthenticated — let public routes through, redirect everything else to /login
   if (!user) {
     if (isPublic) return response
+    // Root path for unauthenticated users → login
+    if (pathname === '/') {
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = '/login'
+      return withSessionCookies(NextResponse.redirect(loginUrl), response)
+    }
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     loginUrl.searchParams.set('next', pathname)
     return withSessionCookies(NextResponse.redirect(loginUrl), response)
   }
 
-  // Authenticated users hitting public auth pages → send to their dashboard
+  // Authenticated users hitting auth pages (login/register) → send to their dashboard
   if (isPublic) {
     const role = await resolveRole(user.id, supabase)
     const dashboardUrl = request.nextUrl.clone()

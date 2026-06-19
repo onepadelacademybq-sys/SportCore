@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { requireRole } from '@/lib/auth'
 import { calcCourtCost, recommendedCourts } from '@/lib/tournaments/costs'
 import {
   SUPER_8_ROUNDS,
@@ -93,12 +94,7 @@ export interface TournamentMatch {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('No autenticado')
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') throw new Error('Sin permisos')
-  return { supabase, userId: user.id }
+  return requireRole(['admin'])
 }
 
 function entryLabel(entry: TournamentMatch['entry1']): string {
@@ -192,7 +188,7 @@ export async function getMyTournamentEntries(playerId: string): Promise<Tourname
 
 export async function createTournamentAction(_: unknown, formData: FormData) {
   try {
-    const { supabase, userId } = await requireAdmin()
+    const { supabase, userId, organizationId } = await requireAdmin()
 
     const name = (formData.get('name') as string)?.trim()
     const format = formData.get('format') as TournamentFormat
@@ -223,6 +219,7 @@ export async function createTournamentAction(_: unknown, formData: FormData) {
     }
 
     const { error } = await supabase.from('tournaments').insert({
+      organization_id: organizationId,
       name, format, category, start_date, end_date,
       max_entries, entry_fee, description, requires_partner,
       tournament_date, start_time, end_time, num_courts, court_cost_total,
@@ -239,7 +236,7 @@ export async function createTournamentAction(_: unknown, formData: FormData) {
 
 export async function updateTournamentStatusAction(id: string, status: TournamentStatus) {
   try {
-    const { supabase, userId } = await requireAdmin()
+    const { supabase, userId, organizationId } = await requireAdmin()
     const { error } = await supabase.from('tournaments').update({ status }).eq('id', id)
     if (error) return { error: error.message }
 
@@ -253,6 +250,7 @@ export async function updateTournamentStatusAction(id: string, status: Tournamen
       if (t && t.court_cost_total && Number(t.court_cost_total) > 0) {
         const txDate = t.tournament_date ?? new Date().toISOString().slice(0, 10)
         await supabase.from('financial_transactions').insert({
+          organization_id: organizationId,
           type: 'expense',
           category: 'court_cost',
           amount: Number(t.court_cost_total),

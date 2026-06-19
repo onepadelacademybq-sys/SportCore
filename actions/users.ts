@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireRole } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -82,20 +83,7 @@ export type UserFilters = { role?: UserRole; search?: string }
 // ─── Guards ───────────────────────────────────────────────────────────────────
 
 async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const role = (data as { role?: string } | null)?.role
-  if (role !== 'admin') redirect('/admin/dashboard')
-
-  return { supabase, userId: user.id }
+  return requireRole(['admin'])
 }
 
 function num(v: unknown): number {

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAuth as requireAuthShared } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -144,24 +145,8 @@ async function notifyMesocyclePlayers(
 
 // ─── Auth guards ──────────────────────────────────────────────────────────────
 
-async function requireAuth() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profile = data as { id: string; role: string } | null
-  if (!profile) redirect('/login')
-  return { supabase, userId: user.id, role: profile.role }
-}
-
 async function requireCoachOrAdmin() {
-  const ctx = await requireAuth()
+  const ctx = await requireAuthShared()
   if (ctx.role === 'player') redirect('/player/dashboard')
   return ctx
 }
@@ -518,7 +503,7 @@ export async function createMesocycleAction(
   _prev: TrainingState,
   formData: FormData,
 ): Promise<TrainingState> {
-  const { supabase, userId } = await requireCoachOrAdmin()
+  const { supabase, userId, organizationId } = await requireCoachOrAdmin()
 
   const parsed = MesocycleSchema.safeParse({
     name:             formData.get('name'),
@@ -544,6 +529,7 @@ export async function createMesocycleAction(
   const { data: meso, error: mesoErr } = await supabase
     .from('mesocycles')
     .insert({
+      organization_id:   organizationId,
       created_by:        userId,
       name,
       general_objective: generalObjective,

@@ -1,13 +1,14 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAuth } from '@/lib/auth'
 import { creditClasses, debitClass } from '@/actions/wallet'
 import { recordBookingFinancials } from '@/actions/finances'
 import { createNotification, notifyAdmins } from '@/actions/notifications'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
@@ -37,26 +38,7 @@ export type Booking = {
 }
 
 export type CoachOption = { id: string; full_name: string; email: string }
-export type CourtOption = { id: string; name: string; type: string }
-
-// ─── Auth guard ────────────────────────────────────────────────────────────────
-
-async function requireAuth() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, role, full_name')
-    .eq('id', user.id)
-    .single()
-
-  const profile = data as { id: string; role: string; full_name: string } | null
-  if (!profile) redirect('/login')
-
-  return { supabase, userId: user.id, role: profile.role, fullName: profile.full_name }
-}
+export type CourtOption = { id: string; name: string; type: string; resource_type: string }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,7 +72,7 @@ export async function getCourts(): Promise<CourtOption[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('courts')
-    .select('id, name, type')
+    .select('id, name, type, resource_type')
     .eq('status', 'active')
     .order('name')
   return (data ?? []) as CourtOption[]
@@ -256,7 +238,7 @@ export async function requestBookingAction(
   _prev: BookingState,
   formData: FormData,
 ): Promise<BookingState> {
-  const { supabase, userId, role } = await requireAuth()
+  const { supabase, userId, role, organizationId } = await requireAuth()
 
   if (role !== 'player' && role !== 'admin') {
     return { error: 'Solo los jugadores pueden solicitar reservas directamente' }
@@ -339,17 +321,18 @@ export async function requestBookingAction(
   }
 
   const { data: inserted, error } = await supabase.from('bookings').insert({
-    player_id:     userId,
-    coach_id:      coachId,
-    created_by:    userId,
-    start_time:    start.toISOString(),
-    end_time:      end.toISOString(),
-    status:        initStatus,
-    notes:         notes ?? null,
-    price:         useWallet ? 0 : (price ?? 0),
-    people_count:  peopleCount ?? 1,
-    module_classes: moduleClasses && moduleClasses > 0 ? moduleClasses : null,
-    expires_at:    expiresAt,
+    organization_id: organizationId,
+    player_id:       userId,
+    coach_id:        coachId,
+    created_by:      userId,
+    start_time:      start.toISOString(),
+    end_time:        end.toISOString(),
+    status:          initStatus,
+    notes:           notes ?? null,
+    price:           useWallet ? 0 : (price ?? 0),
+    people_count:    peopleCount ?? 1,
+    module_classes:  moduleClasses && moduleClasses > 0 ? moduleClasses : null,
+    expires_at:      expiresAt,
   }).select('id').single()
 
   if (error || !inserted) {
@@ -372,7 +355,7 @@ export async function requestBookingAction(
       .limit(1)
 
     // Reserva con wallet queda confirmada al instante → registrar costos (cancha + coach)
-    await recordBookingFinancials(supabase, (inserted as { id: string }).id, userId)
+    await recordBookingFinancials(supabase, (inserted as { id: string }).id, userId, organizationId)
   }
 
   const dateLabel = start.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -468,7 +451,7 @@ export async function confirmBookingAction(
   _prev: BookingState,
   formData: FormData,
 ): Promise<BookingState> {
-  const { supabase, userId, role } = await requireAuth()
+  const { supabase, userId, role, organizationId } = await requireAuth()
   if (role !== 'admin') return { error: 'Sin permisos' }
 
   const parsed = ConfirmSchema.safeParse({
@@ -518,7 +501,7 @@ export async function confirmBookingAction(
   }
 
   // Registrar ingresos/egresos automáticos de la reserva confirmada
-  await recordBookingFinancials(supabase, bookingId, userId)
+  await recordBookingFinancials(supabase, bookingId, userId, organizationId)
 
   const dateLabel  = new Date(b.start_time).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' })
   const startLabel = new Date(b.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
