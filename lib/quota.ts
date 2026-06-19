@@ -59,7 +59,7 @@ export async function checkQuota(
   switch (resource) {
     case 'resources': {
       limit   = limits.max_resources
-      current = await prisma.court.count()
+      current = await prisma.court.count({ where: { organizationId } })
       break
     }
     case 'members': {

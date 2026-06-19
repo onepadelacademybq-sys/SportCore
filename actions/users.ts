@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '@/lib/auth'
+import { assertQuota } from '@/lib/quota'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -385,7 +386,7 @@ export async function adminUpdateProfileAction(
 const RoleSchema = z.enum(['admin', 'coach', 'player'])
 
 export async function updateUserRole(id: string, role: UserRole): Promise<ActionState> {
-  const { userId } = await requireAdmin()
+  const { userId, organizationId } = await requireAdmin()
 
   const parsed = RoleSchema.safeParse(role)
   if (!parsed.success) return { error: 'Rol inválido' }
@@ -393,6 +394,14 @@ export async function updateUserRole(id: string, role: UserRole): Promise<Action
 
   if (id === userId) {
     return { error: 'No puedes cambiar tu propio rol (evita perder el acceso de admin).' }
+  }
+
+  if (role === 'coach') {
+    try { await assertQuota(organizationId, 'coaches') }
+    catch (e) { return { error: (e as Error).message } }
+  } else if (role === 'player') {
+    try { await assertQuota(organizationId, 'members') }
+    catch (e) { return { error: (e as Error).message } }
   }
 
   const admin = createAdminClient()
@@ -412,11 +421,27 @@ export async function updateUserRole(id: string, role: UserRole): Promise<Action
 }
 
 export async function setUserActive(id: string, active: boolean): Promise<ActionState> {
-  const { userId } = await requireAdmin()
+  const { userId, organizationId, supabase } = await requireAdmin()
 
   if (!z.string().uuid().safeParse(id).success) return { error: 'Usuario inválido' }
   if (id === userId) {
     return { error: 'No puedes desactivar tu propia cuenta.' }
+  }
+
+  if (active) {
+    const { data: target } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', id)
+      .single()
+
+    if (target?.role === 'player') {
+      try { await assertQuota(organizationId, 'members') }
+      catch (e) { return { error: (e as Error).message } }
+    } else if (target?.role === 'coach') {
+      try { await assertQuota(organizationId, 'coaches') }
+      catch (e) { return { error: (e as Error).message } }
+    }
   }
 
   const admin = createAdminClient()
