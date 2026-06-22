@@ -70,7 +70,7 @@ function TripleAttempt({
         <span className="text-xs text-muted-foreground">
           Mejor:{' '}
           {best !== null ? (
-            <span className="font-semibold text-[#00C4CC]">{best} {unit}</span>
+            <span className="font-semibold text-brand">{best} {unit}</span>
           ) : (
             <span className="text-muted-foreground">—</span>
           )}
@@ -157,7 +157,7 @@ export function PhysicalModule({ value, onChange }: Props) {
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">5K</p>
             {r5k !== null && (
-              <span className="text-xs font-semibold text-[#00C4CC]">
+              <span className="text-xs font-semibold text-brand">
                 {r5kMm}:{String(r5kSs).padStart(2, '0')} min
               </span>
             )}

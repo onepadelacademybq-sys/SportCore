@@ -119,8 +119,8 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
 
   if (state.success) {
     return (
-      <Alert className="border-[#00C4CC]/30 bg-[#00C4CC]/10">
-        <AlertDescription className="text-[#00C4CC]">{state.success}</AlertDescription>
+      <Alert className="border-brand/30 bg-brand/10">
+        <AlertDescription className="text-brand">{state.success}</AlertDescription>
       </Alert>
     )
   }
@@ -198,7 +198,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
                 onClick={() => setPeopleCount(n)}
                 className={`flex-1 py-2 text-sm rounded-md border transition-colors ${
                   peopleCount === n
-                    ? 'border-[#00C4CC] bg-[#00C4CC]/10 text-foreground font-medium'
+                    ? 'border-brand bg-brand/10 text-foreground font-medium'
                     : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
                 }`}
               >
@@ -232,7 +232,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
           {/* Single class */}
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <span className="text-sm font-medium">Clase suelta</span>
-            <span className="text-lg font-bold text-[#00C4CC]">{formatCOP(singlePrice)}</span>
+            <span className="text-lg font-bold text-brand">{formatCOP(singlePrice)}</span>
           </div>
 
           {/* Module options */}
@@ -254,8 +254,8 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
                     onClick={() => setSelectedModule(isActive ? null : n)}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border transition-colors text-left ${
                       isActive
-                        ? 'border-[#00C4CC] bg-[#00C4CC]/10'
-                        : 'border-border bg-muted/40 hover:border-[#00C4CC]/50 hover:bg-muted/60'
+                        ? 'border-brand bg-brand/10'
+                        : 'border-border bg-muted/40 hover:border-brand/50 hover:bg-muted/60'
                     }`}
                   >
                     <div>
@@ -264,7 +264,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
                         {pct}% descuento · ahorrás {formatCOP(savings)}
                       </p>
                     </div>
-                    <span className={`text-base font-bold ${isActive ? 'text-[#00C4CC]' : ''}`}>
+                    <span className={`text-base font-bold ${isActive ? 'text-brand' : ''}`}>
                       {formatCOP(modulePrice)}
                     </span>
                   </button>
@@ -291,7 +291,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
               onClick={() => setPaymentMethod('transfer')}
               className={`flex-1 py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
                 paymentMethod === 'transfer'
-                  ? 'border-[#00C4CC] bg-[#00C4CC]/10 font-medium'
+                  ? 'border-brand bg-brand/10 font-medium'
                   : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
               }`}
             >
@@ -305,7 +305,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
                 onClick={() => setPaymentMethod('wallet')}
                 className={`flex-1 py-2.5 px-3 text-sm rounded-md border transition-colors text-left ${
                   paymentMethod === 'wallet'
-                    ? 'border-[#00C4CC] bg-[#00C4CC]/10 font-medium'
+                    ? 'border-brand bg-brand/10 font-medium'
                     : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
                 }`}
               >
@@ -341,7 +341,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
         <strong className="text-foreground">política de cancelaciones</strong>: cancelación con mínimo
         24 horas de anticipación; el valor se acredita a tu E-wallet.{' '}
         <strong className="text-foreground">No hay devoluciones en efectivo.</strong>{' '}
-        <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#00C4CC] hover:underline">
+        <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">
           Ver términos completos
         </a>
         .
@@ -363,7 +363,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
           Revisar reserva →
         </Button>
       ) : (
-        <div className="rounded-lg border border-[#00C4CC]/30 bg-[#00C4CC]/5 p-4 space-y-3">
+        <div className="rounded-lg border border-brand/30 bg-brand/5 p-4 space-y-3">
           <p className="text-sm font-semibold">Resumen de tu reserva</p>
           <div className="divide-y divide-border text-sm">
             <div className="flex justify-between py-2">
@@ -390,7 +390,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
             )}
             <div className="flex justify-between py-2">
               <span className="text-muted-foreground">Total</span>
-              <span className="font-bold text-[#00C4CC] text-base">
+              <span className="font-bold text-brand text-base">
                 {paymentMethod === 'wallet' ? '1 clase de billetera' : formatCOP(effectivePrice)}
               </span>
             </div>

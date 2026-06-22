@@ -11,7 +11,7 @@ interface Props {
 export function ConfirmGroupSessionButton({ sessionId }: Props) {
   const [state, action, isPending] = useActionState(confirmGroupSessionAction, { error: null })
 
-  if (state.success) return <span className="text-xs text-[#00C4CC]">✓ Confirmada</span>
+  if (state.success) return <span className="text-xs text-brand">✓ Confirmada</span>
 
   return (
     <form action={action} className="flex flex-col gap-1">

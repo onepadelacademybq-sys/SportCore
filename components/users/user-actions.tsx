@@ -40,7 +40,7 @@ export function UserActions({ userId, currentRole, isActive }: Props) {
       <h3 className="text-sm font-semibold">Acciones de administrador</h3>
 
       {msg?.error && <p className="text-xs text-destructive">{msg.error}</p>}
-      {msg?.success && <p className="text-xs text-[#00C4CC]">{msg.success}</p>}
+      {msg?.success && <p className="text-xs text-brand">{msg.success}</p>}
 
       {/* Cambiar rol */}
       <div className="space-y-1.5">

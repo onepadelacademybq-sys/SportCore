@@ -22,13 +22,13 @@ function StatCard({
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">
-      <div className="shrink-0 w-10 h-10 rounded-lg bg-[#00C4CC]/10 flex items-center justify-center text-[#00C4CC]">
+      <div className="shrink-0 w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
         {icon}
       </div>
       <div className="min-w-0">
         <p className="text-xl font-bold tabular-nums">{value}</p>
         <p className="text-xs text-muted-foreground leading-tight">{label}</p>
-        {sub && <p className="text-[10px] text-[#00C4CC] mt-0.5">{sub}</p>}
+        {sub && <p className="text-[10px] text-brand mt-0.5">{sub}</p>}
       </div>
     </div>
   )

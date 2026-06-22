@@ -22,7 +22,7 @@ const LEVEL_LABELS: Record<string, string> = {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  confirmed: { label: 'Confirmada',  className: 'bg-[#00C4CC]/10 text-[#00C4CC]' },
+  confirmed: { label: 'Confirmada',  className: 'bg-brand/10 text-brand' },
   completed: { label: 'Completada',  className: 'bg-emerald-500/10 text-emerald-400' },
   pending:   { label: 'Pendiente',   className: 'bg-amber-500/10 text-amber-400' },
   paid:      { label: 'Pago enviado',className: 'bg-blue-500/10 text-blue-400' },
@@ -30,7 +30,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 }
 
 const MEMBER_STATUS: Record<string, { label: string; className: string }> = {
-  active:          { label: 'Activo',          className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  active:          { label: 'Activo',          className: 'bg-brand/15 text-brand' },
   pending_payment: { label: 'Pago pendiente',  className: 'bg-orange-500/15 text-orange-400' },
   waitlist:        { label: 'Lista de espera', className: 'bg-amber-500/15 text-amber-400' },
 }
@@ -121,7 +121,7 @@ export default async function PlayerDashboardPage() {
         ? `${new Date(nextClass.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} · ${nextClass.coach?.full_name ?? ''}`
         : '—',
       icon: Calendar,
-      color: nextClass ? 'text-[#00C4CC]' : 'text-muted-foreground',
+      color: nextClass ? 'text-brand' : 'text-muted-foreground',
     },
     {
       label: 'Sesiones completadas',
@@ -152,7 +152,7 @@ export default async function PlayerDashboardPage() {
       <div>
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-bold">Bienvenido, {fullName}</h1>
-          <span className="text-xs font-medium bg-[#00C4CC]/15 text-[#00C4CC] px-2.5 py-1 rounded-full">
+          <span className="text-xs font-medium bg-brand/15 text-brand px-2.5 py-1 rounded-full">
             Jugador
           </span>
           {level && (
@@ -218,7 +218,7 @@ export default async function PlayerDashboardPage() {
               </div>
             )}
             <div className="pt-3">
-              <Link href="/player/bookings" className="text-xs text-[#00C4CC] hover:underline">
+              <Link href="/player/bookings" className="text-xs text-brand hover:underline">
                 Ver todas mis reservas →
               </Link>
             </div>
@@ -264,7 +264,7 @@ export default async function PlayerDashboardPage() {
               </div>
             )}
             <div className="pt-3">
-              <Link href="/player/groups" className="text-xs text-[#00C4CC] hover:underline">
+              <Link href="/player/groups" className="text-xs text-brand hover:underline">
                 Ver grupos disponibles →
               </Link>
             </div>

@@ -21,7 +21,7 @@ export function ConfirmBookingForm({ bookingId, courts }: ConfirmProps) {
     { error: null } as BookingState,
   )
 
-  if (state.success) return <span className="text-xs text-[#00C4CC]">✓ Confirmada</span>
+  if (state.success) return <span className="text-xs text-brand">✓ Confirmada</span>
 
   if (!open) {
     return (

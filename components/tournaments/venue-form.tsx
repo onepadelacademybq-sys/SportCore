@@ -47,16 +47,16 @@ export function VenueForm({ tournamentId, confirmedPairs, initial }: Props) {
       {confirmedPairs > 0 && (
         <div className={`rounded-lg px-4 py-3 text-sm flex items-start gap-3 ${
           recommended
-            ? 'bg-[#00C4CC]/10 border border-[#00C4CC]/30'
+            ? 'bg-brand/10 border border-brand/30'
             : 'bg-amber-500/10 border border-amber-500/30'
         }`}>
-          <Calculator className="h-4 w-4 mt-0.5 shrink-0 text-[#00C4CC]" />
+          <Calculator className="h-4 w-4 mt-0.5 shrink-0 text-brand" />
           <div>
             {recommended ? (
               <>
                 <span className="font-medium">{confirmedPairs} parejas confirmadas</span>
                 {' → '}
-                <span className="text-[#00C4CC] font-semibold">{recommended} canchas recomendadas</span>
+                <span className="text-brand font-semibold">{recommended} canchas recomendadas</span>
               </>
             ) : (
               <>
@@ -108,7 +108,7 @@ export function VenueForm({ tournamentId, confirmedPairs, initial }: Props) {
             <button
               type="button"
               onClick={() => setCourts(recommended)}
-              className="ml-2 text-[#00C4CC] hover:underline text-[11px]"
+              className="ml-2 text-brand hover:underline text-[11px]"
             >
               usar recomendado ({recommended})
             </button>
@@ -152,7 +152,7 @@ export function VenueForm({ tournamentId, confirmedPairs, initial }: Props) {
               <span className="text-xs text-muted-foreground">
                 Costo por pareja ({confirmedPairs} parejas)
               </span>
-              <span className="text-sm font-semibold text-[#00C4CC]">{formatCOP(perPair)}</span>
+              <span className="text-sm font-semibold text-brand">{formatCOP(perPair)}</span>
             </div>
           )}
         </div>

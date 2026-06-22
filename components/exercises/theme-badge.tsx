@@ -6,7 +6,7 @@ const CONFIG: Record<string, { label: string; className: string }> = {
   tactica:          { label: 'Táctica',          className: 'bg-indigo-500/15 text-indigo-400' },
   fisico:           { label: 'Físico',           className: 'bg-emerald-500/15 text-emerald-400' },
   mental:           { label: 'Mental',           className: 'bg-violet-500/15 text-violet-400' },
-  vuelta_a_la_calma: { label: 'Vuelta a la calma', className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  vuelta_a_la_calma: { label: 'Vuelta a la calma', className: 'bg-brand/15 text-brand' },
 }
 
 export function ThemeBadge({ theme }: { theme: string }) {

@@ -142,7 +142,7 @@ export function Pricing() {
 
         {/* Header */}
         <div className="text-center mb-12">
-          <p className="text-xs text-[#00C4CC] uppercase tracking-widest font-semibold mb-3">
+          <p className="text-xs text-brand uppercase tracking-widest font-semibold mb-3">
             Planes y precios
           </p>
           <h2 className="font-heading text-3xl sm:text-4xl font-bold mb-4">
@@ -156,9 +156,9 @@ export function Pricing() {
         {/* Transparency banner */}
         <div
           className="mb-12 rounded-xl border border-border bg-card px-6 py-4 flex items-start gap-4"
-          style={{ borderLeft: '4px solid #00C4CC' }}
+          style={{ borderLeft: '4px solid var(--brand)' }}
         >
-          <Shield className="h-5 w-5 text-[#00C4CC] shrink-0 mt-0.5" />
+          <Shield className="h-5 w-5 text-brand shrink-0 mt-0.5" />
           <p className="text-sm text-foreground">
             <span className="font-semibold">Transparencia One Padel:</span>{' '}
             Todas nuestras tarifas incluyen el costo de alquiler de la cancha. Sin cobros sorpresa.
@@ -168,7 +168,7 @@ export function Pricing() {
         {/* ── Clases personalizadas ── */}
         <div className="mb-16">
           <div className="mb-6">
-            <p className="text-[10px] text-[#00C4CC] uppercase tracking-widest font-semibold mb-1">Por sesión</p>
+            <p className="text-[10px] text-brand uppercase tracking-widest font-semibold mb-1">Por sesión</p>
             <h3 className="font-heading text-xl font-bold">Clases personalizadas</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Individual o dupla. Precio por hora, incluye cancha y entrenador.
@@ -181,18 +181,18 @@ export function Pricing() {
                 key={card.label}
                 className={`rounded-2xl border p-7 space-y-5 flex flex-col ${
                   card.highlight
-                    ? 'border-[#00C4CC] bg-[#00C4CC]/5 shadow-lg shadow-[#00C4CC]/10'
+                    ? 'border-brand bg-brand/5 shadow-lg shadow-brand/10'
                     : 'border-border bg-card'
                 }`}
               >
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-[#00C4CC]/10 flex items-center justify-center mb-4">
-                    <card.icon className="h-5 w-5 text-[#00C4CC]" />
+                  <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center mb-4">
+                    <card.icon className="h-5 w-5 text-brand" />
                   </div>
                   <h4 className="font-heading text-base font-semibold">{card.label}</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">{card.franja}</p>
                   <div className="mt-4 flex items-end gap-1">
-                    <span className={`font-heading text-3xl font-bold tabular-nums ${card.highlight ? 'text-[#00C4CC]' : ''}`}>
+                    <span className={`font-heading text-3xl font-bold tabular-nums ${card.highlight ? 'text-brand' : ''}`}>
                       {card.price}
                     </span>
                     <span className="text-sm text-muted-foreground mb-1">{card.period}</span>
@@ -202,7 +202,7 @@ export function Pricing() {
                 <ul className="space-y-2 flex-1">
                   {card.features.map((f) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm">
-                      <Check className="h-4 w-4 text-[#00C4CC] shrink-0 mt-0.5" />
+                      <Check className="h-4 w-4 text-brand shrink-0 mt-0.5" />
                       <span className="text-muted-foreground">{f}</span>
                     </li>
                   ))}
@@ -212,7 +212,7 @@ export function Pricing() {
                   href="/register"
                   className={`block text-center py-2.5 px-6 rounded-lg text-sm font-semibold transition-colors ${
                     card.highlight
-                      ? 'bg-[#00C4CC] text-black hover:bg-[#00b3ba]'
+                      ? 'bg-brand text-black hover:bg-[#00b3ba]'
                       : 'border border-border hover:bg-muted/50'
                   }`}
                 >
@@ -226,7 +226,7 @@ export function Pricing() {
         {/* ── Módulos ── */}
         <div className="mb-16">
           <div className="mb-6">
-            <p className="text-[10px] text-[#00C4CC] uppercase tracking-widest font-semibold mb-1">Paquetes</p>
+            <p className="text-[10px] text-brand uppercase tracking-widest font-semibold mb-1">Paquetes</p>
             <h3 className="font-heading text-xl font-bold">Módulos con descuento</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Compra clases por paquete y ahorra. Los módulos de 16 clases incluyen Evaluación V3.
@@ -239,13 +239,13 @@ export function Pricing() {
                 key={card.label}
                 className={`rounded-2xl border p-7 space-y-5 flex flex-col relative ${
                   card.highlight
-                    ? 'border-[#00C4CC] bg-[#00C4CC]/5 shadow-lg shadow-[#00C4CC]/10'
+                    ? 'border-brand bg-brand/5 shadow-lg shadow-brand/10'
                     : 'border-border bg-card'
                 }`}
               >
                 {card.highlight && (
                   <div className="absolute -top-3.5 left-6">
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-widest bg-[#00C4CC] text-black px-3 py-1 rounded-full">
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-widest bg-brand text-black px-3 py-1 rounded-full">
                       Más popular
                     </span>
                   </div>
@@ -255,7 +255,7 @@ export function Pricing() {
                   <div className="flex items-center gap-2 mb-3">
                     <h4 className="font-heading text-base font-semibold">{card.label}</h4>
                     {card.evalV3 && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#00C4CC] bg-[#00C4CC]/10 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-brand bg-brand/10 px-2 py-0.5 rounded-full">
                         <ClipboardList className="h-2.5 w-2.5" />
                         Eval. V3
                       </span>
@@ -263,7 +263,7 @@ export function Pricing() {
                   </div>
                   <p className="text-xs text-muted-foreground">{card.franja}</p>
                   <div className="mt-3 flex items-end gap-2">
-                    <span className={`font-heading text-3xl font-bold tabular-nums ${card.highlight ? 'text-[#00C4CC]' : ''}`}>
+                    <span className={`font-heading text-3xl font-bold tabular-nums ${card.highlight ? 'text-brand' : ''}`}>
                       {card.price}
                     </span>
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md mb-1">
@@ -276,7 +276,7 @@ export function Pricing() {
                 <ul className="space-y-2 flex-1">
                   {card.features.map((f) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm">
-                      <Check className="h-4 w-4 text-[#00C4CC] shrink-0 mt-0.5" />
+                      <Check className="h-4 w-4 text-brand shrink-0 mt-0.5" />
                       <span className="text-muted-foreground">{f}</span>
                     </li>
                   ))}
@@ -286,7 +286,7 @@ export function Pricing() {
                   href="/register"
                   className={`block text-center py-2.5 px-6 rounded-lg text-sm font-semibold transition-colors ${
                     card.highlight
-                      ? 'bg-[#00C4CC] text-black hover:bg-[#00b3ba]'
+                      ? 'bg-brand text-black hover:bg-[#00b3ba]'
                       : 'border border-border hover:bg-muted/50'
                   }`}
                 >
@@ -330,7 +330,7 @@ export function Pricing() {
           <p className="text-xs text-muted-foreground">
             ¿Tienes un grupo o empresa? Escríbenos para tarifas especiales.
           </p>
-          <a href="#contacto" className="text-xs text-[#00C4CC] hover:underline font-medium">
+          <a href="#contacto" className="text-xs text-brand hover:underline font-medium">
             Contáctanos →
           </a>
         </div>

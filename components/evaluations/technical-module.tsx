@@ -97,8 +97,8 @@ export function TechnicalModule({ value, onChange }: Props) {
                           aria-pressed={checked}
                           className={`w-6 h-6 rounded border text-xs font-bold transition-colors ${
                             checked
-                              ? 'border-[#00C4CC] bg-[#00C4CC] text-white'
-                              : 'border-border bg-background text-transparent hover:border-[#00C4CC]/60'
+                              ? 'border-brand bg-brand text-white'
+                              : 'border-border bg-background text-transparent hover:border-brand/60'
                           }`}
                         >
                           ✓

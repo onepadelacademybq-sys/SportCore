@@ -68,8 +68,8 @@ export function AssignForm({ mesocycleId, assignments, players, groups }: Props)
           </Alert>
         )}
         {state.success && (
-          <Alert className="border-[#00C4CC]/30 bg-[#00C4CC]/10">
-            <AlertDescription className="text-[#00C4CC]">{state.success}</AlertDescription>
+          <Alert className="border-brand/30 bg-brand/10">
+            <AlertDescription className="text-brand">{state.success}</AlertDescription>
           </Alert>
         )}
 

@@ -26,7 +26,7 @@ export function Footer() {
           {/* Brand */}
           <div className="sm:col-span-2 space-y-4">
             <p className="font-heading text-xl font-bold">
-              <span className="text-[#00C4CC]">One</span> Padel{' '}
+              <span className="text-brand">One</span> Padel{' '}
               <span className="text-muted-foreground font-normal text-base">Academy</span>
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
@@ -59,7 +59,7 @@ export function Footer() {
                   href="https://instagram.com/1padelbaq"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-[#00C4CC] transition-colors"
+                  className="hover:text-brand transition-colors"
                 >
                   📸 @1padelbaq
                 </a>

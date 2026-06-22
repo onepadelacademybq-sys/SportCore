@@ -74,7 +74,7 @@ export function AvatarUpload({ userId, currentUrl, fullName }: Props) {
             className="w-20 h-20 rounded-full object-cover border-2 border-border"
           />
         ) : (
-          <div className="w-20 h-20 rounded-full bg-[#00C4CC]/15 border-2 border-[#00C4CC]/30 flex items-center justify-center text-[#00C4CC] text-2xl font-bold">
+          <div className="w-20 h-20 rounded-full bg-brand/15 border-2 border-brand/30 flex items-center justify-center text-brand text-2xl font-bold">
             {initials}
           </div>
         )}
@@ -82,7 +82,7 @@ export function AvatarUpload({ userId, currentUrl, fullName }: Props) {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#00C4CC] text-white flex items-center justify-center shadow hover:bg-[#00b3ba] transition-colors disabled:opacity-50"
+          className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-brand text-white flex items-center justify-center shadow hover:bg-[#00b3ba] transition-colors disabled:opacity-50"
           title="Cambiar foto"
         >
           <Camera className="h-3.5 w-3.5" />

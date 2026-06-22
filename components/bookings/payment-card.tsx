@@ -29,10 +29,10 @@ export function PaymentCard({ bookingId, price }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-[#00C4CC]/30 bg-[#00C4CC]/5 p-4 space-y-4">
+    <div className="rounded-xl border border-brand/30 bg-brand/5 p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Banknote className="h-4 w-4 text-[#00C4CC] shrink-0" />
+        <Banknote className="h-4 w-4 text-brand shrink-0" />
         <span className="text-sm font-semibold">Datos de pago</span>
       </div>
 
@@ -50,7 +50,7 @@ export function PaymentCard({ bookingId, price }: Props) {
           <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
             Monto a pagar
           </p>
-          <p className="text-sm font-bold text-[#00C4CC]">{formatCOP(Number(price))}</p>
+          <p className="text-sm font-bold text-brand">{formatCOP(Number(price))}</p>
         </div>
       </div>
 

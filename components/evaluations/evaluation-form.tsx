@@ -243,7 +243,7 @@ export function EvaluationForm({ role, currentUserId, players, defaultPlayerId }
             onClick={() => setActiveTab(i)}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
               activeTab === i
-                ? 'border-[#00C4CC] text-[#00C4CC]'
+                ? 'border-brand text-brand'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >

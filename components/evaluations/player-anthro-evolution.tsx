@@ -116,7 +116,7 @@ export function PlayerAnthroEvolution({ points }: Props) {
             <p className="text-xs font-medium text-muted-foreground mb-2">Peso (kg)</p>
             <SvgLineChart
               data={chartData}
-              series={[{ key: 'peso', name: 'Peso', color: '#00C4CC', strokeWidth: 2 }]}
+              series={[{ key: 'peso', name: 'Peso', color: 'var(--brand)', strokeWidth: 2 }]}
               yMin={pesoMin}
               yMax={pesoMax}
               yUnit=" kg"

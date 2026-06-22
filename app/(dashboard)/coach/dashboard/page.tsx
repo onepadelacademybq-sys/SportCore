@@ -93,7 +93,7 @@ export default async function CoachDashboardPage() {
       label: 'Jugadores en mis grupos',
       value: assignedPlayers,
       icon: Users,
-      color: 'text-[#00C4CC]',
+      color: 'text-brand',
       note: `${(coachGroups ?? []).length} grupo${(coachGroups ?? []).length !== 1 ? 's' : ''} activo${(coachGroups ?? []).length !== 1 ? 's' : ''}`,
     },
     {
@@ -176,7 +176,7 @@ export default async function CoachDashboardPage() {
                     <div key={g.id} className="py-2.5">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-medium">{g.name}</p>
-                        <span className="text-xs text-[#00C4CC] shrink-0">
+                        <span className="text-xs text-brand shrink-0">
                           {activeCount} jugador{activeCount !== 1 ? 'es' : ''}
                         </span>
                       </div>
@@ -217,7 +217,7 @@ export default async function CoachDashboardPage() {
                     <span className={`text-[10px] font-medium shrink-0 px-1.5 py-0.5 rounded ${
                       b.status === 'completed'
                         ? 'bg-emerald-500/10 text-emerald-400'
-                        : 'bg-[#00C4CC]/10 text-[#00C4CC]'
+                        : 'bg-brand/10 text-brand'
                     }`}>
                       {b.status === 'completed' ? 'Completada' : 'Confirmada'}
                     </span>
@@ -226,7 +226,7 @@ export default async function CoachDashboardPage() {
               </div>
             )}
             <div className="pt-3">
-              <Link href="/coach/bookings" className="text-xs text-[#00C4CC] hover:underline">
+              <Link href="/coach/bookings" className="text-xs text-brand hover:underline">
                 Ver todas mis sesiones →
               </Link>
             </div>

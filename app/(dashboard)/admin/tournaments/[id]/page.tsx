@@ -26,7 +26,7 @@ const FORMAT_LABELS: Record<string, string> = {
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft:       { label: 'Borrador',              className: 'bg-muted text-muted-foreground' },
   open:        { label: 'Inscripciones abiertas', className: 'bg-emerald-500/15 text-emerald-400' },
-  in_progress: { label: 'En curso',              className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  in_progress: { label: 'En curso',              className: 'bg-brand/15 text-brand' },
   completed:   { label: 'Finalizado',            className: 'bg-purple-500/15 text-purple-400' },
   cancelled:   { label: 'Cancelado',             className: 'bg-red-500/15 text-red-400' },
 }
@@ -40,7 +40,7 @@ const ENTRY_STATUS: Record<string, { label: string; className: string }> = {
 
 const MATCH_STATUS: Record<string, { label: string; className: string }> = {
   scheduled:   { label: 'Por jugar',  className: 'bg-amber-500/15 text-amber-400' },
-  in_progress: { label: 'En juego',   className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  in_progress: { label: 'En juego',   className: 'bg-brand/15 text-brand' },
   completed:   { label: 'Completado', className: 'bg-emerald-500/15 text-emerald-400' },
   cancelled:   { label: 'Cancelado',  className: 'bg-muted text-muted-foreground' },
 }
@@ -297,7 +297,7 @@ export default async function AdminTournamentDetailPage({
                 { label: 'Partidos pendientes', value: matches.filter((m: any) => m.status === 'scheduled').length },
               ].map(({ label, value }) => (
                 <div key={label} className="text-center">
-                  <p className="text-2xl font-bold text-[#00C4CC]">{value}</p>
+                  <p className="text-2xl font-bold text-brand">{value}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
                 </div>
               ))}
@@ -315,7 +315,7 @@ export default async function AdminTournamentDetailPage({
                 <CardTitle className="text-xs text-muted-foreground">Parejas confirmadas</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-[#00C4CC]">{confirmedEntries.length}</p>
+                <p className="text-2xl font-bold text-brand">{confirmedEntries.length}</p>
                 {(() => {
                   const rec = recommendedCourts(confirmedEntries.length)
                   return rec ? (
@@ -556,7 +556,7 @@ export default async function AdminTournamentDetailPage({
                         >
                           {/* Court badge for americano formats */}
                           {isAmericano && match.court_number && (
-                            <span className="shrink-0 text-[10px] font-medium text-[#00C4CC] bg-[#00C4CC]/10 border border-[#00C4CC]/20 rounded px-1.5 py-0.5">
+                            <span className="shrink-0 text-[10px] font-medium text-brand bg-brand/10 border border-brand/20 rounded px-1.5 py-0.5">
                               C{match.court_number}
                             </span>
                           )}
@@ -695,7 +695,7 @@ export default async function AdminTournamentDetailPage({
                               <td className="px-4 py-3 text-xs text-muted-foreground">
                                 {match.round}
                                 {isAmericano && match.court_number && (
-                                  <span className="ml-1.5 text-[#00C4CC]">C{match.court_number}</span>
+                                  <span className="ml-1.5 text-brand">C{match.court_number}</span>
                                 )}
                               </td>
                               <td className={`px-4 py-3 font-medium ${winner === match.entry1_id ? 'text-emerald-400' : ''}`}>

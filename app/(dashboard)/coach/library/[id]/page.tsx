@@ -131,7 +131,7 @@ export default async function CoachExerciseDetailPage({ params, searchParams }: 
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Etiquetas</h2>
               <div className="flex flex-wrap gap-1.5">
                 {exercise.tags.map((t) => (
-                  <span key={t.id} className="px-2 py-0.5 rounded-full bg-[#00C4CC]/15 text-[#00C4CC] text-xs font-medium">
+                  <span key={t.id} className="px-2 py-0.5 rounded-full bg-brand/15 text-brand text-xs font-medium">
                     {t.name}
                   </span>
                 ))}

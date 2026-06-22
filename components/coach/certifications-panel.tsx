@@ -142,7 +142,7 @@ export function CertificationsPanel({ certifications }: { certifications: CoachC
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1.5 text-xs text-[#00C4CC] hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs text-brand hover:underline"
         >
           <Plus className="h-3.5 w-3.5" />
           {open ? 'Cancelar' : 'Agregar'}

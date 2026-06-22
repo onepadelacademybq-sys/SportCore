@@ -30,7 +30,7 @@ const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: st
   payment_processed: { icon: CreditCard,    color: 'text-blue-400' },
   payment_overdue:   { icon: AlertCircle,   color: 'text-amber-400' },
   payment_failed:    { icon: AlertCircle,   color: 'text-red-400' },
-  session_assigned:  { icon: LayoutList,    color: 'text-[#00C4CC]' },
+  session_assigned:  { icon: LayoutList,    color: 'text-brand' },
   session_cancelled: { icon: XCircle,       color: 'text-orange-400' },
   session_reminder:  { icon: Bell,          color: 'text-amber-400' },
   evaluation_ready:  { icon: ClipboardList, color: 'text-purple-400' },
@@ -127,7 +127,7 @@ export function NotificationBell() {
               <button
                 onClick={handleMarkAll}
                 disabled={isPending}
-                className="text-xs text-[#00C4CC] hover:underline disabled:opacity-50 transition-opacity"
+                className="text-xs text-brand hover:underline disabled:opacity-50 transition-opacity"
               >
                 Marcar todas como leídas
               </button>

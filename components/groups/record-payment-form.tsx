@@ -24,7 +24,7 @@ export function RecordPaymentForm({ groupId, payment, year, month }: Props) {
         <p className="text-xs text-destructive">{state.error}</p>
       )}
       {state.success && (
-        <p className="text-xs text-[#00C4CC]">{state.success}</p>
+        <p className="text-xs text-brand">{state.success}</p>
       )}
 
       <form action={action} className="flex items-center gap-2">

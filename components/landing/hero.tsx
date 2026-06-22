@@ -5,31 +5,31 @@ export function Hero() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-16">
       {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-[#00C4CC]/5 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-brand/5 pointer-events-none" />
 
       {/* Decorative grid */}
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{
           backgroundImage:
-            'linear-gradient(#00C4CC 1px, transparent 1px), linear-gradient(90deg, #00C4CC 1px, transparent 1px)',
+            'linear-gradient(var(--brand) 1px, transparent 1px), linear-gradient(90deg, var(--brand) 1px, transparent 1px)',
           backgroundSize: '60px 60px',
         }}
       />
 
       {/* Glow orb */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#00C4CC]/5 blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-brand/5 blur-3xl pointer-events-none" />
 
       {/* Content */}
       <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
-        <div className="inline-flex items-center gap-2 text-xs text-[#00C4CC] bg-[#00C4CC]/10 border border-[#00C4CC]/20 rounded-full px-4 py-1.5 mb-8 font-medium">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00C4CC] animate-pulse" />
+        <div className="inline-flex items-center gap-2 text-xs text-brand bg-brand/10 border border-brand/20 rounded-full px-4 py-1.5 mb-8 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
           Academia de pádel en Barranquilla
         </div>
 
         <h1 className="font-heading text-5xl sm:text-6xl md:text-7xl font-bold leading-[1.05] tracking-tight mb-6">
           Transforma tu juego{' '}
-          <span className="text-[#00C4CC]">con metodología</span>{' '}
+          <span className="text-brand">con metodología</span>{' '}
           de alto rendimiento
         </h1>
 
@@ -41,7 +41,7 @@ export function Hero() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/register"
-            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg bg-[#00C4CC] text-black font-semibold text-base hover:bg-[#00b3ba] transition-colors shadow-lg shadow-[#00C4CC]/20"
+            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg bg-brand text-black font-semibold text-base hover:bg-[#00b3ba] transition-colors shadow-lg shadow-brand/20"
           >
             Inscríbete ahora <ArrowRight className="h-4 w-4" />
           </Link>

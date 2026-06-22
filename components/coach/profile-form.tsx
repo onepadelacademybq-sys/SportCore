@@ -25,7 +25,7 @@ function CheckItem({
         name={name}
         value={value}
         defaultChecked={defaultChecked}
-        className="h-4 w-4 rounded border-border accent-[#00C4CC]"
+        className="h-4 w-4 rounded border-border accent-brand"
       />
       <span className="text-sm">{label}</span>
     </label>

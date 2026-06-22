@@ -58,7 +58,7 @@ export function EvalList({ evaluations, role, players }: Props) {
           {/* Player header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-[#00C4CC]/20 flex items-center justify-center text-[#00C4CC] text-xs font-bold">
+              <div className="w-6 h-6 rounded-full bg-brand/20 flex items-center justify-center text-brand text-xs font-bold">
                 {name.charAt(0).toUpperCase()}
               </div>
               <span className="text-sm font-semibold">{name}</span>
@@ -67,7 +67,7 @@ export function EvalList({ evaluations, role, players }: Props) {
             <div className="flex items-center gap-1">
               {role === 'admin' && (
                 <Link href={`/admin/evaluations/player/${playerId}`}>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-[#00C4CC] hover:text-[#00C4CC] hover:bg-[#00C4CC]/10">
+                  <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-brand hover:text-brand hover:bg-brand/10">
                     <TrendingUp className="h-3 w-3" />
                     Evolución
                   </Button>

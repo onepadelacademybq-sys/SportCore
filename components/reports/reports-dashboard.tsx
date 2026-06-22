@@ -177,7 +177,7 @@ function ResumenTab({ data }: { data: ReportData }) {
         <KpiCard label="Egresos" value={formatCOP(data.monthExpense)} sub={data.currentMonthLabel}
           icon={<TrendingDown className="h-4 w-4" />} accent="text-red-400" />
         <KpiCard label="Utilidad neta" value={formatCOP(data.netProfit)}
-          icon={<Wallet className="h-4 w-4" />} accent={data.netProfit >= 0 ? 'text-[#00C4CC]' : 'text-red-400'} />
+          icon={<Wallet className="h-4 w-4" />} accent={data.netProfit >= 0 ? 'text-brand' : 'text-red-400'} />
         <KpiCard label="Jugadores activos" value={String(data.activePlayers)} sub={`de ${data.totalPlayers} totales`}
           icon={<Users className="h-4 w-4" />} accent="text-blue-400" />
         <KpiCard label="Reservas este mes" value={String(data.bookingsThisMonth)}

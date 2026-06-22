@@ -68,7 +68,7 @@ export function TransactionsTable({ transactions, categories, emptyLabel }: Prop
         {(from || to || category !== 'all') && (
           <button
             onClick={() => { setFrom(''); setTo(''); setCategory('all') }}
-            className="h-8 text-xs text-[#00C4CC] hover:underline"
+            className="h-8 text-xs text-brand hover:underline"
           >
             Limpiar
           </button>

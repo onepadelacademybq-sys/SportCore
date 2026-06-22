@@ -37,7 +37,7 @@ export function FinancesClient({ dashboard, incomes, expenses, accounts }: Props
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
               tab === t.id
-                ? 'border-[#00C4CC] text-foreground'
+                ? 'border-brand text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >

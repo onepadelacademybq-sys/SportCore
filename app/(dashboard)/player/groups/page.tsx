@@ -41,7 +41,7 @@ export default async function PlayerGroupsPage() {
                   className={`rounded-lg border p-4 ${
                     isPendingPayment
                       ? 'border-orange-500/30 bg-orange-500/5'
-                      : 'border-[#00C4CC]/30 bg-[#00C4CC]/5'
+                      : 'border-brand/30 bg-brand/5'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -55,7 +55,7 @@ export default async function PlayerGroupsPage() {
                           </span>
                         )}
                         {m.status === 'active' && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#00C4CC]/15 text-[#00C4CC]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand/15 text-brand">
                             Activo
                           </span>
                         )}
@@ -148,7 +148,7 @@ export default async function PlayerGroupsPage() {
                       <div className="flex items-center gap-3">
                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[120px]">
                           <div
-                            className={`h-full rounded-full ${isFull ? 'bg-red-500' : 'bg-[#00C4CC]'}`}
+                            className={`h-full rounded-full ${isFull ? 'bg-red-500' : 'bg-brand'}`}
                             style={{ width: `${Math.min(capacityPct, 100)}%` }}
                           />
                         </div>
@@ -157,7 +157,7 @@ export default async function PlayerGroupsPage() {
                           {isFull ? (
                             <span className="ml-1 text-red-400">Lleno</span>
                           ) : (
-                            <span className="ml-1 text-[#00C4CC]">{g.max_capacity - g.activeMemberCount} cupos libres</span>
+                            <span className="ml-1 text-brand">{g.max_capacity - g.activeMemberCount} cupos libres</span>
                           )}
                         </span>
                       </div>

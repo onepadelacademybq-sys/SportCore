@@ -26,7 +26,7 @@ function domainFor(data: ChartPoint[], key: string, padFraction = 0.15): [number
 }
 
 const TECH_SERIES: ChartSeries[] = [
-  { key: 'techTotal',    name: 'Total General',   color: '#00C4CC', strokeWidth: 2.5 },
+  { key: 'techTotal',    name: 'Total General',   color: 'var(--brand)', strokeWidth: 2.5 },
   { key: 'techFondo',    name: 'Golpes de Fondo', color: '#3b82f6', strokeWidth: 1.5 },
   { key: 'techVoleas',   name: 'Voleas',          color: '#8b5cf6', strokeWidth: 1.5 },
   { key: 'techBandejas', name: 'Bandejas',        color: '#f59e0b', strokeWidth: 1.5 },

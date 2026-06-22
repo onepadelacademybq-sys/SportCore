@@ -119,7 +119,7 @@ export function AvailabilityGrid({ availability }: Props) {
                     onClick={() => toggle(d.value, hour)}
                     className={`h-8 w-full transition-colors ${
                       isOn
-                        ? 'bg-[#00C4CC] hover:bg-[#00b3ba]'
+                        ? 'bg-brand hover:bg-[#00b3ba]'
                         : isWeekend(d.value)
                           ? 'bg-muted/40 hover:bg-muted/70'
                           : 'bg-card hover:bg-muted/40'
@@ -137,7 +137,7 @@ export function AvailabilityGrid({ availability }: Props) {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="w-3 h-3 rounded-sm bg-[#00C4CC]" /> Disponible
+            <span className="w-3 h-3 rounded-sm bg-brand" /> Disponible
           </span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="w-3 h-3 rounded-sm bg-muted/40 border border-border" /> No disponible

@@ -36,7 +36,7 @@ export default async function PlayerGroupsPage() {
               const billing = m.status === 'active' ? calcBilling(m as any) : null
 
               return (
-                <div key={m.id} className="rounded-lg border border-[#00C4CC]/30 bg-[#00C4CC]/5 p-4 space-y-3">
+                <div key={m.id} className="rounded-lg border border-brand/30 bg-brand/5 p-4 space-y-3">
                   {/* Warning banner */}
                   {billing?.showWarning && !billing.isOverdue && (
                     <div className="flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-amber-400 text-xs">
@@ -63,7 +63,7 @@ export default async function PlayerGroupsPage() {
                           </span>
                         )}
                         {m.status === 'active' && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#00C4CC]/15 text-[#00C4CC]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand/15 text-brand">
                             Activo
                           </span>
                         )}
@@ -109,13 +109,13 @@ export default async function PlayerGroupsPage() {
                         ? <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                         : billing.showWarning
                           ? <Info className="h-3.5 w-3.5 shrink-0" />
-                          : <CheckCircle className="h-3.5 w-3.5 shrink-0 text-[#00C4CC]" />
+                          : <CheckCircle className="h-3.5 w-3.5 shrink-0 text-brand" />
                       }
                       <span>
                         Próximo pago:{' '}
                         <strong>{(m as any).next_payment_due}</strong>
                         {billing.daysUntilDue > 0 && !billing.showWarning && (
-                          <span className="ml-1 text-[#00C4CC]">({billing.daysUntilDue} días)</span>
+                          <span className="ml-1 text-brand">({billing.daysUntilDue} días)</span>
                         )}
                       </span>
                     </div>
@@ -185,7 +185,7 @@ export default async function PlayerGroupsPage() {
                       <div className="flex items-center gap-3">
                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[120px]">
                           <div
-                            className={`h-full rounded-full ${isFull ? 'bg-red-500' : 'bg-[#00C4CC]'}`}
+                            className={`h-full rounded-full ${isFull ? 'bg-red-500' : 'bg-brand'}`}
                             style={{ width: `${Math.min(capacityPct, 100)}%` }}
                           />
                         </div>
@@ -194,7 +194,7 @@ export default async function PlayerGroupsPage() {
                           {isFull ? (
                             <span className="ml-1 text-red-400">Lleno</span>
                           ) : (
-                            <span className="ml-1 text-[#00C4CC]">{g.max_capacity - g.activeMemberCount} cupos libres</span>
+                            <span className="ml-1 text-brand">{g.max_capacity - g.activeMemberCount} cupos libres</span>
                           )}
                         </span>
                       </div>

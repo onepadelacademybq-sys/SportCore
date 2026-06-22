@@ -96,12 +96,12 @@ export default async function AdminGroupsPage() {
 
             return (
               <Link key={g.id} href={`/admin/groups/${g.id}`} className="block group">
-                <div className="rounded-lg border border-border bg-card p-5 hover:border-[#00C4CC]/50 hover:bg-muted/10 transition-all">
+                <div className="rounded-lg border border-border bg-card p-5 hover:border-brand/50 hover:bg-muted/10 transition-all">
                   <div className="flex items-start gap-4">
                     {/* Info */}
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="font-semibold text-base group-hover:text-[#00C4CC] transition-colors">
+                        <h2 className="font-semibold text-base group-hover:text-brand transition-colors">
                           {g.name}
                         </h2>
                         <LevelBadge level={g.level} />
@@ -124,7 +124,7 @@ export default async function AdminGroupsPage() {
                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[140px]">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              capacityPct >= 100 ? 'bg-red-500' : capacityPct >= 80 ? 'bg-amber-500' : 'bg-[#00C4CC]'
+                              capacityPct >= 100 ? 'bg-red-500' : capacityPct >= 80 ? 'bg-amber-500' : 'bg-brand'
                             }`}
                             style={{ width: `${Math.min(capacityPct, 100)}%` }}
                           />

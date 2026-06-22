@@ -40,8 +40,8 @@ export function ExerciseForm({ action, allTags, exercise }: Props) {
 
   if (state.success) {
     return (
-      <Alert className="border-[#00C4CC]/30 bg-[#00C4CC]/10">
-        <AlertDescription className="text-[#00C4CC]">{state.success}</AlertDescription>
+      <Alert className="border-brand/30 bg-brand/10">
+        <AlertDescription className="text-brand">{state.success}</AlertDescription>
       </Alert>
     )
   }
@@ -161,7 +161,7 @@ export function ExerciseForm({ action, allTags, exercise }: Props) {
           id="isPublished" name="isPublished" type="checkbox"
           value="true" disabled={isPending}
           defaultChecked={exercise?.is_published ?? false}
-          className="h-4 w-4 rounded border-border accent-[#00C4CC]"
+          className="h-4 w-4 rounded border-border accent-brand"
         />
         <Label htmlFor="isPublished" className="cursor-pointer">
           Publicar en la biblioteca (visible para todos los entrenadores)

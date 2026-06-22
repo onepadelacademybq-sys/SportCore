@@ -37,7 +37,7 @@ export function EditProfileForm({ action, initialValues, targetId }: Props) {
       )}
       {state.success && (
         <Alert>
-          <AlertDescription className="text-[#00C4CC]">{state.success}</AlertDescription>
+          <AlertDescription className="text-brand">{state.success}</AlertDescription>
         </Alert>
       )}
 

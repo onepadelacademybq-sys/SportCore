@@ -164,7 +164,7 @@ function ProofButton({ path }: { path: string }) {
     <button
       onClick={handleView}
       disabled={loading}
-      className="flex items-center gap-1 text-xs text-[#00C4CC] hover:underline disabled:opacity-50"
+      className="flex items-center gap-1 text-xs text-brand hover:underline disabled:opacity-50"
     >
       <Eye className="h-3 w-3" />
       {loading ? 'Cargando…' : 'Ver comprobante'}

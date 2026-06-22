@@ -18,7 +18,7 @@ export default function TermsPage() {
       <main className="max-w-3xl mx-auto px-6 py-16 space-y-12">
         {/* Header */}
         <div className="space-y-3 border-b border-border pb-8">
-          <p className="text-xs font-semibold text-[#00C4CC] uppercase tracking-widest">Legal</p>
+          <p className="text-xs font-semibold text-brand uppercase tracking-widest">Legal</p>
           <h1 className="font-heading text-3xl sm:text-4xl font-bold">Términos y Condiciones</h1>
           <p className="text-sm text-muted-foreground">
             Última actualización: <span className="text-foreground">{UPDATED}</span>
@@ -155,7 +155,7 @@ export default function TermsPage() {
           <p>
             Para conocer en detalle qué datos recopilamos, cómo los utilizamos y los derechos que le
             asisten, consulte nuestra{' '}
-            <Link href="/privacy" className="text-[#00C4CC] hover:underline font-medium">
+            <Link href="/privacy" className="text-brand hover:underline font-medium">
               Política de Privacidad
             </Link>
             .

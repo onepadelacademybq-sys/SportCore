@@ -88,10 +88,10 @@ export function GroupPaymentCard({ memberId, groupName, monthlyFee, proofSent }:
   const displayError = clientError ?? state.error
 
   return (
-    <div className="mt-3 rounded-xl border border-[#00C4CC]/30 bg-[#00C4CC]/5 p-4 space-y-4">
+    <div className="mt-3 rounded-xl border border-brand/30 bg-brand/5 p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Banknote className="h-4 w-4 text-[#00C4CC] shrink-0" />
+        <Banknote className="h-4 w-4 text-brand shrink-0" />
         <span className="text-sm font-semibold">Completa tu pago para confirmar la inscripción</span>
       </div>
 
@@ -103,7 +103,7 @@ export function GroupPaymentCard({ memberId, groupName, monthlyFee, proofSent }:
         </div>
         <div className="rounded-lg bg-background border border-border px-3 py-2.5">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Mensualidad</p>
-          <p className="text-sm font-bold text-[#00C4CC]">{fee}</p>
+          <p className="text-sm font-bold text-brand">{fee}</p>
         </div>
       </div>
 
@@ -158,7 +158,7 @@ export function GroupPaymentCard({ memberId, groupName, monthlyFee, proofSent }:
             onClick={() => inputRef.current?.click()}
             className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed
               px-4 py-5 cursor-pointer transition-colors text-center select-none
-              ${dragOver ? 'border-[#00C4CC] bg-[#00C4CC]/10' : 'border-border hover:border-[#00C4CC]/50 hover:bg-muted/30'}`}
+              ${dragOver ? 'border-brand bg-brand/10' : 'border-border hover:border-brand/50 hover:bg-muted/30'}`}
           >
             <Upload className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -191,7 +191,7 @@ export function GroupPaymentCard({ memberId, groupName, monthlyFee, proofSent }:
         <button
           type="submit"
           disabled={isPending || !file}
-          className="w-full py-2.5 rounded-lg bg-[#00C4CC] text-black text-sm font-semibold
+          className="w-full py-2.5 rounded-lg bg-brand text-black text-sm font-semibold
             hover:bg-[#00b3ba] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPending ? 'Enviando…' : 'Enviar comprobante'}

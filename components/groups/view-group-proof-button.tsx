@@ -29,7 +29,7 @@ export function ViewGroupProofButton({ memberId, storagePath }: Props) {
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="text-xs text-[#00C4CC] hover:underline disabled:opacity-50 disabled:cursor-wait"
+      className="text-xs text-brand hover:underline disabled:opacity-50 disabled:cursor-wait"
     >
       {loading ? 'Abriendo…' : error ? 'Error — reintentar' : 'Ver comprobante'}
     </button>

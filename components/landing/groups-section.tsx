@@ -83,7 +83,7 @@ export async function GroupsSection() {
       <div className="max-w-6xl mx-auto">
 
         <div className="text-center mb-12">
-          <p className="text-xs text-[#00C4CC] uppercase tracking-widest font-semibold mb-3">
+          <p className="text-xs text-brand uppercase tracking-widest font-semibold mb-3">
             Grupos activos
           </p>
           <h2 className="font-heading text-3xl sm:text-4xl font-bold mb-4">
@@ -107,7 +107,7 @@ export async function GroupsSection() {
             </p>
             <a
               href="#contacto"
-              className="inline-flex items-center mt-6 text-sm text-[#00C4CC] hover:underline font-medium"
+              className="inline-flex items-center mt-6 text-sm text-brand hover:underline font-medium"
             >
               Avisar cuando haya cupos →
             </a>
@@ -125,7 +125,7 @@ export async function GroupsSection() {
               return (
                 <div
                   key={g.id}
-                  className="rounded-2xl border border-border bg-card p-7 flex flex-col gap-5 hover:border-[#00C4CC]/30 transition-colors"
+                  className="rounded-2xl border border-border bg-card p-7 flex flex-col gap-5 hover:border-brand/30 transition-colors"
                 >
                   {/* Header */}
                   <div>
@@ -148,7 +148,7 @@ export async function GroupsSection() {
                     <div className="space-y-1.5">
                       {scheduleLines.map((line) => (
                         <div key={line} className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="h-3.5 w-3.5 shrink-0 text-[#00C4CC]" />
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-brand" />
                           <span>{line}</span>
                         </div>
                       ))}
@@ -190,7 +190,7 @@ export async function GroupsSection() {
                       className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                         available <= 0
                           ? 'border border-border text-muted-foreground cursor-not-allowed opacity-60 pointer-events-none'
-                          : 'bg-[#00C4CC] text-black hover:bg-[#00b3ba]'
+                          : 'bg-brand text-black hover:bg-[#00b3ba]'
                       }`}
                     >
                       {available <= 0 ? 'Lista de espera' : 'Inscribirse'}

@@ -14,7 +14,7 @@ import type { SessionBlock } from '@/actions/training'
 const BLOCK_LABELS: Record<string, { title: string; number: string; color: string }> = {
   calentamiento:     { number: '1', title: 'Calentamiento',    color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
   central:           { number: '2', title: 'Central',          color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
-  vuelta_a_la_calma: { number: '3', title: 'Vuelta a la calma', color: 'text-[#00C4CC] bg-[#00C4CC]/10 border-[#00C4CC]/20' },
+  vuelta_a_la_calma: { number: '3', title: 'Vuelta a la calma', color: 'text-brand bg-brand/10 border-brand/20' },
 }
 
 interface AvailableExercise {
@@ -72,7 +72,7 @@ function AddExercisePicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 text-sm text-[#00C4CC] hover:text-[#00C4CC]/80 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-brand hover:text-brand/80 transition-colors"
       >
         <Plus className="h-3.5 w-3.5" />
         Agregar ejercicio

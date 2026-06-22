@@ -28,8 +28,8 @@ export function GroupForm({ action, coaches, courts, group }: Props) {
 
   if (state.success) {
     return (
-      <Alert className="border-[#00C4CC]/30 bg-[#00C4CC]/10">
-        <AlertDescription className="text-[#00C4CC]">{state.success}</AlertDescription>
+      <Alert className="border-brand/30 bg-brand/10">
+        <AlertDescription className="text-brand">{state.success}</AlertDescription>
       </Alert>
     )
   }

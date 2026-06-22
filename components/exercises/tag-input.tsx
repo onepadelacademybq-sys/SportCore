@@ -56,7 +56,7 @@ export function TagInput({ allTags, initialTags = [] }: Props) {
         {tags.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#00C4CC]/15 text-[#00C4CC] text-xs font-medium"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/15 text-brand text-xs font-medium"
           >
             {tag}
             <button
@@ -100,7 +100,7 @@ export function TagInput({ allTags, initialTags = [] }: Props) {
               <button
                 type="button"
                 onMouseDown={() => addTag(inputVal)}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors rounded-md text-[#00C4CC]"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors rounded-md text-brand"
               >
                 Crear etiqueta &ldquo;{inputVal.trim()}&rdquo;
               </button>

@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <main className="max-w-3xl mx-auto px-6 py-16 space-y-12">
         {/* Header */}
         <div className="space-y-3 border-b border-border pb-8">
-          <p className="text-xs font-semibold text-[#00C4CC] uppercase tracking-widest">Legal</p>
+          <p className="text-xs font-semibold text-brand uppercase tracking-widest">Legal</p>
           <h1 className="font-heading text-3xl sm:text-4xl font-bold">Política de Privacidad</h1>
           <p className="text-sm text-muted-foreground">
             Última actualización: <span className="text-foreground">{UPDATED}</span>
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
             <p><strong className="text-foreground">One Padel Academy</strong></p>
             <p>Barranquilla, Atlántico, Colombia</p>
             <p>Correo de contacto:{' '}
-              <a href="mailto:juansedanotri@gmail.com" className="text-[#00C4CC] hover:underline">
+              <a href="mailto:juansedanotri@gmail.com" className="text-brand hover:underline">
                 juansedanotri@gmail.com
               </a>
             </p>
@@ -123,7 +123,7 @@ export default function PrivacyPage() {
           </ul>
           <p>
             Para ejercer cualquiera de estos derechos, envíe su solicitud al correo:{' '}
-            <a href="mailto:juansedanotri@gmail.com" className="text-[#00C4CC] hover:underline font-medium">
+            <a href="mailto:juansedanotri@gmail.com" className="text-brand hover:underline font-medium">
               juansedanotri@gmail.com
             </a>
             {' '}indicando su nombre completo, documento de identidad y el derecho que desea ejercer.
@@ -174,7 +174,7 @@ export default function PrivacyPage() {
             <p>Barranquilla, Atlántico, Colombia</p>
             <p>
               Correo:{' '}
-              <a href="mailto:juansedanotri@gmail.com" className="text-[#00C4CC] hover:underline">
+              <a href="mailto:juansedanotri@gmail.com" className="text-brand hover:underline">
                 juansedanotri@gmail.com
               </a>
             </p>

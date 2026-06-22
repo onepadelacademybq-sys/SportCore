@@ -143,7 +143,7 @@ export function TacticalModule({ value, onChange }: Props) {
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold">Game {game.gameNumber}</span>
                 {hasScore && (
-                  <span className="text-xs text-[#00C4CC] font-medium tabular-nums">{scoreLabel}</span>
+                  <span className="text-xs text-brand font-medium tabular-nums">{scoreLabel}</span>
                 )}
                 {!hasScore && (
                   <span className="text-xs text-muted-foreground">Registrar</span>

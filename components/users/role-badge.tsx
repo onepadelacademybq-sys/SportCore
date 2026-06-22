@@ -4,7 +4,7 @@ import type { UserRole } from '@/actions/users'
 const CONFIG: Record<UserRole, { label: string; className: string }> = {
   admin:  { label: 'Administrador', className: 'bg-red-500/15 text-red-400' },
   coach:  { label: 'Entrenador',    className: 'bg-blue-500/15 text-blue-400' },
-  player: { label: 'Jugador',       className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  player: { label: 'Jugador',       className: 'bg-brand/15 text-brand' },
 }
 
 export function RoleBadge({ role }: { role: UserRole }) {

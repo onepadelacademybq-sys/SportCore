@@ -99,8 +99,8 @@ export function PaymentProofForm({ bookingId }: Props) {
             flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed
             px-4 py-6 cursor-pointer transition-colors text-center select-none
             ${dragOver
-              ? 'border-[#00C4CC] bg-[#00C4CC]/10'
-              : 'border-border hover:border-[#00C4CC]/50 hover:bg-muted/30'
+              ? 'border-brand bg-brand/10'
+              : 'border-border hover:border-brand/50 hover:bg-muted/30'
             }
           `}
         >

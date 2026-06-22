@@ -21,7 +21,7 @@ export function Nav() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <span className="text-xl font-bold tracking-tight font-heading">
-            <span className="text-[#00C4CC]">One</span> Padel
+            <span className="text-brand">One</span> Padel
           </span>
           <span className="hidden sm:block text-[10px] text-muted-foreground uppercase tracking-widest border-l border-border pl-2">
             Academy
@@ -51,7 +51,7 @@ export function Nav() {
           </Link>
           <Link
             href="/register"
-            className="inline-flex items-center px-4 py-2 rounded-md bg-[#00C4CC] text-black text-sm font-semibold hover:bg-[#00b3ba] transition-colors"
+            className="inline-flex items-center px-4 py-2 rounded-md bg-brand text-black text-sm font-semibold hover:bg-[#00b3ba] transition-colors"
           >
             Comenzar
           </Link>
@@ -86,7 +86,7 @@ export function Nav() {
             </Link>
             <Link
               href="/register"
-              className="inline-flex justify-center items-center px-4 py-2 rounded-md bg-[#00C4CC] text-black text-sm font-semibold hover:bg-[#00b3ba] transition-colors"
+              className="inline-flex justify-center items-center px-4 py-2 rounded-md bg-brand text-black text-sm font-semibold hover:bg-[#00b3ba] transition-colors"
             >
               Comenzar
             </Link>

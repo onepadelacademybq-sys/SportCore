@@ -48,7 +48,7 @@ export function VideoEmbed({ url, title = 'Video del ejercicio' }: Props) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 text-sm text-[#00C4CC] hover:underline"
+      className="inline-flex items-center gap-2 text-sm text-brand hover:underline"
     >
       Ver video externo ↗
     </a>

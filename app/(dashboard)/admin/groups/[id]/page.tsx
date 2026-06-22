@@ -198,7 +198,7 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
               href={`/admin/groups/${id}?year=${periodYear}&month=${periodMonth}&tab=${key}`}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === key
-                  ? 'border-[#00C4CC] text-[#00C4CC]'
+                  ? 'border-brand text-brand'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >

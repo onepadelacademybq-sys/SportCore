@@ -51,7 +51,7 @@ export function Services() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <p className="text-xs text-[#00C4CC] uppercase tracking-widest font-semibold mb-3">
+          <p className="text-xs text-brand uppercase tracking-widest font-semibold mb-3">
             Lo que ofrecemos
           </p>
           <h2 className="font-heading text-3xl sm:text-4xl font-bold mb-4">
@@ -66,10 +66,10 @@ export function Services() {
           {SERVICES.map((s) => (
             <div
               key={s.title}
-              className="rounded-2xl border border-border bg-card p-6 space-y-4 hover:border-[#00C4CC]/30 hover:bg-[#00C4CC]/[0.02] transition-colors group"
+              className="rounded-2xl border border-border bg-card p-6 space-y-4 hover:border-brand/30 hover:bg-brand/[0.02] transition-colors group"
             >
-              <div className="w-11 h-11 rounded-xl bg-[#00C4CC]/10 flex items-center justify-center group-hover:bg-[#00C4CC]/20 transition-colors">
-                <s.icon className="h-5 w-5 text-[#00C4CC]" />
+              <div className="w-11 h-11 rounded-xl bg-brand/10 flex items-center justify-center group-hover:bg-brand/20 transition-colors">
+                <s.icon className="h-5 w-5 text-brand" />
               </div>
               <div>
                 <h3 className="font-heading text-base font-semibold mb-2">{s.title}</h3>
@@ -79,7 +79,7 @@ export function Services() {
                 {s.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="text-[10px] font-medium text-[#00C4CC] bg-[#00C4CC]/10 rounded-full px-2.5 py-1"
+                    className="text-[10px] font-medium text-brand bg-brand/10 rounded-full px-2.5 py-1"
                   >
                     {tag}
                   </span>

@@ -43,9 +43,9 @@ export default async function PlayerProfilePage() {
       </div>
 
       {isIncomplete && (
-        <div className="flex items-start gap-3 rounded-lg border border-[#00C4CC]/30 bg-[#00C4CC]/5 px-4 py-3">
-          <AlertCircle className="h-4 w-4 text-[#00C4CC] shrink-0 mt-0.5" />
-          <p className="text-sm text-[#00C4CC]">
+        <div className="flex items-start gap-3 rounded-lg border border-brand/30 bg-brand/5 px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-brand shrink-0 mt-0.5" />
+          <p className="text-sm text-brand">
             Completa tus datos para acceder a todas las funciones de la plataforma.
           </p>
         </div>

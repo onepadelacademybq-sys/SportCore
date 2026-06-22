@@ -52,7 +52,7 @@ export function FinanceSummary({ data }: { data: FinancialDashboard }) {
           label="Utilidad neta"
           value={formatCOP(netProfit)}
           icon={<Wallet className="h-4 w-4" />}
-          accent={netProfit >= 0 ? 'text-[#00C4CC]' : 'text-red-400'}
+          accent={netProfit >= 0 ? 'text-brand' : 'text-red-400'}
         />
       </div>
 

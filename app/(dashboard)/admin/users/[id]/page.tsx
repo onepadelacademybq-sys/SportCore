@@ -80,7 +80,7 @@ function CoachSections({ coach }: { coach: CoachData }) {
               return (
                 <li key={m.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
                   <div className="min-w-0 pr-3">
-                    <Link href={`/admin/planning/${m.id}`} className="text-sm hover:text-[#00C4CC] hover:underline truncate block">{m.name}</Link>
+                    <Link href={`/admin/planning/${m.id}`} className="text-sm hover:text-brand hover:underline truncate block">{m.name}</Link>
                     <p className="text-[11px] text-muted-foreground">{m.duration_weeks} semanas{m.start_date ? ` · inicio ${formatDate(m.start_date + 'T12:00:00')}` : ''}</p>
                   </div>
                   <span className={`text-xs shrink-0 ${s.cls}`}>{s.label}</span>
@@ -115,7 +115,7 @@ function CoachSections({ coach }: { coach: CoachData }) {
             {coach.assignedPlayers.map((p) => (
               <li key={p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
                 <div className="min-w-0 pr-3">
-                  <Link href={`/admin/users/${p.id}`} className="text-sm font-medium hover:text-[#00C4CC] hover:underline truncate block">{p.full_name}</Link>
+                  <Link href={`/admin/users/${p.id}`} className="text-sm font-medium hover:text-brand hover:underline truncate block">{p.full_name}</Link>
                   <p className="text-[11px] text-muted-foreground truncate">{p.group_name} · {p.email}</p>
                 </div>
                 {p.padel_level && <LevelBadge level={p.padel_level} />}
@@ -251,7 +251,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
                     <p className="text-[11px] text-muted-foreground">Pendientes</p>
                   </div>
                   <div>
-                    <p className="text-xl font-bold tabular-nums text-[#00C4CC]">{paidRate}%</p>
+                    <p className="text-xl font-bold tabular-nums text-brand">{paidRate}%</p>
                     <p className="text-[11px] text-muted-foreground">Tasa de pago</p>
                   </div>
                 </div>
@@ -285,7 +285,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
                     {groups.map((g) => (
                       <li key={g.id} className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 min-w-0">
-                          <Link href={`/admin/groups/${g.id}`} className="text-sm hover:text-[#00C4CC] hover:underline truncate">{g.name}</Link>
+                          <Link href={`/admin/groups/${g.id}`} className="text-sm hover:text-brand hover:underline truncate">{g.name}</Link>
                           <LevelBadge level={g.level} />
                         </div>
                         <RemovePlayerButton memberId={g.memberId} playerName={profile.full_name} />
@@ -303,9 +303,9 @@ export default async function AdminUserDetailPage({ params }: Props) {
                   <ul className="divide-y divide-border">
                     {evaluations.map((e) => (
                       <li key={e.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                        <Link href={`/admin/evaluations/${e.id}`} className="text-sm hover:text-[#00C4CC] hover:underline truncate pr-3">{e.title}</Link>
+                        <Link href={`/admin/evaluations/${e.id}`} className="text-sm hover:text-brand hover:underline truncate pr-3">{e.title}</Link>
                         <div className="flex items-center gap-3 shrink-0">
-                          {e.is_shared && <span className="text-[10px] text-[#00C4CC]">Compartida</span>}
+                          {e.is_shared && <span className="text-[10px] text-brand">Compartida</span>}
                           <span className="text-xs text-muted-foreground">{formatDate(e.evaluated_at)}</span>
                         </div>
                       </li>
@@ -358,7 +358,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
                 <Wallet className="h-4 w-4 text-muted-foreground" /> E-wallet de clases
               </h3>
               <div className="flex items-end gap-2">
-                <p className="text-3xl font-bold tabular-nums text-[#00C4CC]">{wallet.available_classes}</p>
+                <p className="text-3xl font-bold tabular-nums text-brand">{wallet.available_classes}</p>
                 <p className="text-xs text-muted-foreground mb-1">clases disponibles</p>
               </div>
               <p className="text-xs text-muted-foreground">

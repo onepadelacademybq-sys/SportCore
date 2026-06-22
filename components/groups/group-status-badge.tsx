@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 
 const CONFIG = {
-  active: { label: 'Activo',  className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  active: { label: 'Activo',  className: 'bg-brand/15 text-brand' },
   paused: { label: 'Pausado', className: 'bg-amber-500/15 text-amber-400' },
   closed: { label: 'Cerrado', className: 'bg-muted text-muted-foreground' },
 } as const

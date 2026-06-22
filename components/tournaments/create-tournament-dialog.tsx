@@ -191,7 +191,7 @@ export function CreateTournamentDialog() {
                         className="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                       {recommended && maxEntries && (
-                        <p className="text-[11px] text-[#00C4CC]">→ {recommended} canchas recomendadas</p>
+                        <p className="text-[11px] text-brand">→ {recommended} canchas recomendadas</p>
                       )}
                     </div>
                     <div className="space-y-1.5">
@@ -263,7 +263,7 @@ export function CreateTournamentDialog() {
                     <label className="text-xs font-medium text-muted-foreground">
                       Canchas a usar
                       {recommended && (
-                        <button type="button" onClick={() => setNumCourts(String(recommended))} className="ml-2 text-[#00C4CC] hover:underline text-[11px]">
+                        <button type="button" onClick={() => setNumCourts(String(recommended))} className="ml-2 text-brand hover:underline text-[11px]">
                           usar recomendado ({recommended})
                         </button>
                       )}

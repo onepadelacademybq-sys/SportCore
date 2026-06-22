@@ -62,7 +62,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-[#00C4CC] hover:underline"
+      className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-brand hover:underline"
       title="Copiar"
     >
       {copied
@@ -152,9 +152,9 @@ function PaymentCard({ ev }: { ev: EvaluationSummary }) {
       <form onSubmit={handleSubmit} className="px-4 py-3 space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Comprobante de pago</p>
         <label className={`flex items-center gap-3 border-2 border-dashed rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${
-          fileName ? 'border-[#00C4CC]/50 bg-[#00C4CC]/5' : 'border-border hover:border-primary/40'
+          fileName ? 'border-brand/50 bg-brand/5' : 'border-border hover:border-primary/40'
         }`}>
-          <Upload className={`h-4 w-4 shrink-0 ${fileName ? 'text-[#00C4CC]' : 'text-muted-foreground'}`} />
+          <Upload className={`h-4 w-4 shrink-0 ${fileName ? 'text-brand' : 'text-muted-foreground'}`} />
           <span className="text-xs text-muted-foreground truncate">
             {fileName || 'Seleccionar imagen o PDF (máx. 5 MB)'}
           </span>

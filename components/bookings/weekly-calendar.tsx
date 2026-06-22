@@ -168,8 +168,8 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
   // ── Estilos por estado ──────────────────────────────────────────────────────
 
   const slotStyles: Record<SlotState, string> = {
-    'available':         'bg-[#00C4CC]/20 hover:bg-[#00C4CC]/50 cursor-pointer',
-    'selected':          'bg-[#00C4CC] ring-2 ring-[#00C4CC] ring-offset-1',
+    'available':         'bg-brand/20 hover:bg-brand/50 cursor-pointer',
+    'selected':          'bg-brand ring-2 ring-brand ring-offset-1',
     'busy-individual':   'bg-rose-300 dark:bg-rose-700/70 cursor-not-allowed',
     'busy-group':        'bg-violet-300 dark:bg-violet-700/70 cursor-not-allowed',
     'coach-unavailable': 'bg-slate-200 dark:bg-slate-700 cursor-not-allowed',
@@ -342,10 +342,10 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
       {/* Leyenda */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1">
-          <span className="inline-block size-2.5 rounded-[2px] bg-[#00C4CC]/20 shrink-0" />Disponible
+          <span className="inline-block size-2.5 rounded-[2px] bg-brand/20 shrink-0" />Disponible
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block size-2.5 rounded-[2px] bg-[#00C4CC] shrink-0" />Seleccionado
+          <span className="inline-block size-2.5 rounded-[2px] bg-brand shrink-0" />Seleccionado
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block size-2.5 rounded-[2px] bg-rose-300 shrink-0" />Clase individual

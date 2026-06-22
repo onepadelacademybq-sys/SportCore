@@ -82,7 +82,7 @@ export default async function AdminDashboardPage() {
   }).filter((g) => g.available > 0)
 
   const kpis = [
-    { label: 'Jugadores activos',    value: playerCount ?? 0,               icon: Users,    color: 'text-[#00C4CC]' },
+    { label: 'Jugadores activos',    value: playerCount ?? 0,               icon: Users,    color: 'text-brand' },
     { label: 'Entrenadores',         value: coachCount ?? 0,                icon: UserCog,  color: 'text-blue-400'  },
     { label: 'Reservas pendientes',  value: pendingCount ?? 0,              icon: AlertCircle, color: pendingCount ? 'text-amber-400' : 'text-muted-foreground' },
     { label: `Ingresos ${today.toLocaleString('es-CO', { month: 'long' })}`, value: formatCOP(monthIncome), icon: TrendingUp, color: 'text-emerald-400' },
@@ -165,7 +165,7 @@ export default async function AdminDashboardPage() {
               </div>
             )}
             <div className="pt-3">
-              <Link href="/admin/bookings" className="text-xs text-[#00C4CC] hover:underline">
+              <Link href="/admin/bookings" className="text-xs text-brand hover:underline">
                 Ver todas las reservas →
               </Link>
             </div>
@@ -189,7 +189,7 @@ export default async function AdminDashboardPage() {
                   <div key={g.id} className="py-2.5 flex items-center justify-between gap-3">
                     <Link
                       href={`/admin/groups/${g.id}`}
-                      className="text-sm font-medium hover:text-[#00C4CC] truncate"
+                      className="text-sm font-medium hover:text-brand truncate"
                     >
                       {g.name}
                     </Link>
@@ -201,7 +201,7 @@ export default async function AdminDashboardPage() {
               </div>
             )}
             <div className="pt-3">
-              <Link href="/admin/groups" className="text-xs text-[#00C4CC] hover:underline">
+              <Link href="/admin/groups" className="text-xs text-brand hover:underline">
                 Ver todos los grupos →
               </Link>
             </div>

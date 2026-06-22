@@ -26,7 +26,7 @@ export function BankAccountsPanel({ accounts }: { accounts: BankAccount[] }) {
       <div className="flex items-center justify-between">
         <p className="text-sm">
           Saldo total (cuentas activas):{' '}
-          <span className="font-bold tabular-nums text-[#00C4CC]">{formatCOP(total)}</span>
+          <span className="font-bold tabular-nums text-brand">{formatCOP(total)}</span>
         </p>
         {!creating && (
           <Button size="sm" onClick={() => setCreating(true)}>

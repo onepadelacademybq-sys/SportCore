@@ -159,7 +159,7 @@ export default function RegisterPage() {
               checked={termsAccepted}
               onChange={(e) => setTermsAccepted(e.target.checked)}
               disabled={isPending}
-              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-[#00C4CC] cursor-pointer"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-brand cursor-pointer"
             />
             <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer select-none">
               He leído y acepto los{' '}

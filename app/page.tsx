@@ -47,7 +47,7 @@ export default async function HomePage() {
         <section id="contacto" className="py-24 px-6 bg-muted/10">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <p className="text-xs text-[#00C4CC] uppercase tracking-widest font-semibold mb-3">
+              <p className="text-xs text-brand uppercase tracking-widest font-semibold mb-3">
                 Hablemos
               </p>
               <h2 className="font-heading text-3xl sm:text-4xl font-bold mb-4">
@@ -71,7 +71,7 @@ export default async function HomePage() {
                           href="https://share.google/Z9wdHleldl0AQOwma"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm hover:text-[#00C4CC] transition-colors"
+                          className="text-sm hover:text-brand transition-colors"
                         >
                           Casa Pádel, Barranquilla, Colombia
                         </a>
@@ -92,7 +92,7 @@ export default async function HomePage() {
                       content: (
                         <a
                           href="mailto:onepadelacademybq@gmail.com"
-                          className="text-sm hover:text-[#00C4CC] transition-colors"
+                          className="text-sm hover:text-brand transition-colors"
                         >
                           onepadelacademybq@gmail.com
                         </a>
@@ -106,7 +106,7 @@ export default async function HomePage() {
                           href="https://wa.me/573016575440"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm hover:text-[#00C4CC] transition-colors"
+                          className="text-sm hover:text-brand transition-colors"
                         >
                           +57 301 657 5440
                         </a>
@@ -114,8 +114,8 @@ export default async function HomePage() {
                     },
                   ].map(({ icon: Icon, label, content }) => (
                     <div key={label} className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-[#00C4CC]/10 flex items-center justify-center shrink-0">
-                        <Icon className="h-4 w-4 text-[#00C4CC]" />
+                      <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                        <Icon className="h-4 w-4 text-brand" />
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
@@ -133,7 +133,7 @@ export default async function HomePage() {
                     href="https://instagram.com/1padelbaq"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-[#00C4CC] font-medium pt-1 hover:underline block"
+                    className="text-xs text-brand font-medium pt-1 hover:underline block"
                   >
                     @1padelbaq
                   </a>

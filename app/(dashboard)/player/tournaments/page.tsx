@@ -16,7 +16,7 @@ const FORMAT_LABELS: Record<string, string> = {
 
 const TOURNAMENT_STATUS: Record<string, { label: string; className: string }> = {
   open:        { label: 'Inscripciones abiertas', className: 'bg-emerald-500/15 text-emerald-400' },
-  in_progress: { label: 'En curso',    className: 'bg-[#00C4CC]/15 text-[#00C4CC]' },
+  in_progress: { label: 'En curso',    className: 'bg-brand/15 text-brand' },
   completed:   { label: 'Finalizado',  className: 'bg-purple-500/15 text-purple-400' },
 }
 

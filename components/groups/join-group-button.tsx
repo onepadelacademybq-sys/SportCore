@@ -20,13 +20,13 @@ export function JoinGroupButton({ groupId, myStatus }: Props) {
 
   if (state.success) {
     return (
-      <p className="text-xs text-[#00C4CC] font-medium">{state.success}</p>
+      <p className="text-xs text-brand font-medium">{state.success}</p>
     )
   }
 
   if (myStatus === 'active') {
     return (
-      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-[#00C4CC]/15 text-[#00C4CC]">
+      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-brand/15 text-brand">
         Inscrito
       </span>
     )

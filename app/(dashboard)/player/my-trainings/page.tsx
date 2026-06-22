@@ -81,7 +81,7 @@ export default async function PlayerMyTrainingsPage() {
               {allSessions.length > 0 && (
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#00C4CC] transition-all"
+                    className="h-full rounded-full bg-brand transition-all"
                     style={{ width: `${Math.round((done / allSessions.length) * 100)}%` }}
                   />
                 </div>
