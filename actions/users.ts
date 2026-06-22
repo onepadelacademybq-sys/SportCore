@@ -309,9 +309,11 @@ export async function getUserProfile(id: string): Promise<UserProfileFull | null
 // ─── Actualizar perfil ────────────────────────────────────────────────────────
 
 const UpdateProfileSchema = z.object({
-  full_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  phone:     z.string().optional(),
-  address:   z.string().optional(),
+  full_name:     z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  phone:         z.string().optional(),
+  address:       z.string().optional(),
+  document_id:   z.string().min(3, 'Documento inválido').optional(),
+  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').optional(),
 })
 
 export async function updateOwnProfileAction(
@@ -323,20 +325,34 @@ export async function updateOwnProfileAction(
   if (!user) return { error: 'No autenticado' }
 
   const parsed = UpdateProfileSchema.safeParse({
-    full_name: formData.get('full_name'),
-    phone:     (formData.get('phone') as string) || undefined,
-    address:   (formData.get('address') as string) || undefined,
+    full_name:     formData.get('full_name'),
+    phone:         (formData.get('phone') as string) || undefined,
+    address:       (formData.get('address') as string) || undefined,
+    document_id:   (formData.get('document_id') as string) || undefined,
+    date_of_birth: (formData.get('date_of_birth') as string) || undefined,
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { error } = await supabase
+  // Fetch current values to guard document_id and date_of_birth (set-once fields)
+  const { data: current } = await supabase
     .from('profiles')
-    .update({
-      full_name: parsed.data.full_name,
-      phone:     parsed.data.phone ?? null,
-      address:   parsed.data.address ?? null,
-    })
+    .select('document_id, date_of_birth')
     .eq('id', user.id)
+    .single()
+
+  const updates: Record<string, unknown> = {
+    full_name: parsed.data.full_name,
+    phone:     parsed.data.phone ?? null,
+    address:   parsed.data.address ?? null,
+  }
+  if (parsed.data.document_id && !current?.document_id) {
+    updates.document_id = parsed.data.document_id
+  }
+  if (parsed.data.date_of_birth && !current?.date_of_birth) {
+    updates.date_of_birth = parsed.data.date_of_birth
+  }
+
+  const { error } = await supabase.from('profiles').update(updates).eq('id', user.id)
 
   if (error) return { error: 'No se pudo guardar el perfil. Intenta de nuevo.' }
 

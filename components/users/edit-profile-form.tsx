@@ -10,15 +10,21 @@ import type { ActionState } from '@/actions/users'
 interface Props {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>
   initialValues: {
-    full_name: string
-    phone: string | null
-    address: string | null
+    full_name:     string
+    phone:         string | null
+    address:       string | null
+    document_id?:  string | null
+    date_of_birth?: string | null
   }
   targetId?: string
 }
 
 export function EditProfileForm({ action, initialValues, targetId }: Props) {
   const [state, formAction, isPending] = useActionState(action, { error: null })
+
+  const showDocFields =
+    initialValues.document_id  == null ||
+    initialValues.date_of_birth == null
 
   return (
     <form action={formAction} className="space-y-4">
@@ -68,6 +74,37 @@ export function EditProfileForm({ action, initialValues, targetId }: Props) {
           disabled={isPending}
         />
       </div>
+
+      {/* Campos de primera configuración — solo visibles mientras estén vacíos */}
+      {showDocFields && (
+        <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Estos datos solo pueden configurarse una vez. Contacta al administrador para modificarlos.
+          </p>
+          {initialValues.document_id == null && (
+            <div className="space-y-2">
+              <Label htmlFor={`document_id${targetId ?? ''}`}>Número de documento</Label>
+              <Input
+                id={`document_id${targetId ?? ''}`}
+                name="document_id"
+                placeholder="DNI / Cédula / Pasaporte"
+                disabled={isPending}
+              />
+            </div>
+          )}
+          {initialValues.date_of_birth == null && (
+            <div className="space-y-2">
+              <Label htmlFor={`date_of_birth${targetId ?? ''}`}>Fecha de nacimiento</Label>
+              <Input
+                id={`date_of_birth${targetId ?? ''}`}
+                name="date_of_birth"
+                type="date"
+                disabled={isPending}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <Button type="submit" disabled={isPending} className="w-full">
         {isPending ? 'Guardando…' : 'Guardar cambios'}

@@ -8,36 +8,38 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertTriangle } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 
-function calcAge(dob: string): number | null {
-  if (!dob) return null
-  const d = new Date(dob)
-  if (isNaN(d.getTime())) return null
-  const today = new Date()
-  const age = today.getFullYear() - d.getFullYear()
-  const hadBirthday =
-    today.getMonth() > d.getMonth() ||
-    (today.getMonth() === d.getMonth() && today.getDate() >= d.getDate())
-  return age - (hadBirthday ? 0 : 1)
+function passwordStrength(pw: string): { level: 0 | 1 | 2 | 3; label: string; color: string } {
+  if (pw.length < 8)  return { level: 0, label: '',        color: '' }
+  let score = 0
+  if (pw.length >= 12)         score++
+  if (/[A-Z]/.test(pw))        score++
+  if (/[0-9]/.test(pw))        score++
+  if (/[^A-Za-z0-9]/.test(pw)) score++
+  if (score <= 1) return { level: 1, label: 'Débil',   color: 'bg-rose-500' }
+  if (score <= 2) return { level: 2, label: 'Regular', color: 'bg-amber-400' }
+  return              { level: 3, label: 'Fuerte',  color: 'bg-emerald-500' }
 }
 
 export default function RegisterPage() {
   const [state, action, isPending] = useActionState(registerAction, { error: null })
-  const [termsAccepted, setTermsAccepted] = useState(false)
-  const [guardianConsent, setGuardianConsent] = useState(false)
-  const [dateOfBirth, setDateOfBirth] = useState('')
 
-  const age = calcAge(dateOfBirth)
-  const isMinor = age !== null && age < 18
+  const [termsAccepted,   setTermsAccepted]   = useState(false)
+  const [password,        setPassword]        = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [showPw,          setShowPw]          = useState(false)
+  const [showPwC,         setShowPwC]         = useState(false)
 
-  const canSubmit = !isPending && termsAccepted && (!isMinor || guardianConsent)
+  const strength     = passwordStrength(password)
+  const mismatch     = passwordConfirm.length > 0 && password !== passwordConfirm
+  const canSubmit    = !isPending && termsAccepted && !mismatch && password.length >= 8
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Crear cuenta</CardTitle>
-        <CardDescription>Crea tu cuenta para gestionar tu academia</CardDescription>
+        <CardDescription>Crea tu cuenta — los datos adicionales los completas desde tu perfil</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="space-y-4">
@@ -47,34 +49,6 @@ export default function RegisterPage() {
             </Alert>
           )}
 
-          {/* Credenciales */}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="tu@email.com"
-              autoComplete="email"
-              required
-              disabled={isPending}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="Mínimo 8 caracteres"
-              autoComplete="new-password"
-              required
-              disabled={isPending}
-            />
-          </div>
-
-          {/* Datos personales */}
           <div className="space-y-2">
             <Label htmlFor="fullName">Nombre completo</Label>
             <Input
@@ -89,168 +63,94 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="documentId">Número de documento</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
-              id="documentId"
-              name="documentId"
-              type="text"
-              placeholder="DNI / Cédula / Pasaporte"
+              id="email"
+              name="email"
+              type="email"
+              placeholder="tu@email.com"
+              autoComplete="email"
               required
               disabled={isPending}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">Teléfono</Label>
-            <Input
-              id="phone"
-              name="phone"
-              type="tel"
-              placeholder="+57 300 000 0000"
-              autoComplete="tel"
-              required
-              disabled={isPending}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dateOfBirth">Fecha de nacimiento</Label>
-            <Input
-              id="dateOfBirth"
-              name="dateOfBirth"
-              type="date"
-              required
-              disabled={isPending}
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Dirección</Label>
-            <Input
-              id="address"
-              name="address"
-              type="text"
-              placeholder="Calle, número, ciudad"
-              autoComplete="street-address"
-              required
-              disabled={isPending}
-            />
-          </div>
-
-          {/* Sección de representante legal — solo para menores */}
-          {isMinor && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-4">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-amber-300">Este jugador es menor de edad</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Se requieren los datos del representante legal para completar el registro.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="guardianName">Nombre completo del representante</Label>
-                  <Input
-                    id="guardianName"
-                    name="guardianName"
-                    type="text"
-                    placeholder="Nombre del padre/madre/tutor"
-                    required
-                    disabled={isPending}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="guardianDocument">Documento del representante</Label>
-                  <Input
-                    id="guardianDocument"
-                    name="guardianDocument"
-                    type="text"
-                    placeholder="Cédula o documento de identidad"
-                    required
-                    disabled={isPending}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="guardianPhone">Teléfono</Label>
-                    <Input
-                      id="guardianPhone"
-                      name="guardianPhone"
-                      type="tel"
-                      placeholder="+57 300 000 0000"
-                      required
-                      disabled={isPending}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="guardianEmail">Email</Label>
-                    <Input
-                      id="guardianEmail"
-                      name="guardianEmail"
-                      type="email"
-                      placeholder="representante@email.com"
-                      required
-                      disabled={isPending}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="guardianRelationship">Relación con el menor</Label>
-                  <select
-                    id="guardianRelationship"
-                    name="guardianRelationship"
-                    required
-                    disabled={isPending}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="padre">Padre</option>
-                    <option value="madre">Madre</option>
-                    <option value="tutor_legal">Tutor legal</option>
-                    <option value="otro">Otro</option>
-                  </select>
-                </div>
-
-                {/* Consentimiento parental */}
-                <div className="flex items-start gap-3 pt-1 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-                  <input
-                    type="checkbox"
-                    id="guardianConsent"
-                    name="guardianConsent"
-                    required
-                    checked={guardianConsent}
-                    onChange={(e) => setGuardianConsent(e.target.checked)}
-                    disabled={isPending}
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-[#00C4CC] cursor-pointer"
-                  />
-                  <label htmlFor="guardianConsent" className="text-xs text-muted-foreground leading-snug cursor-pointer select-none">
-                    Como representante legal, autorizo el tratamiento de los datos personales
-                    de mi hijo/a o representado/a de acuerdo con la{' '}
-                    <strong className="text-foreground">Ley 1581 de 2012</strong> de protección
-                    de datos personales de Colombia y la{' '}
-                    <Link href="/privacy" target="_blank" className="text-foreground font-medium hover:underline">
-                      Política de Privacidad
-                    </Link>{' '}
-                    de SportCore.
-                  </label>
-                </div>
-              </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Contraseña</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPw ? 'text' : 'password'}
+                placeholder="Mínimo 8 caracteres"
+                autoComplete="new-password"
+                required
+                disabled={isPending}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw(v => !v)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
-          )}
+            {/* Barra de fortaleza */}
+            {password.length > 0 && (
+              <div className="flex items-center gap-2 pt-0.5">
+                <div className="flex gap-1 flex-1">
+                  {([1, 2, 3] as const).map(l => (
+                    <div
+                      key={l}
+                      className={`h-1 flex-1 rounded-full transition-colors ${
+                        strength.level >= l ? strength.color : 'bg-muted'
+                      }`}
+                    />
+                  ))}
+                </div>
+                {strength.label && (
+                  <span className="text-[11px] text-muted-foreground w-12 text-right">{strength.label}</span>
+                )}
+              </div>
+            )}
+          </div>
 
-          {/* Rol fijo */}
+          <div className="space-y-1.5">
+            <Label htmlFor="passwordConfirm">Confirmar contraseña</Label>
+            <div className="relative">
+              <Input
+                id="passwordConfirm"
+                name="passwordConfirm"
+                type={showPwC ? 'text' : 'password'}
+                placeholder="Repite la contraseña"
+                autoComplete="new-password"
+                required
+                disabled={isPending}
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                className={`pr-10 ${mismatch ? 'border-rose-500 focus-visible:ring-rose-500' : ''}`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwC(v => !v)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showPwC ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {mismatch && (
+              <p className="text-[11px] text-rose-500">Las contraseñas no coinciden</p>
+            )}
+          </div>
+
           <input type="hidden" name="role" value="player" />
 
-          {/* Aceptación de términos */}
-          <div className="flex items-start gap-3 pt-1 rounded-lg border border-border bg-muted/20 p-3">
+          <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
             <input
               type="checkbox"
               id="terms"
