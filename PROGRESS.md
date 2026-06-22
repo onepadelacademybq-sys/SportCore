@@ -1,206 +1,265 @@
-# One Padel — Estado del Proyecto
+# SportCore by Lynkos ID — Estado del Proyecto
 
-> Última actualización: 2026-05-28 — **Aplicación completa, lista para despliegue**
-
----
-
-## Completado
-
-### Documentación
-- `ARCHITECTURE.md` — Stack completo, estructura de directorios, flujo de auth, ADRs, entornos
-- `MODULES.md` — 13 módulos con permisos por rol (admin / coach / player)
-- `DATABASE.md` — tablas, enums, RLS, índices, triggers planeados
-- `README.md`
-
-### Base de datos
-- Prisma 7 schema (`prisma/schema.prisma`) — 32 modelos, enums completos incluyendo 8 formatos de torneo
-- Base de datos: Supabase PostgreSQL 16 en `aws-1-sa-east-1`
-- Migraciones aplicadas (14 formales + 4 manuales vía psql):
-  - `20260522165058_init_one_padel` — todas las tablas iniciales
-  - `20260522180000_add_profile_document_address` — `document_id` y `address` en `profiles`
-  - `20260522190000_fix_updated_at_defaults`
-  - `20260522200000_bookings_coach_payment`
-  - `20260522210000_update_padel_level_enum` — niveles oficiales One Padel
-  - `20260523120000_change_session_block_type_3_blocks` — sesiones pasan de 4 a 3 bloques
-  - `20260523130000_add_people_count_to_bookings`
-  - `20260523140000_add_expires_at_to_bookings` — soporte de cancelación automática
-  - `20260523150000_add_module_classes_to_bookings`
-  - `20260523160000_create_wallet_tables` — E-wallet de clases
-  - `20260524100000_create_eval_specialized_tables` — tablas especializadas de evaluación V3
-  - `20260525120000_create_finances_module` — `financial_transactions`, `bank_accounts`, enums financieros
-  - `20260526110000_group_members_billing_cycle` — campos de facturación mensual en `group_members`
-  - `wallet_transactions.slot_type TEXT` — tipo de clase en cancelaciones
-  - *(manual)* `tournaments` — columnas de planta física: `num_courts`, `tournament_date`, `start_time`, `end_time`, `court_cost_total`
-  - *(manual)* `TournamentFormat` enum — 5 valores americano: `americano_individual`, `americano_parejas`, `americano_rey_pista`, `super_8`, `americano_mixto`
-  - *(manual)* `tournament_entries.is_round_pair BOOLEAN DEFAULT false` — parejas temporales por ronda
-  - *(manual)* `tournament_matches.round_number INT`, `court_number INT` — metadatos de ronda/cancha
-
-### Infraestructura de proyecto
-- Next.js 15.5 con App Router, TypeScript 5, Turbopack
-- Tailwind CSS 4 + shadcn/ui (estilo `base-nova`)
-- Librerías: react-hook-form 7, zod 4, @supabase/ssr, Prisma 7
-- `.env.local` con credenciales reales, `.env.example` como plantilla
-- `tsc --noEmit` pasa limpio en todos los módulos
-
-### Supabase — Clientes y Storage
-- `lib/supabase/client.ts` — `createBrowserClient` (Client Components)
-- `lib/supabase/server.ts` — `createServerClient` (Server Components, Actions, Route Handlers)
-- `lib/supabase/middleware.ts` — helper del middleware (refresca JWT)
-- Bucket `payment-proofs` — privado, máx 5 MB, JPEG/PNG/PDF
-- Bucket `avatars` — público, máx 5 MB, JPEG/PNG/WEBP + políticas RLS completas
-
-### Autenticación y middleware
-- `middleware.ts` — autenticación con 3 roles, protección de rutas, rol resuelto desde DB
-- `app/(auth)/layout.tsx` + `login`, `register`, `forgot-password`
-- `actions/auth.ts` — `loginAction`, `registerAction`, `forgotPasswordAction`
-- `app/page.tsx` — landing pública para no autenticados; redirige al dashboard del rol para sesiones activas
-
-### Shell de dashboard y dashboards por rol
-- `app/(dashboard)/layout.tsx` con sidebar de navegación por rol
-- **Admin** (`admin/dashboard`): jugadores activos, reservas pendientes, ingresos del mes, próximas reservas, grupos activos
-- **Coach** (`coach/dashboard`): jugadores en grupos, sesiones esta semana, evaluaciones incompletas, próxima sesión
-- **Jugador** (`player/dashboard`): próxima clase, sesiones completadas, saldo E-wallet, nivel actual, grupos inscritos
+> Última actualización: **2026-06-19**
+> Stack: Next.js 15.5 · TypeScript 5 · Tailwind CSS 4 · Base UI · Supabase PostgreSQL 16 · Prisma 7 · React 19 Server Actions
 
 ---
 
-### Módulos funcionando (todos operativos)
+## Visión general
 
-#### Reservas de pistas
-- 3 vistas por rol; calendario semanal de disponibilidad por coach
-- Selector de personas y precios en tiempo real (AM/PM/FDS)
-- Pago con transferencia bancaria + comprobante como imagen; E-wallet como alternativa
+**SportCore** es un SaaS multi-tenant multi-deporte para academias y clubes deportivos en LATAM.
+Evolved a partir de `one-padel-app`; repositorio principal: `SportCore`.
+
+| Concepto | Valor |
+|---|---|
+| Mercado objetivo | ~500 clubes y academias deportivas en Colombia |
+| Meta penetración | 30% = 150 clientes |
+| Break-even | 95 clientes ($17,955/mes revenue) |
+| ARPU real (mix 40/45/15%) | $189 USD/mes |
+
+---
+
+## Infraestructura
+
+### Repositorios
+- `https://github.com/onepadelacademybq-sys/one-padel-app` (fetch + push)
+- `https://github.com/onepadelacademybq-sys/SportCore` (segundo push — git doble configurado)
+
+### Supabase — proyecto SportCore
+| Campo | Valor |
+|---|---|
+| Project ref | `tpjvfrxqmpioihqsnadw` |
+| URL | `https://tpjvfrxqmpioihqsnadw.supabase.co` |
+| Región | `aws-1-sa-east-1` (São Paulo) |
+| DATABASE_URL (runtime) | Session pooler puerto 6543 con pgBouncer |
+| DIRECT_URL (migrations) | Session pooler puerto 5432 sin pgBouncer |
+
+> **Nota:** La IP directa (`db.[ref].supabase.co:5432`) es IPv6-only, no usable desde Mac local. Siempre usar session pooler.
+
+### Migraciones aplicadas (15 total)
+| Migración | Descripción |
+|---|---|
+| `20260522165058_init_one_padel` | Todas las tablas iniciales (32 modelos) |
+| `20260522180000_add_profile_document_address` | `document_id`, `address` en profiles |
+| `20260522190000_fix_updated_at_defaults` | DEFAULT NOW() + trigger updated_at |
+| `20260522200000_bookings_coach_payment` | Campos de pago al coach en reservas |
+| `20260522210000_update_padel_level_enum` | Niveles oficiales de pádel |
+| `20260523120000_change_session_block_type_3_blocks` | Sesiones pasan de 4 a 3 bloques |
+| `20260523130000_add_people_count_to_bookings` | Contador de personas en reservas |
+| `20260523140000_add_expires_at_to_bookings` | Soporte cancelación automática |
+| `20260523150000_add_module_classes_to_bookings` | Clases por módulo |
+| `20260523160000_create_wallet_tables` | E-wallet de clases |
+| `20260524100000_create_eval_specialized_tables` | Evaluaciones V3 especializadas |
+| `20260525120000_create_finances_module` | Ledger financiero, cuentas bancarias |
+| `20260605000000_add_crm_whatsapp` | CRM, leads, interacciones, WhatsApp |
+| `20260605000001_add_organizations_rls` | RLS global + función `auth_org_id()` |
+| `20260618000000_add_org_id_to_all_tables` | `organization_id` en 17 tablas, multi-tenant completo |
+
+---
+
+## Módulos completados
+
+### Autenticación y multi-tenancy
+- `lib/auth.ts` — `requireAuth()` y `requireRole()` con `organizationId`
+- `middleware.ts` — detección de tenant por subdominio (`slug.sportcore.co`) + `?_org=` para dev local
+- RLS global con `auth_org_id()` en todas las tablas
+- `actions/auth.ts` — registro con `adminClient` para bypass de RLS en creación de perfil
+- `actions/onboarding.ts` — wizard mínimo de creación de org
+
+### Reservas de espacios
+- Calendario semanal con slots de disponibilidad (08:00–22:00, UTC-5 Colombia)
+- Pago con transferencia bancaria + comprobante
+- E-wallet de clases (AM/PM/FDS/any)
+- Cancelación automática a los 15 min (`expires_at`)
 - Módulos de 8/16 clases con descuento
-- Cancelación automática de reservas no pagadas en 15 min (countdown `expires_at`)
-- Cancelación por jugador con crédito a E-wallet (mín. 24 h de anticipación; sin devolución en efectivo)
-- **Aviso de política de cancelación** visible en el formulario antes del botón "Solicitar reserva"
+- Reservas públicas sin auth vía `/club/[slug]/book`
 
-#### E-wallet de clases
-- Saldo siempre visible (default 0); transacciones AM/PM/FDS/any para trazabilidad
+### Espacios reservables (EPIC 2)
+- `actions/courts.ts` — CRUD con tipos: cancha, campo, carril, pista, sala
+- `app/(dashboard)/admin/courts/` — página de gestión
+- Quota enforcement: `assertQuota('resources')` antes de crear espacio
 
-#### Planificación
-- Mesociclo → Microciclo → Sesión → 3 bloques (calentamiento 10 / central 35 / vuelta calma 15)
-- Asignación por jugador y por grupo; vinculación a reservas confirmadas
+### Landing pública del club (Sprint 2 + 3)
+- `app/club/[slug]/page.tsx` — landing pública del club por subdominio
+- `app/club/[slug]/book/page.tsx` — calendario de reservas público
+- `actions/public.ts` — queries y mutaciones sin autenticación (adminClient)
 
-#### Biblioteca de ejercicios
-- 19 ejercicios seed; CRUD en admin y coach
+### Planificación de entrenamientos
+- Jerarquía: Mesociclo → Microciclo → Sesión → 3 bloques
+- Asignación por jugador y por grupo
+- Biblioteca de ejercicios (CRUD + favoritos + tags + video embed)
 
-#### Grupos de entrenamiento
-- Inscripción con flujo de pago; cancelación con promoción de lista de espera
-- **Facturación de ciclo mensual**: mora 10% tras 4 días de gracia; banners de vencimiento al jugador
-- **Agenda de sesiones grupales**: generación automática de bookings `confirmed` al crear el grupo, regeneración manual, `ensureFutureGroupSessions` on-the-fly
+### Evaluaciones — Protocolo V3
+- 4 módulos: técnico, táctico, antropométrico, físico
+- Dashboard con semáforo y evolución SVG
+- Compartible con el jugador
 
-#### Evaluaciones — Protocolo V3
-- 4 módulos: técnico (checkboxes por golpe), táctico, antropométrico, físico
-- Dashboard con semáforo por grupo técnico
-- Dashboard de progreso del jugador: evolución técnica (SVG), KPIs, evolución antropométrica y física
-- Vista de evolución por jugador para coach/admin
+### Grupos de entrenamiento
+- CRUD + inscripción + lista de espera
+- Facturación mensual con mora del 10% a los 4 días
+- Generación automática de sesiones grupales
 
-#### Finanzas
-- Ledger unificado `financial_transactions`; ingresos/egresos automáticos y manuales
-- Egresos automáticos al confirmar reserva: costo de cancha + pago al entrenador por franja
-- UI admin: Dashboard (KPIs + flujo de caja semanal + desglose por categoría), Ingresos, Egresos, Cuentas bancarias
-- Egreso automático de costo de canchas al iniciar un torneo
+### CRM y retención
+- Pipeline de leads (Kanban)
+- Interacciones y seguimiento
+- Composer de mensajes WhatsApp
+- Score de retención de jugadores
 
-#### Gestión de usuarios
-- Lista con filtros por rol y búsqueda en tiempo real
-- Perfil detallado `admin/users/[id]` con vista bifurcada Jugador/Entrenador
-- Cambio de rol y activar/desactivar cuenta
+### Finanzas
+- Ledger unificado `financial_transactions`
+- Ingresos/egresos automáticos y manuales
+- Dashboard KPIs + flujo de caja semanal
+- Cuentas bancarias propias de la org
 
-#### Torneos — módulo completo
-- **8 formatos**: eliminatoria, grupos (round-robin), grupos + eliminación, americano individual, americano mixto, Super 8, americano por parejas, rey de pista
-- **Generación de partidos**:
-  - *Eliminatoria*: cuadro de llaves con BYEs, creación de rondas siguientes
-  - *Grupos*: round-robin completo
-  - *Americano individual / mixto*: rotación greedy minimizando parejas repetidas (múltiplo de 4 jugadores)
-  - *Super 8*: calendario fijo de 7 rondas × 2 partidos; cada jugador es pareja de todos los demás exactamente una vez
-  - *Americano por parejas*: algoritmo de Berger (round-robin completo de parejas fijas)
-  - *Rey de pista*: genera ronda 1 con seed aleatorio; tras cada ronda reagrupa por ranking acumulado (wins → puntos) y reasigna canchas
-- **Leaderboard** en tab Resultados: por jugador (formatos `is_round_pair`) o por pareja, con columnas G/P/Pts
-- **Planta física**: canchas, horario y costo por franja AM/PM/FDS; análisis déficit/superávit vs. inscripción; egreso automático al iniciar el torneo
-- **Formulario de creación**: 8 formatos con descripciones, auto-sugerencia de modalidad de inscripción
-- 5 tabs: Información, Planta Física, Inscripciones, Llaves (con badge de cancha C1/C2…), Resultados
-- 3 vistas por rol: admin (gestión completa), jugador (inscripción y seguimiento), coach (lectura)
+### Torneos
+- 8 formatos: eliminatoria, grupos, grupos+eliminación, americano individual/mixto/parejas, Super 8, rey de pista
+- Generación automática de partidos y leaderboard
+- Planta física con análisis de costos
 
-#### Landing page pública
-- Información de contacto real: Casa Pádel Barranquilla + link Maps, WhatsApp +57 301 657 5440, Instagram @1padelbaq
-- Horario real: Lun–Vie 5–22 h / Sáb–Dom–festivos 8–15 h
-- Formulario de contacto funcional → `contact_messages`
-- Sección Grupos dinámica con datos reales desde DB
+### Gestión de usuarios
+- Lista con filtros, perfil completo bifurcado (jugador/coach)
+- Cambio de rol con quota enforcement (coaches y miembros)
+- Activación/desactivación con quota enforcement
 
-#### Módulo legal
-- **`/terms`** — Términos y Condiciones: identificación, reservas/cancelaciones, pagos, grupos, exoneración deportiva, datos personales, propiedad intelectual, modificaciones. Ley colombiana aplicable.
-- **`/privacy`** — Política de Privacidad: datos recopilados, finalidad, no venta, derechos ARCO, Ley 1581/2012 + Decreto 1377/2013. Contacto: juansedanotri@gmail.com
-- **Login**: texto "Al iniciar sesión aceptas nuestros Términos y Condiciones y Política de Privacidad" con links
-- **Registro**: checkbox obligatorio "He leído y acepto…"; botón deshabilitado hasta marcar; links abren en pestaña nueva
-- **Formulario de reserva**: aviso de política de cancelación con link "Ver términos completos"
-- **Footer**: sección "Legal" con links a ambas páginas
+### Perfil del coach
+- Foto, certificaciones, KPIs, disponibilidad
 
-#### Perfil del entrenador
-- Formulario editable; subida de foto al bucket `avatars`; certificaciones; KPIs; grilla de disponibilidad
+### Reportes
+- Dashboard con métricas por rol
+
+### Módulo legal
+- `/terms` — Términos y Condiciones (Ley colombiana)
+- `/privacy` — Política de Privacidad (Ley 1581/2012)
+
+### Notificaciones
+- Bell in-app con Supabase Realtime
 
 ---
 
-## Pendiente / Post-despliegue
+## EPIC 6 — Billing SaaS con Stripe ✅
 
-### Técnico (bajo impacto en funcionalidad actual)
-- [ ] Triggers en DB: `on_auth_user_created`, `create_session_blocks`, `update_eval_scores`
-- [ ] RLS global — habilitar y configurar para todas las tablas (solo `storage.objects/avatars` tiene políticas completas)
-- [ ] Supabase custom access token hook — inyectar `role` en `app_metadata` del JWT (hoy opera siempre contra la DB)
-- [ ] `npx supabase gen types typescript` — reemplazar stub permisivo con tipos reales generados
+### Planes y precios
+| | Starter | Pro | Club |
+|---|---|---|---|
+| Espacios | 1–3 | 4–7 | 8+ |
+| Miembros | 60 | 250 | ∞ |
+| Coaches | 2 | 6 | ∞ |
+| Mensual | $99 | $199 | $399 |
+| Trimestral | $84 | $169 | $339 |
+| Anual diferido (18% EA) | $90/mes | $180/mes | $361/mes |
+| Anual contado | $990 | $1,990 | $3,990 |
 
-### Módulos adicionales (no solicitados en esta fase)
-- [ ] Reportes y analytics — `admin/reports`
-- [ ] Trainings del coach — `coach/trainings`
-- [ ] Notificaciones push / in-app
-- [ ] Comunicación interna (mensajería)
+### Implementación
+- `lib/stripe/client.ts` — 12 price IDs (4 modalidades × 3 planes), `BillingPlan`, `BillingModality`
+- `lib/stripe/webhooks.ts` — `PLAN_LIMITS`, `planFromPriceId()` completo
+- `lib/quota.ts` — `assertQuota`, `checkQuota`, `getQuotaSummary` (con filtro `organizationId`)
+- `actions/billing.ts` — `getBillingStatus`, `createCheckoutSessionAction`, `openBillingPortalAction`, `PLAN_DISPLAY`
+- `actions/courts.ts` — `assertQuota('resources')` antes de crear espacio
+- `actions/users.ts` — `assertQuota('coaches'/'members')` en cambio de rol y reactivación
+- `components/billing/billing-dashboard.tsx` — plan actual, barras de uso, selector 4 modalidades, 3 plan cards
+- `app/(dashboard)/admin/billing/page.tsx` — server component con flash Stripe
+- `app/api/webhooks/stripe/route.ts` — webhook handler completo
+- Sidebar: item "Plan" → `/admin/billing`
 
-### Integraciones de producción
-- [ ] Vercel — deploy y variables de entorno en producción
-- [ ] Dominio personalizado
-- [ ] Resend — emails transaccionales (confirmaciones, recordatorios, vencimientos)
-- [ ] Sentry — error monitoring
-- [ ] Stripe — pagos online (actualmente el flujo es transferencia + verificación manual)
+### Pendiente para producción
+- [ ] Crear 12 productos/precios en Stripe Dashboard
+- [ ] Copiar Price IDs → `.env.local` + Vercel
+- [ ] Configurar webhook `https://sportcore.co/api/webhooks/stripe`
+- [ ] Agregar `STRIPE_WEBHOOK_SECRET` en Vercel
+
+---
+
+## EPIC 1 — Panel Super-Admin Lynkos ✅
+
+### Acceso
+- URL: `/superadmin`
+- Guard: `SUPERADMIN_EMAILS` env var (ya configurado en `.env.local`)
+- No requiere org asignada, protección independiente del sistema de roles
+
+### Implementación
+- `lib/superadmin.ts` — `requireSuperAdmin()` por email
+- `actions/superadmin.ts` — `getSuperAdminData()`, `updateOrgPlan()`, `updateOrgStatus()`
+- `app/(superadmin)/layout.tsx` — header mínimo "Lynkos ID · Super Admin"
+- `app/(superadmin)/superadmin/page.tsx` — server component
+- `components/superadmin/superadmin-dashboard.tsx` — métricas + tabla con selects inline
+
+### Funcionalidades
+- 4 métricas: total orgs, MRR estimado (solo activas × precio mensual), plan mix, % conversión de trial
+- Tabla de orgs: nombre, slug, deporte, plan (editable inline), status (editable inline), miembros, coaches, fecha expiración, dot Stripe
+- Filtros: búsqueda por nombre/slug, filtro por plan, filtro por status
+
+---
+
+## Variables de entorno requeridas
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=          # puerto 6543 pgBouncer
+DIRECT_URL=            # puerto 5432 directo
+
+# Stripe
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_STARTER_MONTHLY=
+STRIPE_PRICE_STARTER_QUARTERLY=
+STRIPE_PRICE_STARTER_DEFERRED=
+STRIPE_PRICE_STARTER_ANNUAL=
+STRIPE_PRICE_PRO_MONTHLY=
+STRIPE_PRICE_PRO_QUARTERLY=
+STRIPE_PRICE_PRO_DEFERRED=
+STRIPE_PRICE_PRO_ANNUAL=
+STRIPE_PRICE_CLUB_MONTHLY=
+STRIPE_PRICE_CLUB_QUARTERLY=
+STRIPE_PRICE_CLUB_DEFERRED=
+STRIPE_PRICE_CLUB_ANNUAL=
+
+# App
+NEXT_PUBLIC_APP_URL=https://sportcore.co
+SUPERADMIN_EMAILS=onepadelacademybq@gmail.com
+
+# Opcionales
+RESEND_API_KEY=
+NEXT_PUBLIC_WHATSAPP_NUMBER=
+```
+
+---
+
+## Git — commits clave
+
+| Commit | Descripción |
+|---|---|
+| `76322ad` | feat: CRM completo, reportes, entrenamientos coach, RLS global y trigger auth |
+| `b99975c` | feat: Sprint 2+3 multi-tenant, reservas públicas y EPIC 6 billing Stripe |
+| `1f91ebd` | feat(billing): quota enforcement en usuarios y fix count de recursos |
+| `ad9e873` | feat(superadmin): EPIC 1 — panel super-admin Lynkos en /superadmin |
+
+---
+
+## Backlog
+
+| Epic | Descripción | Prioridad |
+|---|---|---|
+| EPIC 7 | Seeds por deporte (padel, tenis, fútbol, natación, baloncesto) | Alta |
+| EPIC 8 | Onboarding wizard completo con selección de deporte y seeds automáticos | Alta |
+| Infra | Wildcard `*.sportcore.co` en Vercel para subdominios | Alta (prod) |
+| Legal | Registro DNDA marca SportCore · SAS · ToS/DPA | Crítica (antes ventas) |
+| EPIC 6 prod | Configurar 12 productos Stripe + webhook | Crítica (antes ventas) |
 
 ---
 
 ## Decisiones técnicas importantes
 
-### Prisma 7 — URL fuera del schema
-`url` y `directUrl` van en `prisma.config.ts`, no en `schema.prisma`.
-
-### DIRECT_URL vs DATABASE_URL
-- `DATABASE_URL` puerto 6543 — pgBouncer pooled, para queries de runtime
-- `DIRECT_URL` puerto 5432 — conexión directa, para migraciones y SQL admin
-
-### Migraciones — aplicar SQL manualmente
-`prisma migrate dev` falla con timeout de advisory lock. **Workaround:** SQL manual vía `psql $DIRECT_URL` + insertar registro en `_prisma_migrations`.
-
-### `ALTER TYPE ... ADD VALUE` fuera de transacción
-Los nuevos valores de enums PostgreSQL se aplican con sentencias separadas (no pueden ir en bloque transaccional).
-
-### Formatos americano — patrón `is_round_pair`
-Los formatos individual/mixto/super_8 crean entradas temporales `tournament_entries` con `is_round_pair=true` por cada ronda, emparejando dos jugadores inscritos individualmente. El leaderboard traza a través de estas entradas para calcular stats por jugador. Las inscripciones reales tienen `is_round_pair=false`.
-
-### Reservas — pago, cancelación y crédito de wallet
-- Pago con transferencia bancaria: el jugador sube comprobante; el admin/coach confirma.
-- Reservas sin pagar expiran en 15 min (`expires_at`).
-- Cancelación por jugador: requiere 24 h; acredita 1 clase AM/PM/FDS; sin devolución en efectivo.
-
-### Facturación de grupos — ciclo mensual y mora
-- `cycle_start_date` (próxima clase tras pago), `next_payment_due` (+1 mes), `monthly_fee`, `late_fee_applied`.
-- Mora 10% calculada on-the-fly si han pasado > 4 días del vencimiento.
-
-### Resolución de rol — 2 niveles
-JWT `app_metadata.role` → query `profiles.role`. El nivel 1 (JWT) está inactivo hasta configurar el custom access token hook.
-
-### Finanzas — egreso de cancha en torneos
-`financial_transactions` no tiene FK a torneos. El nombre del torneo se persiste en el campo `description` para trazabilidad.
-
-### Registro — perfil manual (sin trigger)
-`registerAction` inserta el perfil manualmente porque el trigger `on_auth_user_created` aún no existe.
-
-### Zod v4
-La propiedad de errores es `.issues`, no `.errors`.
-
-### shadcn form component no disponible
-Con `base-nova` no está disponible. Las páginas usan `useActionState` de React 19 con Server Actions.
+| Decisión | Detalle |
+|---|---|
+| UI component library | Base UI (`@base-ui/react`), NO Radix. Componentes en `components/ui/`: alert, badge, button, card, input, label, select, separator, textarea. Para overlays: fixed positioning custom (ver `components/crm/create-lead-dialog.tsx`) |
+| Prisma config | `url` y `directUrl` en `prisma.config.ts`, no en `schema.prisma` |
+| Migraciones | `npx prisma migrate deploy` en SportCore. Advisory lock workaround: psql directo + insertar en `_prisma_migrations` si falla |
+| RLS pattern | Escrituras fuera de sesión autenticada → `createAdminClient()` (service role). Incluye: registro de perfil, creación de org, reservas públicas |
+| Timezone | Todo en UTC-5 Colombia explícitamente (no depender de TZ del servidor) |
+| Passwords en URL | Usar URL encoding para caracteres especiales en connection strings |
+| `ALTER TYPE ... ADD VALUE` | Fuera de bloque transaccional (limitación de PostgreSQL) |
+| Rol resolution | JWT `app_metadata.role` (Tier 1, inactivo) → query `profiles.role` (Tier 2, activo) |
+| `updated_at` | ALTER COLUMN SET DEFAULT NOW() + trigger requerido (Prisma @updatedAt no lo pone automáticamente en Supabase) |
