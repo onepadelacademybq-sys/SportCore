@@ -4,6 +4,9 @@
 /** Costo operativo de la cancha por hora (COP). */
 export const COURT_HOURLY_COST = 70_000
 
+/** Colombia es UTC-5 sin DST. Todas las clasificaciones de día/hora se hacen en hora local CO. */
+const CO_OFFSET_MS = -5 * 60 * 60 * 1000
+
 export type CoachRates = {
   am: number      // L-V 5:00–15:59
   pm: number      // L-V 16:00 en adelante
@@ -36,18 +39,25 @@ export function courtCost(start: Date, end: Date): number {
 export function coachPayment(start: Date, end: Date, rates: CoachRates): number {
   if (end <= start) return 0
 
-  const day = start.getDay() // 0=Dom … 6=Sáb (hora local)
+  // Convertir a hora local Colombia para que getDay/getHours reflejen el día real del jugador.
+  // Sin esto, en Vercel (UTC) un domingo 23:00 CO se almacena como lunes 04:00 UTC y se cobra
+  // tarifa de día laboral cuando debería ser weekend.
+  const startCO = new Date(start.getTime() + CO_OFFSET_MS)
+
+  const day = startCO.getUTCDay() // 0=Dom … 6=Sáb en hora Colombia
   if (day === 0 || day === 6) {
     return Math.round(hoursBetween(start, end) * rates.weekend)
   }
 
-  const boundary = new Date(start)
-  boundary.setHours(PM_BOUNDARY_HOUR, 0, 0, 0)
+  // 16:00 CO = 21:00 UTC → construir boundary en UTC
+  const boundaryCO = new Date(startCO)
+  boundaryCO.setUTCHours(PM_BOUNDARY_HOUR, 0, 0, 0)
+  const boundary = new Date(boundaryCO.getTime() - CO_OFFSET_MS)
 
   if (end <= boundary) return Math.round(hoursBetween(start, end) * rates.am)
   if (start >= boundary) return Math.round(hoursBetween(start, end) * rates.pm)
 
-  // Cruza las 16:00 → prorratear
+  // Cruza las 16:00 CO → prorratear
   const amHours = hoursBetween(start, boundary)
   const pmHours = hoursBetween(boundary, end)
   return Math.round(amHours * rates.am + pmHours * rates.pm)

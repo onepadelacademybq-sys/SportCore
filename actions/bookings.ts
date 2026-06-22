@@ -337,9 +337,10 @@ export async function requestBookingAction(
 
   if (error || !inserted) {
     console.error('[requestBookingAction]', error)
-    // If we already debited, try to undo — best-effort
     if (useWallet) {
-      await supabase.from('class_wallet').update({}).eq('player_id', userId) // no-op trigger to log
+      // Revertir el débito: el INSERT falló pero la clase ya fue consumida.
+      // creditClasses recrea el saldo para que el jugador no pierda su clase.
+      await creditClasses(supabase, userId, '', 1, 'Reversión — reserva fallida')
     }
     return { error: 'Error al crear la reserva. Intenta nuevamente.' }
   }
@@ -525,11 +526,14 @@ export async function confirmBookingAction(
 
 type SlotType = 'am' | 'pm' | 'weekend'
 
+const CO_OFFSET_MS = -5 * 60 * 60 * 1000 // Colombia UTC-5, sin DST
+
 function getSlotType(startTime: string): SlotType {
   const d   = new Date(startTime)
-  const day = d.getUTCDay()   // 0=Dom, 6=Sáb
+  const dCO = new Date(d.getTime() + CO_OFFSET_MS) // hora local Colombia
+  const day = dCO.getUTCDay()
   if (day === 0 || day === 6) return 'weekend'
-  return d.getUTCHours() < 16 ? 'am' : 'pm'
+  return dCO.getUTCHours() < 16 ? 'am' : 'pm'
 }
 
 const SLOT_LABELS: Record<SlotType, string> = {
