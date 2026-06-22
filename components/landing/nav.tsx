@@ -29,7 +29,7 @@ export function Nav() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav aria-label="Navegación principal" className="hidden md:flex items-center gap-6">
           {LINKS.map((l) => (
             <a
               key={l.href}

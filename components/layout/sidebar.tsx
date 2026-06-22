@@ -136,24 +136,27 @@ export function Sidebar({ fullName, email, role }: SidebarProps) {
   }, [pathname])
 
   const navLinks = (
-    <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-      {navItems.map(({ label, href, icon: Icon }) => {
-        const isActive = pathname === href || pathname.startsWith(href + '/')
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              isActive
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {label}
-          </Link>
-        )
-      })}
+    <nav aria-label="Menú de navegación" className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <ul className="space-y-0.5">
+        {navItems.map(({ label, href, icon: Icon }) => {
+          const isActive = pathname === href || pathname.startsWith(href + '/')
+          return (
+            <li key={href}>
+              <Link
+                href={href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
     </nav>
   )
 

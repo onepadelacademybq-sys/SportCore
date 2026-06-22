@@ -31,8 +31,9 @@ export function ContactForm() {
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Nombre *</label>
+          <label htmlFor="contact-name" className="text-xs text-muted-foreground font-medium">Nombre *</label>
           <input
+            id="contact-name"
             name="name"
             required
             placeholder="Tu nombre completo"
@@ -40,8 +41,9 @@ export function ContactForm() {
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Email *</label>
+          <label htmlFor="contact-email" className="text-xs text-muted-foreground font-medium">Email *</label>
           <input
+            id="contact-email"
             name="email"
             type="email"
             required
@@ -52,8 +54,9 @@ export function ContactForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium">Teléfono / WhatsApp</label>
+        <label htmlFor="contact-phone" className="text-xs text-muted-foreground font-medium">Teléfono / WhatsApp</label>
         <input
+          id="contact-phone"
           name="phone"
           type="tel"
           placeholder="+57 300 000 0000"
@@ -62,8 +65,9 @@ export function ContactForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium">Mensaje *</label>
+        <label htmlFor="contact-message" className="text-xs text-muted-foreground font-medium">Mensaje *</label>
         <textarea
+          id="contact-message"
           name="message"
           required
           rows={4}

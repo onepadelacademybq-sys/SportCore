@@ -57,10 +57,11 @@ export function Hero() {
       {/* Scroll hint */}
       <a
         href="#stats"
+        aria-label="Desplazarse a la sección de estadísticas"
         className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
       >
-        <span className="text-[10px] uppercase tracking-widest">Scroll</span>
-        <ChevronDown className="h-4 w-4 animate-bounce" />
+        <span className="text-[10px] uppercase tracking-widest" aria-hidden="true">Scroll</span>
+        <ChevronDown className="h-4 w-4 animate-bounce" aria-hidden="true" />
       </a>
     </section>
   )
