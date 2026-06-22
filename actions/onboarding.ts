@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { seedOrganization } from '@/actions/seeds'
+import type { SportKey } from '@/lib/seeds/sports'
 
 export type OnboardingState = { error: string | null }
 
@@ -14,7 +16,7 @@ const OrgSchema = z.object({
     .trim()
     .min(2, 'El slug debe tener al menos 2 caracteres')
     .regex(/^[a-z0-9-]+$/, 'Solo letras minúsculas, números y guiones'),
-  sport: z.enum(['padel', 'futbol', 'tenis', 'natacion', 'otro']),
+  sport: z.enum(['padel', 'futbol', 'tenis', 'natacion', 'baloncesto', 'otro']),
 })
 
 export async function createOrganizationAction(
@@ -36,7 +38,6 @@ export async function createOrganizationAction(
 
   const admin = createAdminClient()
 
-  // Check slug uniqueness
   const { data: existing } = await admin
     .from('organizations')
     .select('id')
@@ -70,6 +71,14 @@ export async function createOrganizationAction(
   if (profileErr) {
     console.error('[createOrganizationAction] profile update:', profileErr)
     return { error: 'Organización creada pero no se pudo vincular tu perfil.' }
+  }
+
+  if (sport !== 'otro') {
+    try {
+      await seedOrganization(org.id, sport as SportKey, user.id)
+    } catch (err) {
+      console.error('[createOrganizationAction] seed failed (non-blocking):', err)
+    }
   }
 
   redirect('/admin/dashboard')
