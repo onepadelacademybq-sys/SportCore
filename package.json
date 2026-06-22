@@ -8,7 +8,8 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
-    "seed:exercises": "tsx scripts/seed-exercises.ts"
+    "seed:exercises": "tsx scripts/seed-exercises.ts",
+    "seed:sport": "tsx scripts/seed-sport.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
