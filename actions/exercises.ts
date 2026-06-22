@@ -411,7 +411,7 @@ export async function deleteExerciseAction(
   _prev: ExerciseState,
   formData: FormData,
 ): Promise<ExerciseState> {
-  const { supabase, role } = await requireAuth()
+  const { supabase, role } = await requireAuthShared()
   if (role !== 'admin') return { error: 'Solo los administradores pueden eliminar ejercicios' }
 
   const exerciseId = (formData.get('exerciseId') as string | null)?.trim()

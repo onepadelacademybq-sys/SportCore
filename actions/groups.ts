@@ -1354,7 +1354,7 @@ export async function cancelGroupSessionAction(
 
 /** Llama al cargar la agenda: si quedan < 14 días de sesiones futuras, genera el mes siguiente */
 export async function ensureFutureGroupSessions(groupId: string): Promise<void> {
-  const { supabase, userId, role } = await requireAuth()
+  const { supabase, userId, role, organizationId } = await requireAuth()
   if (role !== 'admin') return
 
   const { data: last } = await supabase
@@ -1384,7 +1384,7 @@ export async function ensureFutureGroupSessions(groupId: string): Promise<void> 
 
   if (!group) return
   const schedules = ((group as any).schedules ?? []) as ScheduleRef[]
-  await insertSessionsForMonth(supabase, group as any, schedules, targetYear, targetMonth, userId)
+  await insertSessionsForMonth(supabase, group as any, schedules, targetYear, targetMonth, userId, organizationId)
   revalidatePath(`/admin/groups/${groupId}`)
 }
 

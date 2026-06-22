@@ -33,8 +33,8 @@ export async function requireAuth(): Promise<AuthContext> {
     supabase,
     userId: user.id,
     role: data.role as 'admin' | 'coach' | 'player',
-    fullName: data.full_name,
-    organizationId: data.organization_id,
+    fullName: data.full_name as string,
+    organizationId: data.organization_id as string,
   }
 }
 

@@ -229,7 +229,7 @@ export async function getMesocycleById(id: string): Promise<Mesocycle | null> {
 
 /** Mesociclos asignados al jugador autenticado. */
 export async function getMyMesocycles(): Promise<Mesocycle[]> {
-  const { supabase, userId } = await requireAuth()
+  const { supabase, userId } = await requireAuthShared()
 
   const { data: assignments } = await supabase
     .from('mesocycle_assignments')
