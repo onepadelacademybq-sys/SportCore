@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,7 +38,9 @@ interface Props {
 }
 
 export function EvaluationForm({ role, currentUserId, players, defaultPlayerId }: Props) {
-  const router  = useRouter()
+  const router    = useRouter()
+  const draftKey  = `sc_eval_draft_${currentUserId}`
+  const canSaveRef = useRef(false) // evita sobreescribir un borrador antes de que el usuario lo vea
 
   // Header
   const [playerId,    setPlayerId]    = useState(defaultPlayerId ?? '')
@@ -55,6 +57,69 @@ export function EvaluationForm({ role, currentUserId, players, defaultPlayerId }
   const [activeTab,  setActiveTab]  = useState(0)
   const [isPending,  setIsPending]  = useState(false)
   const [error,      setError]      = useState<string | null>(null)
+  const [hasDraft,   setHasDraft]   = useState(false)
+
+  // ─── Draft: comprobar borrador guardado al montar ────────────────────────────
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey)
+      if (!raw) { canSaveRef.current = true; return }
+      const d = JSON.parse(raw) as { savedAt?: number; title?: string; playerId?: string }
+      const fresh = Date.now() - (d.savedAt ?? 0) < 24 * 60 * 60 * 1000
+      if (fresh && (d.title || (d.playerId && d.playerId !== (defaultPlayerId ?? '')))) {
+        setHasDraft(true) // mostrar banner; auto-save queda suspendido hasta que el usuario decida
+      } else {
+        localStorage.removeItem(draftKey)
+        canSaveRef.current = true
+      }
+    } catch {
+      localStorage.removeItem(draftKey)
+      canSaveRef.current = true
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Draft: auto-guardar en localStorage cuando cambia contenido ─────────────
+  useEffect(() => {
+    if (!canSaveRef.current) return
+    if (!title && !playerId) return // no guardar formulario vacío
+    localStorage.setItem(draftKey, JSON.stringify({
+      playerId, title, evaluatedAt, shots, games, anthro, physical, savedAt: Date.now(),
+    }))
+  }, [playerId, title, evaluatedAt, shots, games, anthro, physical]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Guardia beforeunload: advierte si hay datos sin guardar ─────────────────
+  useEffect(() => {
+    const guard = (e: BeforeUnloadEvent) => {
+      if (!title && !playerId) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', guard)
+    return () => window.removeEventListener('beforeunload', guard)
+  }, [title, playerId])
+
+  function restoreDraft() {
+    try {
+      const raw = localStorage.getItem(draftKey)
+      if (!raw) return
+      const d = JSON.parse(raw)
+      if (d.playerId)    setPlayerId(d.playerId)
+      if (d.title)       setTitle(d.title)
+      if (d.evaluatedAt) setEvaluatedAt(d.evaluatedAt)
+      if (d.shots)       setShots(d.shots)
+      if (d.games)       setGames(d.games)
+      if (d.anthro)      setAnthro(d.anthro)
+      if (d.physical)    setPhysical(d.physical)
+    } catch { /* draft corrupto — ignorar */ }
+    setHasDraft(false)
+    canSaveRef.current = true
+  }
+
+  function dismissDraft() {
+    localStorage.removeItem(draftKey)
+    setHasDraft(false)
+    canSaveRef.current = true
+  }
 
   function buildShots(): TechnicalShot[] {
     return STROKE_GROUPS.flatMap(({ group, strokes }) =>
@@ -91,6 +156,7 @@ export function EvaluationForm({ role, currentUserId, players, defaultPlayerId }
       const hasPhys = Object.values(physical).some((v) => v != null)
       if (hasPhys) await savePhysical(evalId, physical)
 
+      localStorage.removeItem(draftKey)
       router.push(`/${role}/evaluations/${evalId}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error inesperado')
@@ -101,6 +167,31 @@ export function EvaluationForm({ role, currentUserId, players, defaultPlayerId }
 
   return (
     <div className="space-y-6">
+      {/* ─── Banner de recuperación de borrador ──────────────────────── */}
+      {hasDraft && (
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-4 py-3">
+          <p className="text-sm text-amber-400">
+            Hay un borrador guardado de una evaluación anterior. ¿Querés recuperarlo?
+          </p>
+          <div className="flex gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={restoreDraft}
+              className="text-xs font-medium text-amber-400 hover:text-amber-300 underline underline-offset-2"
+            >
+              Recuperar
+            </button>
+            <button
+              type="button"
+              onClick={dismissDraft}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─── Header fields ─────────────────────────────────────────────── */}
       <div className="rounded-lg border border-border p-4 space-y-4 bg-card">
         <h2 className="text-sm font-semibold">Datos de la evaluación</h2>

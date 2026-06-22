@@ -82,6 +82,7 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
   const [peopleCount,    setPeopleCount]    = useState<1 | 2 | 3 | 4>(1)
   const [selectedModule, setSelectedModule] = useState<null | 8 | 16>(null)
   const [paymentMethod,  setPaymentMethod]  = useState<'transfer' | 'wallet'>('transfer')
+  const [showReview,     setShowReview]     = useState(false)
 
   const earliestBookable = new Date(Date.now() + (ADVANCE_HOURS[userRole] ?? 48) * 60 * 60 * 1000)
   const minDate = earliestBookable.toISOString().split('T')[0]
@@ -98,6 +99,12 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
     setEndTime(selectedEnd)
     setSelectedModule(null)
   }
+
+  // Derived data for review step
+  const selectedCoach = coaches.find((c) => c.id === coachId)
+  const dateLabel = date
+    ? new Date(`${date}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+    : ''
 
   // Derived pricing
   const timeCategory = getTimeCategory(date, startTime)
@@ -340,14 +347,73 @@ export function BookingRequestForm({ coaches, userRole, availableClasses = 0 }: 
         .
       </div>
 
-      <Button type="submit" disabled={isPending || coaches.length === 0} className="w-full sm:w-auto">
-        {isPending ? 'Solicitando...' : 'Solicitar reserva'}
-      </Button>
-
       {coaches.length === 0 && (
         <p className="text-xs text-muted-foreground">
           No hay entrenadores disponibles en este momento.
         </p>
+      )}
+
+      {!showReview ? (
+        <Button
+          type="button"
+          disabled={!coachId || !date || isPending || coaches.length === 0}
+          className="w-full sm:w-auto"
+          onClick={() => setShowReview(true)}
+        >
+          Revisar reserva →
+        </Button>
+      ) : (
+        <div className="rounded-lg border border-[#00C4CC]/30 bg-[#00C4CC]/5 p-4 space-y-3">
+          <p className="text-sm font-semibold">Resumen de tu reserva</p>
+          <div className="divide-y divide-border text-sm">
+            <div className="flex justify-between py-2">
+              <span className="text-muted-foreground">Entrenador</span>
+              <span className="font-medium">{selectedCoach?.full_name ?? '—'}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-muted-foreground">Fecha</span>
+              <span className="font-medium capitalize">{dateLabel}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-muted-foreground">Horario</span>
+              <span className="font-medium">{startTime} – {endTime}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-muted-foreground">Personas</span>
+              <span className="font-medium">{peopleCount}</span>
+            </div>
+            {selectedModule && (
+              <div className="flex justify-between py-2">
+                <span className="text-muted-foreground">Módulo</span>
+                <span className="font-medium">{selectedModule} clases</span>
+              </div>
+            )}
+            <div className="flex justify-between py-2">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-bold text-[#00C4CC] text-base">
+                {paymentMethod === 'wallet' ? '1 clase de billetera' : formatCOP(effectivePrice)}
+              </span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-muted-foreground">Método de pago</span>
+              <span className="font-medium">
+                {paymentMethod === 'wallet' ? 'Billetera de clases' : 'Transferencia bancaria'}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button
+              type="button" variant="outline"
+              onClick={() => setShowReview(false)}
+              disabled={isPending}
+            >
+              Editar
+            </Button>
+            <Button type="submit" disabled={isPending} className="flex-1">
+              {isPending ? 'Confirmando...' : 'Confirmar reserva'}
+            </Button>
+          </div>
+        </div>
       )}
     </form>
   )
