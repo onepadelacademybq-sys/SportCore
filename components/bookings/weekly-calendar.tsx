@@ -76,6 +76,7 @@ type SlotState = 'available' | 'selected' | 'busy-individual' | 'busy-group' | '
 
 export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectSlot, userRole }: Props) {
   const [weekOffset,        setWeekOffset]        = useState(0)
+  const [mobileDayStart,    setMobileDayStart]    = useState(0) // ventana de 3 días en mobile (0-4)
   const [busySlots,         setBusySlots]         = useState<BusySlot[]>([])
   const [availableWindows,  setAvailableWindows]  = useState<AvailableWindow[] | null>(null)
   const [isFetching,        setIsFetching]        = useState(false)
@@ -210,6 +211,13 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
   const prevWeekLastSlot  = new Date(prevWeekMondayMS + 6 * 86_400_000 + SLOT_HOURS[SLOT_HOURS.length - 1] * 3_600_000)
   const canGoBack = prevWeekLastSlot >= earliestBookable
 
+  // Navegación de semana — también resetea la ventana mobile al inicio de la semana
+  function gotoPrevWeek() { setWeekOffset(w => w - 1); setMobileDayStart(0) }
+  function gotoNextWeek() { setWeekOffset(w => w + 1); setMobileDayStart(0) }
+
+  // Vista mobile: 3 días visibles en la semana actual
+  const mobileDays = weekDays.slice(mobileDayStart, mobileDayStart + 3)
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -238,32 +246,74 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
       {/* Navegación de semana */}
       <div className="flex items-center justify-between gap-2">
         <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
-          disabled={!canGoBack} onClick={() => setWeekOffset(w => w - 1)}>
+          disabled={!canGoBack} onClick={gotoPrevWeek}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-xs font-medium text-center capitalize">{weekLabel}</span>
         <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
-          onClick={() => setWeekOffset(w => w + 1)}>
+          onClick={gotoNextWeek}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Grid */}
-      <div className={`overflow-x-auto transition-opacity duration-150 ${isFetching ? 'opacity-40' : 'opacity-100'}`}>
-        <div className="min-w-[500px]">
-          {/* Cabecera de días */}
+      <div className={`transition-opacity duration-150 ${isFetching ? 'opacity-40' : 'opacity-100'}`}>
+
+        {/* ── Vista MOBILE: ventana deslizante de 3 días ── */}
+        <div className="sm:hidden space-y-2">
+          <div className="flex items-center justify-between">
+            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
+              disabled={mobileDayStart === 0} onClick={() => setMobileDayStart(s => s - 1)}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <div className="flex gap-3">
+              {mobileDays.map((d, i) => (
+                <div key={i} className="text-center leading-tight w-14">
+                  <p className="text-[10px] text-muted-foreground">{DAY_LABELS[mobileDayStart + i]}</p>
+                  <p className="text-xs font-semibold">{d.getUTCDate()}</p>
+                </div>
+              ))}
+            </div>
+            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
+              disabled={mobileDayStart === 4} onClick={() => setMobileDayStart(s => s + 1)}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          <div className="space-y-px">
+            {SLOT_HOURS.map(hour => (
+              <div key={hour} className="grid grid-cols-[32px_repeat(3,1fr)] gap-px">
+                <div className="text-[10px] text-muted-foreground flex items-center justify-end pr-1 tabular-nums">
+                  {String(hour).padStart(2, '0')}h
+                </div>
+                {mobileDays.map((day, di) => {
+                  const state    = resolveSlotState(day, hour)
+                  const disabled = state !== 'available' && state !== 'too-soon'
+                  return (
+                    <button
+                      key={di} type="button" disabled={disabled}
+                      onClick={() => handleClick(day, hour, state)}
+                      title={slotTitles[state] || `Reservar ${String(hour).padStart(2, '0')}:00`}
+                      className={`h-7 rounded-[3px] transition-colors ${slotStyles[state]}`}
+                    />
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Vista DESKTOP: 7 días ── */}
+        <div className="hidden sm:block">
           <div className="grid grid-cols-[40px_repeat(7,1fr)] mb-1.5">
             <div />
             {weekDays.map((d, i) => (
               <div key={i} className="text-center leading-tight">
                 <p className="text-[10px] text-muted-foreground">{DAY_LABELS[i]}</p>
-                {/* getUTCDate() porque d es medianoche Colombia en UTC */}
                 <p className="text-xs font-semibold">{d.getUTCDate()}</p>
               </div>
             ))}
           </div>
 
-          {/* Filas de horas */}
           <div className="space-y-px">
             {SLOT_HOURS.map(hour => (
               <div key={hour} className="grid grid-cols-[40px_repeat(7,1fr)] gap-px">
@@ -275,9 +325,7 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
                   const disabled = state !== 'available' && state !== 'too-soon'
                   return (
                     <button
-                      key={di}
-                      type="button"
-                      disabled={disabled}
+                      key={di} type="button" disabled={disabled}
                       onClick={() => handleClick(day, hour, state)}
                       title={slotTitles[state] || `Reservar ${String(hour).padStart(2, '0')}:00`}
                       className={`h-6 rounded-[3px] transition-colors ${slotStyles[state]}`}
@@ -288,6 +336,7 @@ export function WeeklyCalendar({ coachId, selectedDate, selectedStart, onSelectS
             ))}
           </div>
         </div>
+
       </div>
 
       {/* Leyenda */}
