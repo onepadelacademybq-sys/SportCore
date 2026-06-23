@@ -113,34 +113,86 @@ export async function getCoachBookings(): Promise<Booking[]> {
 }
 
 /** Todas las reservas — solo admin. Filtro opcional por estado. */
-export async function getAllBookings(status?: string): Promise<Booking[]> {
+export type BookingsPage = {
+  bookings:   Booking[]
+  total:      number
+  page:       number
+  pageSize:   number
+  totalPages: number
+}
+
+export async function getAllBookings(params?: {
+  status?:   string
+  q?:        string
+  date?:     string
+  page?:     number
+  pageSize?: number
+}): Promise<BookingsPage> {
   const { supabase, role } = await requireAuth()
   if (role !== 'admin') redirect('/admin/dashboard')
 
   await cancelExpiredBookings(supabase)
 
-  let query = supabase
-    .from('bookings')
-    .select(`
-      id, start_time, end_time, status, notes, payment_proof_url, price, expires_at, created_at, group_id,
-      coach:profiles!coach_id(id, full_name, email),
-      player:profiles!player_id(id, full_name, email),
-      court:courts!court_id(id, name),
-      group:training_groups!group_id(id, name),
-      wallet_credits:wallet_transactions(slot_type, type)
-    `)
-    .order('start_time', { ascending: true })
+  const page     = Math.max(1, params?.page ?? 1)
+  const pageSize = params?.pageSize ?? 25
+  const from     = (page - 1) * pageSize
+  const to       = from + pageSize - 1
 
-  if (status && status !== 'all') {
-    query = query.eq('status', status)
+  // Pre-query: resolve profile IDs matching the search term
+  let matchingProfileIds: string[] | null = null
+  if (params?.q && params.q.trim().length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('full_name', `%${params.q.trim()}%`)
+    matchingProfileIds = (profiles ?? []).map((p) => p.id as string)
   }
 
-  const { data } = await query
-  const eightDaysFromNow = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000)
+  const SELECT = `
+    id, start_time, end_time, status, notes, payment_proof_url, price, expires_at, created_at, group_id,
+    coach:profiles!coach_id(id, full_name, email),
+    player:profiles!player_id(id, full_name, email),
+    court:courts!court_id(id, name),
+    group:training_groups!group_id(id, name),
+    wallet_credits:wallet_transactions(slot_type, type)
+  `
 
-  return ((data ?? []) as any[])
+  let query = supabase
+    .from('bookings')
+    .select(SELECT, { count: 'exact' })
+    .order('start_time', { ascending: false })
+    .range(from, to)
+
+  if (params?.status && params.status !== 'all') {
+    query = query.eq('status', params.status)
+  }
+
+  if (params?.date) {
+    // Colombia UTC-5: date "2026-06-23" → range [2026-06-23T05:00:00Z, 2026-06-24T05:00:00Z)
+    const CO_OFFSET = 5 * 60 * 60 * 1000
+    const dayStart  = new Date(`${params.date}T00:00:00.000Z`)
+    dayStart.setTime(dayStart.getTime() + CO_OFFSET)
+    const dayEnd    = new Date(dayStart)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+    query = query.gte('start_time', dayStart.toISOString()).lt('start_time', dayEnd.toISOString())
+  }
+
+  if (matchingProfileIds !== null) {
+    if (matchingProfileIds.length === 0) {
+      return { bookings: [], total: 0, page, pageSize, totalPages: 0 }
+    }
+    query = query.or(
+      matchingProfileIds.map((id) => `player_id.eq.${id},coach_id.eq.${id}`).join(',')
+    )
+  }
+
+  const { data, count } = await query
+  const total      = count ?? 0
+  const totalPages = Math.ceil(total / pageSize)
+
+  const eightDaysFromNow = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000)
+  const bookings = ((data ?? []) as any[])
     .filter((b) => {
-      // Sesiones de grupo pendientes: solo mostrar si ocurren dentro de 8 días
       if (b.group_id && b.status === 'pending') {
         return new Date(b.start_time) <= eightDaysFromNow
       }
@@ -148,12 +200,10 @@ export async function getAllBookings(status?: string): Promise<Booking[]> {
     })
     .map((b) => {
       const credit = (b.wallet_credits ?? []).find((t: any) => t.type === 'credit')
-      return {
-        ...b,
-        wallet_credit_slot: credit?.slot_type ?? null,
-        wallet_credits: undefined,
-      }
+      return { ...b, wallet_credit_slot: credit?.slot_type ?? null, wallet_credits: undefined }
     }) as unknown as Booking[]
+
+  return { bookings, total, page, pageSize, totalPages }
 }
 
 /** Bloques ocupados de un entrenador en el rango de fechas dado (para el calendario) */
