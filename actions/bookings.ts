@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth'
 import { creditClasses, debitClass } from '@/actions/wallet'
 import { recordBookingFinancials } from '@/actions/finances'
 import { createNotification, notifyAdmins } from '@/actions/notifications'
+import { sendBookingConfirmedEmail } from '@/lib/email'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -519,17 +520,18 @@ export async function confirmBookingAction(
   // Fetch booking to check module_classes, player_id, coach and times
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, player_id, coach_id, module_classes, start_time, end_time, player:profiles!player_id(full_name)')
+    .select('id, player_id, coach_id, module_classes, start_time, end_time, player:profiles!player_id(full_name, email), court:courts!court_id(name)')
     .eq('id', bookingId)
     .single()
 
   const b = booking as {
-    player_id:     string | null
-    coach_id:      string | null
+    player_id:      string | null
+    coach_id:       string | null
     module_classes: number | null
-    start_time:    string
-    end_time:      string
-    player:        { full_name: string } | null
+    start_time:     string
+    end_time:       string
+    player:         { full_name: string; email: string | null } | null
+    court:          { name: string } | null
   } | null
   if (!b) return { error: 'Reserva no encontrada' }
 
@@ -567,6 +569,15 @@ export async function confirmBookingAction(
       : Promise.resolve(),
     b.coach_id
       ? createNotification(b.coach_id, 'Nueva clase confirmada', `Tienes una clase con ${b.player?.full_name ?? 'un jugador'} el ${dateLabel} de ${startLabel} a ${endLabel}.`, 'booking_confirmed', '/coach/bookings')
+      : Promise.resolve(),
+    b.player?.email
+      ? sendBookingConfirmedEmail(
+          b.player.email,
+          b.player.full_name,
+          dateLabel,
+          `${startLabel} – ${endLabel}`,
+          b.court?.name ?? 'Espacio por confirmar',
+        )
       : Promise.resolve(),
   ])
 

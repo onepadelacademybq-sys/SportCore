@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { sendWelcomeEmail } from '@/lib/email'
 
 export type AuthState = {
   error: string | null
@@ -109,10 +110,11 @@ export async function registerAction(
   const adminClient = createAdminClient()
   const { data: orgRow } = await adminClient
     .from('organizations')
-    .select('id')
+    .select('id, name')
     .limit(1)
     .single()
-  const orgId = (orgRow as { id: string } | null)?.id ?? null
+  const org = orgRow as { id: string; name: string } | null
+  const orgId = org?.id ?? null
 
   const { error: profileError } = await adminClient.from('profiles').insert({
     id: userId,
@@ -131,6 +133,7 @@ export async function registerAction(
   // If email confirmation is required, session will be null → redirect to login
   // If auto-confirm is enabled, session exists → go directly to player dashboard
   if (signUpData.session) {
+    await sendWelcomeEmail(email, fullName, org?.name ?? 'SportCore')
     redirect('/player/dashboard?welcome=1')
   }
 
