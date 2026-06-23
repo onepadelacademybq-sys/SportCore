@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 
 const MESO_STATUS: Record<string, { label: string; className: string }> = {
   draft:     { label: 'Borrador',   className: 'bg-muted text-muted-foreground' },
@@ -13,14 +13,12 @@ const SESSION_STATUS: Record<string, { label: string; className: string }> = {
   cancelled: { label: 'Cancelada',   className: 'bg-red-500/15 text-red-400' },
 }
 
-const base = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium'
-
 export function MesoStatusBadge({ status }: { status: string }) {
   const cfg = MESO_STATUS[status] ?? { label: status, className: 'bg-muted text-muted-foreground' }
-  return <span className={cn(base, cfg.className)}>{cfg.label}</span>
+  return <Badge className={cfg.className}>{cfg.label}</Badge>
 }
 
 export function SessionStatusBadge({ status }: { status: string }) {
   const cfg = SESSION_STATUS[status] ?? { label: status, className: 'bg-muted text-muted-foreground' }
-  return <span className={cn(base, cfg.className)}>{cfg.label}</span>
+  return <Badge className={cfg.className}>{cfg.label}</Badge>
 }

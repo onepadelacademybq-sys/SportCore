@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 
 const CONFIG = {
   active: { label: 'Activo',  className: 'bg-brand/15 text-brand' },
@@ -10,9 +10,5 @@ type Status = keyof typeof CONFIG
 
 export function GroupStatusBadge({ status }: { status: string }) {
   const cfg = CONFIG[status as Status] ?? { label: status, className: 'bg-muted text-muted-foreground' }
-  return (
-    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', cfg.className)}>
-      {cfg.label}
-    </span>
-  )
+  return <Badge className={cfg.className}>{cfg.label}</Badge>
 }

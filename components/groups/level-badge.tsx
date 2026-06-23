@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 
 const CONFIG: Record<string, { label: string; className: string }> = {
   '5ta_masculino': { label: '5ta Masculino',            className: 'bg-blue-500/15 text-blue-400' },
@@ -15,9 +15,5 @@ const CONFIG: Record<string, { label: string; className: string }> = {
 
 export function LevelBadge({ level }: { level: string }) {
   const cfg = CONFIG[level] ?? { label: level, className: 'bg-muted text-muted-foreground' }
-  return (
-    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', cfg.className)}>
-      {cfg.label}
-    </span>
-  )
+  return <Badge className={cfg.className}>{cfg.label}</Badge>
 }
