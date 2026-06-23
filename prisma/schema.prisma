@@ -578,6 +578,9 @@ model Booking {
   walletTransactions WalletTransaction[]
   financialTransactions FinancialTransaction[]
 
+  @@index([startTime])
+  @@index([startTime, endTime])
+  @@index([groupId])
   @@map("bookings")
 }
 
@@ -1313,6 +1316,8 @@ model Notification {
 
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([userId, isRead])
   @@map("notifications")
 }
 
