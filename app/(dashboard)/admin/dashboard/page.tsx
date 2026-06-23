@@ -7,6 +7,7 @@ import { formatBookingDateTime, formatCOP } from '@/lib/format'
 import {
   Users, UserCog, Calendar, TrendingUp,
   Clock, CheckCircle, AlertCircle, ExternalLink,
+  CircleCheck, Circle,
 } from 'lucide-react'
 
 export const metadata: Metadata = { title: 'Dashboard — Admin' }
@@ -30,6 +31,7 @@ export default async function AdminDashboardPage() {
     { data: incomeRows },
     { data: upcomingBookings },
     { data: groups },
+    { count: courtCount },
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -68,11 +70,26 @@ export default async function AdminDashboardPage() {
       .select('id, name, max_capacity, members:group_members(status)')
       .eq('status', 'active')
       .order('name'),
+
+    supabase.from('courts').select('*', { count: 'exact', head: true }),
   ])
 
   const fullName  = (profile as any)?.full_name ?? 'Admin'
   const orgSlug   = (profile as any)?.organization?.slug as string | undefined
   const monthIncome = (incomeRows ?? []).reduce((s, r) => s + Number(r.amount), 0)
+
+  const hasCourts  = (courtCount ?? 0) > 0
+  const hasCoaches = (coachCount ?? 0) > 0
+  const hasGroups  = (groups ?? []).length > 0
+  const hasBooking = (pendingCount ?? 0) > 0
+  const isNewOrg   = !hasCourts && !hasCoaches && !hasGroups
+
+  const setupSteps = [
+    { done: hasCourts,  label: 'Agregar una cancha',         href: '/admin/courts' },
+    { done: hasCoaches, label: 'Invitar un entrenador',      href: '/admin/users' },
+    { done: hasGroups,  label: 'Crear un grupo de entreno',  href: '/admin/groups' },
+    { done: hasBooking, label: 'Primera reserva registrada', href: '/admin/bookings' },
+  ]
 
   const groupsWithSlots = ((groups ?? []) as any[]).map((g) => {
     const occupied = (g.members ?? []).filter(
@@ -115,6 +132,36 @@ export default async function AdminDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Onboarding checklist — visible solo si la org está vacía */}
+      {isNewOrg && (
+        <Card className="border-brand/30 bg-brand/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Completa la configuración de tu academia</CardTitle>
+            <p className="text-sm text-muted-foreground">Sigue estos pasos para empezar a operar.</p>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-3">
+              {setupSteps.map((step, i) => (
+                <li key={step.href}>
+                  <Link
+                    href={step.done ? '#' : step.href}
+                    className={`flex items-center gap-3 text-sm group ${step.done ? 'pointer-events-none' : 'hover:text-brand'}`}
+                  >
+                    {step.done
+                      ? <CircleCheck className="h-5 w-5 text-emerald-400 shrink-0" />
+                      : <Circle className="h-5 w-5 text-muted-foreground shrink-0 group-hover:text-brand transition-colors" />
+                    }
+                    <span className={step.done ? 'line-through text-muted-foreground' : 'font-medium'}>
+                      {i + 1}. {step.label}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

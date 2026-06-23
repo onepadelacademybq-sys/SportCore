@@ -173,15 +173,35 @@ export async function getCoachAvailability(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { busySlots: [], availableWindows: null }
 
-  // Clases individuales: bloquean solo si están pagadas o confirmadas
-  const { data: individualData } = await supabase
-    .from('bookings')
-    .select('start_time, end_time')
-    .eq('coach_id', coachId)
-    .is('group_id', null)
-    .in('status', ['paid', 'confirmed'])
-    .lt('start_time', weekEnd)
-    .gte('end_time', weekStart)
+  const [
+    { data: individualData },
+    { data: groupData },
+    { data: availData },
+  ] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select('start_time, end_time')
+      .eq('coach_id', coachId)
+      .is('group_id', null)
+      .in('status', ['paid', 'confirmed'])
+      .lt('start_time', weekEnd)
+      .gte('end_time', weekStart),
+
+    supabase
+      .from('bookings')
+      .select('start_time, end_time, group:training_groups!group_id(status)')
+      .eq('coach_id', coachId)
+      .not('group_id', 'is', null)
+      .not('status', 'eq', 'cancelled')
+      .lt('start_time', weekEnd)
+      .gte('end_time', weekStart),
+
+    supabase
+      .from('coach_availability')
+      .select('day_of_week, start_time, end_time')
+      .eq('coach_id', coachId)
+      .order('day_of_week'),
+  ])
 
   const individualBusy: BusySlot[] = (individualData ?? []).map(row => ({
     start_time: row['start_time'] as string,
@@ -189,26 +209,9 @@ export async function getCoachAvailability(
     is_group:   false,
   }))
 
-  // Sesiones grupales: bloquean si el grupo está activo (sin importar status de la reserva)
-  const { data: groupData } = await supabase
-    .from('bookings')
-    .select('start_time, end_time, group:training_groups!group_id(status)')
-    .eq('coach_id', coachId)
-    .not('group_id', 'is', null)
-    .not('status', 'eq', 'cancelled')
-    .lt('start_time', weekEnd)
-    .gte('end_time', weekStart)
-
   const groupBusy: BusySlot[] = ((groupData ?? []) as any[])
     .filter(b => b.group?.status === 'active')
     .map(b => ({ start_time: b.start_time, end_time: b.end_time, is_group: true }))
-
-  // Ventanas de disponibilidad del entrenador (horas en que SÍ trabaja)
-  const { data: availData } = await supabase
-    .from('coach_availability')
-    .select('day_of_week, start_time, end_time')
-    .eq('coach_id', coachId)
-    .order('day_of_week')
 
   const availableWindows = availData && availData.length > 0
     ? (availData as { day_of_week: number; start_time: string; end_time: string }[])
