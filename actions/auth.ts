@@ -123,7 +123,9 @@ export async function registerAction(
   })
 
   if (profileError) {
-    return { error: 'Error al crear el perfil. Intenta nuevamente.' }
+    // Compensar: eliminar el usuario de Auth para que el email quede libre y pueda reintentar
+    await adminClient.auth.admin.deleteUser(userId)
+    return { error: 'Error al crear el perfil. Por favor intenta nuevamente.' }
   }
 
   // If email confirmation is required, session will be null → redirect to login
