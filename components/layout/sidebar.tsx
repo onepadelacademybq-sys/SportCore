@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   Zap,
+  Settings,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: 'Reportes',      href: '/admin/reports',     icon: BarChart3 },
     { label: 'CRM',           href: '/admin/crm',         icon: MessageCircle },
     { label: 'Plan',          href: '/admin/billing',     icon: Zap },
+    { label: 'Configuración', href: '/admin/settings',    icon: Settings },
   ],
   coach: [
     { label: 'Dashboard',    href: '/coach/dashboard',  icon: LayoutDashboard },
