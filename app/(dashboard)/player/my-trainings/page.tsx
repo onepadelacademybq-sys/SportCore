@@ -3,15 +3,10 @@ import { CheckCircle2, XCircle, Clock, BookOpen } from 'lucide-react'
 import { getMyMesocycles } from '@/actions/training'
 import { MesoStatusBadge, SessionStatusBadge } from '@/components/training/status-badge'
 import { BlockPanel } from '@/components/training/block-panel'
+import { formatSessionDate, formatSessionTime } from '@/lib/format'
+import { PADEL_LEVEL_LABELS as LEVEL_LABELS } from '@/lib/constants'
 
 export const metadata: Metadata = { title: 'Mis Entrenamientos — Jugador' }
-
-const LEVEL_LABELS: Record<string, string> = {
-  '5ta_masculino': '5ta Masculino', '6ta_masculino': '6ta Masculino', '7ma_masculino': '7ma Masculino',
-  femenino_d: 'Femenino D', femenino_c: 'Femenino C',
-  juvenil_s18: 'Juvenil S18', juvenil_s16: 'Juvenil S16', juvenil_s14: 'Juvenil S14',
-  prejuvenil: 'Prejuvenil', baby_padel: 'Baby Pádel',
-}
 
 const BLOCK_LABELS: Record<string, string> = {
   calentamiento:     '1. Calentamiento',
@@ -115,14 +110,10 @@ export default async function PlayerMyTrainingsPage() {
                           <SessionIcon status={session.status} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium">
-                              {new Date(session.scheduled_at).toLocaleDateString('es-AR', {
-                                weekday: 'long', day: 'numeric', month: 'long',
-                              })}
+                              {formatSessionDate(session.scheduled_at, { long: true })}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(session.scheduled_at).toLocaleTimeString('es-AR', {
-                                hour: '2-digit', minute: '2-digit',
-                              })}
+                              {formatSessionTime(session.scheduled_at)}
                               {' · '}{session.duration_min} min
                             </p>
                           </div>

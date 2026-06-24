@@ -8,6 +8,7 @@ import { BlockPanel }        from '@/components/training/block-panel'
 import { SessionStatusBadge } from '@/components/training/status-badge'
 import { AttendancePanel }   from '@/components/training/attendance-panel'
 import { Button } from '@/components/ui/button'
+import { formatSessionDate, formatSessionTime } from '@/lib/format'
 
 export const metadata: Metadata = { title: 'Sesión — Admin' }
 
@@ -59,14 +60,10 @@ export default async function AdminSessionDetailPage({ params }: PageProps) {
         <div className="space-y-1">
           <SessionStatusBadge status={session.status} />
           <h1 className="text-2xl font-bold">
-            {new Date(session.scheduled_at).toLocaleDateString('es-AR', {
-              weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-            })}
+            {formatSessionDate(session.scheduled_at, { long: true, year: true })}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {new Date(session.scheduled_at).toLocaleTimeString('es-AR', {
-              hour: '2-digit', minute: '2-digit',
-            })}
+            {formatSessionTime(session.scheduled_at)}
             {' · '}{session.duration_min} min
           </p>
         </div>

@@ -7,6 +7,8 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createNotification } from '@/actions/notifications'
+import { colombiaLocalToISO } from '@/lib/format'
+import { PADEL_LEVELS } from '@/lib/constants'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,6 +151,48 @@ async function requireCoachOrAdmin() {
   const ctx = await requireAuthShared()
   if (ctx.role === 'player') redirect('/player/dashboard')
   return ctx
+}
+
+// Resuelve el dueño (created_by) del mesociclo padre desde cualquier nivel de la jerarquía.
+// El `any` queda contenido acá: el tipado anidado de los joins de Supabase no aporta seguridad real.
+type OwnableEntity = 'microcycle' | 'session' | 'block' | 'blockExercise'
+
+const OWNER_QUERY: Record<OwnableEntity, { table: string; select: string; owner: (d: any) => string | undefined }> = {
+  microcycle: {
+    table:  'microcycles',
+    select: 'mesocycle:mesocycles!mesocycle_id(created_by)',
+    owner:  (d) => d?.mesocycle?.created_by,
+  },
+  session: {
+    table:  'training_sessions',
+    select: 'microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by))',
+    owner:  (d) => d?.microcycle?.mesocycle?.created_by,
+  },
+  block: {
+    table:  'session_blocks',
+    select: 'session:training_sessions!session_id(microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by)))',
+    owner:  (d) => d?.session?.microcycle?.mesocycle?.created_by,
+  },
+  blockExercise: {
+    table:  'session_block_exercises',
+    select: 'block:session_blocks!block_id(session:training_sessions!session_id(microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by))))',
+    owner:  (d) => d?.block?.session?.microcycle?.mesocycle?.created_by,
+  },
+}
+
+/** Verifica que el coach sea dueño del mesociclo al que pertenece la entidad.
+ *  Admins siempre pasan. Devuelve un error listo para retornar, o null si tiene permiso. */
+async function assertMesocycleOwner(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  role: string,
+  userId: string,
+  entity: OwnableEntity,
+  id: string,
+): Promise<{ error: string } | null> {
+  if (role === 'admin') return null
+  const q = OWNER_QUERY[entity]
+  const { data } = await supabase.from(q.table).select(q.select).eq('id', id).single()
+  return q.owner(data) === userId ? null : { error: 'Sin permisos' }
 }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -465,19 +509,12 @@ function normalizeMesocycle(m: any): Mesocycle {
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
-const LEVELS = [
-  '5ta_masculino', '6ta_masculino', '7ma_masculino',
-  'femenino_d', 'femenino_c',
-  'juvenil_s18', 'juvenil_s16', 'juvenil_s14',
-  'prejuvenil', 'baby_padel',
-] as const
-
 const STATUSES = ['draft', 'active', 'completed', 'archived'] as const
 
 const MesocycleSchema = z.object({
   name:             z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   generalObjective: z.string().min(5, 'El objetivo debe tener al menos 5 caracteres'),
-  level:            z.enum(LEVELS, { error: 'Nivel inválido' }),
+  level:            z.enum(PADEL_LEVELS, { error: 'Nivel inválido' }),
   durationWeeks:    z.coerce.number().int().min(1).max(52),
   startDate:        z.string().optional(),
   status:           z.enum(STATUSES).optional(),
@@ -785,17 +822,8 @@ export async function updateMicrocycleAction(
 
   if (!microcycleId) return { error: 'ID de microciclo requerido' }
 
-  // Verificar que el coach sea dueño del mesociclo
-  if (role !== 'admin') {
-    const { data } = await supabase
-      .from('microcycles')
-      .select('mesocycle:mesocycles!mesocycle_id(created_by)')
-      .eq('id', microcycleId)
-      .single()
-
-    const owner = (data as any)?.mesocycle?.created_by
-    if (owner !== userId) return { error: 'Sin permisos' }
-  }
+  const denied = await assertMesocycleOwner(supabase, role, userId, 'microcycle', microcycleId)
+  if (denied) return denied
 
   const { error } = await supabase
     .from('microcycles')
@@ -834,23 +862,14 @@ export async function createSessionAction(
 
   const { microcycleId, scheduledAt, durationMin, coachNotes } = parsed.data
 
-  // Verificar permisos
-  if (role !== 'admin') {
-    const { data } = await supabase
-      .from('microcycles')
-      .select('mesocycle:mesocycles!mesocycle_id(created_by)')
-      .eq('id', microcycleId)
-      .single()
-
-    const owner = (data as any)?.mesocycle?.created_by
-    if (owner !== userId) return { error: 'Sin permisos' }
-  }
+  const denied = await assertMesocycleOwner(supabase, role, userId, 'microcycle', microcycleId)
+  if (denied) return denied
 
   const { data: session, error: sessionErr } = await supabase
     .from('training_sessions')
     .insert({
       microcycle_id: microcycleId,
-      scheduled_at:  new Date(scheduledAt).toISOString(),
+      scheduled_at:  colombiaLocalToISO(scheduledAt),
       duration_min:  durationMin ?? 90,
       coach_notes:   coachNotes ?? null,
       status:        'scheduled',
@@ -881,7 +900,7 @@ export async function createSessionAction(
     .single()
 
   if (mc) {
-    const dateLabel = new Date(scheduledAt).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' })
+    const dateLabel = new Date(colombiaLocalToISO(scheduledAt)).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'America/Bogota' })
     await notifyMesocyclePlayers((mc as { mesocycle_id: string }).mesocycle_id, 'Nueva sesión programada', `Se ha programado una nueva sesión: ${dateLabel}.`)
   }
 
@@ -904,19 +923,11 @@ export async function updateSessionAction(
 
   if (!sessionId) return { error: 'ID de sesión requerido' }
 
-  if (role !== 'admin') {
-    const { data } = await supabase
-      .from('training_sessions')
-      .select('microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by))')
-      .eq('id', sessionId)
-      .single()
-
-    const owner = (data as any)?.microcycle?.mesocycle?.created_by
-    if (owner !== userId) return { error: 'Sin permisos' }
-  }
+  const denied = await assertMesocycleOwner(supabase, role, userId, 'session', sessionId)
+  if (denied) return denied
 
   const updates: Record<string, unknown> = { coach_notes: coachNotes }
-  if (scheduledAt) updates.scheduled_at = new Date(scheduledAt).toISOString()
+  if (scheduledAt) updates.scheduled_at = colombiaLocalToISO(scheduledAt)
   if (durationMin)  updates.duration_min = Number(durationMin)
 
   const { error } = await supabase
@@ -954,16 +965,8 @@ export async function updateSessionStatusAction(
   if (!sessionId || !status) return { error: 'Datos incompletos' }
   if (!['scheduled', 'completed', 'cancelled'].includes(status)) return { error: 'Estado inválido' }
 
-  if (role !== 'admin') {
-    const { data } = await supabase
-      .from('training_sessions')
-      .select('microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by))')
-      .eq('id', sessionId)
-      .single()
-
-    const owner = (data as any)?.microcycle?.mesocycle?.created_by
-    if (owner !== userId) return { error: 'Sin permisos' }
-  }
+  const denied = await assertMesocycleOwner(supabase, role, userId, 'session', sessionId)
+  if (denied) return denied
 
   const { error } = await supabase
     .from('training_sessions')
@@ -1005,16 +1008,8 @@ export async function addExerciseToBlockAction(
 
   if (!blockId || !exerciseId) return { error: 'blockId y exerciseId son requeridos' }
 
-  if (role !== 'admin') {
-    const { data } = await supabase
-      .from('session_blocks')
-      .select('session:training_sessions!session_id(microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by)))')
-      .eq('id', blockId)
-      .single()
-
-    const owner = (data as any)?.session?.microcycle?.mesocycle?.created_by
-    if (owner !== userId) return { error: 'Sin permisos' }
-  }
+  const denied = await assertMesocycleOwner(supabase, role, userId, 'block', blockId)
+  if (denied) return denied
 
   // Calcular el siguiente orden
   const { data: existing } = await supabase
@@ -1051,16 +1046,8 @@ export async function removeExerciseFromBlockAction(
   const blockExerciseId = (formData.get('blockExerciseId') as string)?.trim()
   if (!blockExerciseId) return { error: 'ID requerido' }
 
-  if (role !== 'admin') {
-    const { data } = await supabase
-      .from('session_block_exercises')
-      .select('block:session_blocks!block_id(session:training_sessions!session_id(microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by))))')
-      .eq('id', blockExerciseId)
-      .single()
-
-    const owner = (data as any)?.block?.session?.microcycle?.mesocycle?.created_by
-    if (owner !== userId) return { error: 'Sin permisos' }
-  }
+  const denied = await assertMesocycleOwner(supabase, role, userId, 'blockExercise', blockExerciseId)
+  if (denied) return denied
 
   const { error } = await supabase
     .from('session_block_exercises')
@@ -1086,16 +1073,8 @@ export async function updateBlockNotesAction(
 
   if (!blockId) return { error: 'ID de bloque requerido' }
 
-  if (role !== 'admin') {
-    const { data } = await supabase
-      .from('session_blocks')
-      .select('session:training_sessions!session_id(microcycle:microcycles!microcycle_id(mesocycle:mesocycles!mesocycle_id(created_by)))')
-      .eq('id', blockId)
-      .single()
-
-    const owner = (data as any)?.session?.microcycle?.mesocycle?.created_by
-    if (owner !== userId) return { error: 'Sin permisos' }
-  }
+  const denied = await assertMesocycleOwner(supabase, role, userId, 'block', blockId)
+  if (denied) return denied
 
   const { error } = await supabase
     .from('session_blocks')

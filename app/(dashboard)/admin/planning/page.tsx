@@ -2,15 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Users, UserCircle2, ChevronRight, Calendar } from 'lucide-react'
 import { getAssignmentTargets } from '@/actions/training'
+import { PADEL_LEVEL_LABELS_SHORT as LEVEL_LABELS } from '@/lib/constants'
 
 export const metadata: Metadata = { title: 'Planificación — Admin' }
-
-const LEVEL_LABELS: Record<string, string> = {
-  '5ta_masculino': '5ta Masc.', '6ta_masculino': '6ta Masc.', '7ma_masculino': '7ma Masc.',
-  femenino_d: 'Fem. D', femenino_c: 'Fem. C',
-  juvenil_s18: 'S18', juvenil_s16: 'S16', juvenil_s14: 'S14',
-  prejuvenil: 'Prejuv.', baby_padel: 'Baby',
-}
 
 export default async function AdminPlanningPage() {
   const { players, groups } = await getAssignmentTargets()

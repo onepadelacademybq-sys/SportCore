@@ -20,8 +20,7 @@ export function calcBilling(member: {
   if (!member.monthly_fee || !member.next_payment_due) return null
 
   const fee     = Number(member.monthly_fee)
-  const dueDate = new Date(member.next_payment_due)
-  dueDate.setHours(23, 59, 59, 999)       // fin del día de vencimiento
+  const dueDate = new Date(member.next_payment_due)   // 'YYYY-MM-DD' → medianoche UTC; conteo por días naturales, independiente de la TZ del runtime
 
   const now       = new Date()
   const diffMs    = now.getTime() - dueDate.getTime()

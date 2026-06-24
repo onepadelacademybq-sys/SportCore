@@ -31,6 +31,20 @@ export const PADEL_LEVEL_LABELS: Record<string, string> = {
   'baby_padel':    'Baby Pádel (5 a 9 años)',
 }
 
+/** Etiquetas abreviadas para tarjetas y vistas compactas */
+export const PADEL_LEVEL_LABELS_SHORT: Record<string, string> = {
+  '5ta_masculino': '5ta Masc.',
+  '6ta_masculino': '6ta Masc.',
+  '7ma_masculino': '7ma Masc.',
+  'femenino_d':    'Fem. D',
+  'femenino_c':    'Fem. C',
+  'juvenil_s18':   'S18',
+  'juvenil_s16':   'S16',
+  'juvenil_s14':   'S14',
+  'prejuvenil':    'Prejuv.',
+  'baby_padel':    'Baby',
+}
+
 export const SESSION_BLOCK_TYPES = [
   'calentamiento',
   'central_1_defensa',

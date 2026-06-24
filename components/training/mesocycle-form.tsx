@@ -9,23 +9,13 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { TrainingState } from '@/actions/training'
 import { MESOCYCLE_TEMPLATES } from '@/lib/planning-templates'
+import { PADEL_LEVELS, PADEL_LEVEL_LABELS } from '@/lib/constants'
 
 const selectClass =
   'w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground ' +
   'focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50'
 
-const LEVELS = [
-  { value: '5ta_masculino', label: '5ta Masculino' },
-  { value: '6ta_masculino', label: '6ta Masculino' },
-  { value: '7ma_masculino', label: '7ma Masculino' },
-  { value: 'femenino_d',    label: 'Femenino D' },
-  { value: 'femenino_c',    label: 'Femenino C' },
-  { value: 'juvenil_s18',   label: 'Juvenil S18' },
-  { value: 'juvenil_s16',   label: 'Juvenil S16' },
-  { value: 'juvenil_s14',   label: 'Juvenil S14' },
-  { value: 'prejuvenil',    label: 'Prejuvenil' },
-  { value: 'baby_padel',    label: 'Baby Pádel' },
-]
+const LEVELS = PADEL_LEVELS.map((value) => ({ value, label: PADEL_LEVEL_LABELS[value] }))
 
 type FormAction = (prev: TrainingState, formData: FormData) => Promise<TrainingState>
 

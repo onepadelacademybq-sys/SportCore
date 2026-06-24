@@ -8,15 +8,10 @@ import { AssignForm } from '@/components/training/assign-form'
 import { SessionForm } from '@/components/training/session-form'
 import { MicrocycleTypePicker } from '@/components/training/microcycle-type-picker'
 import { Button } from '@/components/ui/button'
+import { formatSessionDate, formatSessionTime } from '@/lib/format'
+import { PADEL_LEVEL_LABELS as LEVEL_LABELS } from '@/lib/constants'
 
 export const metadata: Metadata = { title: 'Mesociclo — Entrenador' }
-
-const LEVEL_LABELS: Record<string, string> = {
-  '5ta_masculino': '5ta Masculino', '6ta_masculino': '6ta Masculino', '7ma_masculino': '7ma Masculino',
-  femenino_d: 'Femenino D', femenino_c: 'Femenino C',
-  juvenil_s18: 'Juvenil S18', juvenil_s16: 'Juvenil S16', juvenil_s14: 'Juvenil S14',
-  prejuvenil: 'Prejuvenil', baby_padel: 'Baby Pádel',
-}
 
 function StatusIcon({ status }: { status: string }) {
   if (status === 'completed') return <CheckCircle2 className="h-4 w-4 text-emerald-400" />
@@ -174,13 +169,7 @@ export default async function CoachMesocycleDetailPage({ params, searchParams }:
                       <StatusIcon status={s.status} />
                       <div>
                         <p className="text-sm font-medium">
-                          {new Date(s.scheduled_at).toLocaleDateString('es-AR', {
-                            weekday: 'short', day: 'numeric', month: 'short',
-                          })}
-                          {' '}
-                          {new Date(s.scheduled_at).toLocaleTimeString('es-AR', {
-                            hour: '2-digit', minute: '2-digit',
-                          })}
+                          {formatSessionDate(s.scheduled_at)} {formatSessionTime(s.scheduled_at)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {s.duration_min} min · {s.blocks.reduce((n, b) => n + b.exercises.length, 0)} ejercicios
