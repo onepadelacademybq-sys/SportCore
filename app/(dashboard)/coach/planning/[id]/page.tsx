@@ -71,7 +71,7 @@ export default async function CoachMesocycleDetailPage({ params, searchParams }:
           <div className="flex items-center gap-2 flex-wrap">
             <MesoStatusBadge status={mesocycle.status} />
             <span className="text-xs text-muted-foreground">
-              {LEVEL_LABELS[mesocycle.level] ?? mesocycle.level} · {mesocycle.duration_weeks} semanas
+              {mesocycle.level ? `${LEVEL_LABELS[mesocycle.level] ?? mesocycle.level} · ` : ''}{mesocycle.duration_weeks} semanas
             </span>
           </div>
           <h1 className="text-2xl font-bold">{mesocycle.name}</h1>

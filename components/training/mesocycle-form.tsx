@@ -32,10 +32,11 @@ interface Props {
   mesocycleId?: string
   playerId?: string
   groupId?: string
+  macrocycleId?: string
   targetLabel?: string
 }
 
-export function MesocycleForm({ action, defaultValues, mesocycleId, playerId, groupId, targetLabel }: Props) {
+export function MesocycleForm({ action, defaultValues, mesocycleId, playerId, groupId, macrocycleId, targetLabel }: Props) {
   const [state, formAction, isPending] = useActionState(action, { error: null })
 
   const [name, setName] = useState(defaultValues?.name ?? '')
@@ -74,6 +75,7 @@ export function MesocycleForm({ action, defaultValues, mesocycleId, playerId, gr
       {mesocycleId && <input type="hidden" name="mesocycleId" value={mesocycleId} />}
       {playerId && <input type="hidden" name="playerId" value={playerId} />}
       {groupId && <input type="hidden" name="groupId" value={groupId} />}
+      {macrocycleId && <input type="hidden" name="macrocycleId" value={macrocycleId} />}
 
       {targetLabel && (
         <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">

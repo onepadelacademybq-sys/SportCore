@@ -2,12 +2,13 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Layers, Pencil } from 'lucide-react'
-import { getMacrocycleById, changeMacrocycleStatusAction } from '@/actions/training'
+import { getMacrocycleById, changeMacrocycleStatusAction, generateMesocyclesAction } from '@/actions/training'
 import { MesoStatusBadge } from '@/components/training/status-badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
 import { PADEL_LEVEL_LABELS as LEVEL_LABELS } from '@/lib/constants'
 import { ATHLETE_LEVEL_LABELS, COMPETITION_TYPE_LABELS, PERIODIZATION_MODEL_LABELS, QUALITY_LABELS } from '@/lib/planning/diagnostic'
+import { LoadMap } from '@/components/training/load-map'
 
 export const metadata: Metadata = { title: 'Macrociclo — Entrenador' }
 
@@ -33,6 +34,7 @@ export default async function CoachMacrocycleDetailPage({ params }: PageProps) {
 
   const transition  = STATUS_TRANSITIONS[macro.status]
   const mesocycles  = macro.mesocycles ?? []
+  const loadWeeks   = mesocycles.flatMap((m) => [...(m.microcycles ?? [])].sort((a, b) => a.week_number - b.week_number))
 
   return (
     <div className="p-4 md:p-8 max-w-4xl space-y-6">
@@ -108,6 +110,8 @@ export default async function CoachMacrocycleDetailPage({ params }: PageProps) {
         </div>
       )}
 
+      {loadWeeks.length > 0 && <LoadMap microcycles={loadWeeks} />}
+
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
           <Layers className="h-4 w-4" />
@@ -115,8 +119,12 @@ export default async function CoachMacrocycleDetailPage({ params }: PageProps) {
         </h2>
 
         {mesocycles.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground">
-            Este macrociclo aún no tiene mesociclos. Vinculá mesociclos desde el detalle de cada uno.
+          <div className="rounded-xl border border-dashed border-border bg-card px-5 py-8 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">Este plan aún no tiene mesociclos.</p>
+            <form action={generateMesocyclesAction}>
+              <input type="hidden" name="macrocycleId" value={macro.id} />
+              <Button type="submit" variant="outline" size="sm">Generar 12 mesociclos</Button>
+            </form>
           </div>
         ) : (
           <div className="space-y-2">
@@ -129,7 +137,7 @@ export default async function CoachMacrocycleDetailPage({ params }: PageProps) {
                 <div className="min-w-0">
                   <p className="font-medium truncate">{m.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {LEVEL_LABELS[m.level] ?? m.level} · {m.duration_weeks} semanas
+                    {m.level ? `${LEVEL_LABELS[m.level] ?? m.level} · ` : ''}{m.duration_weeks} semanas
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

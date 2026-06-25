@@ -135,8 +135,11 @@ export function MacrocycleForm({ action, macrocycleId, defaultValues }: Props) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="startDate">Inicio (opcional)</Label>
-          <Input id="startDate" name="startDate" type="date" disabled={isPending} defaultValue={defaultValues?.startDate ?? ''} />
+          <Label htmlFor="startDate">Inicio del plan</Label>
+          <Input id="startDate" name="startDate" type="date" required disabled={isPending} defaultValue={defaultValues?.startDate ?? ''} />
+          {!macrocycleId && (
+            <p className="text-xs text-muted-foreground">Se generarán 12 mesociclos de 4 semanas desde esta fecha.</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="endDate">Fin (opcional)</Label>

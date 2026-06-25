@@ -673,8 +673,8 @@ model Mesocycle {
   macrocycleId    String?         @map("macrocycle_id") @db.Uuid
   createdBy       String          @map("created_by") @db.Uuid
   name            String
-  generalObjective String         @map("general_objective")
-  level           PadelLevel
+  generalObjective String?        @map("general_objective")
+  level           PadelLevel?
   durationWeeks   Int             @map("duration_weeks")
   status          MesocycleStatus @default(draft)
   startDate       DateTime?       @map("start_date") @db.Date

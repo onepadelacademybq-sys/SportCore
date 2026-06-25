@@ -58,7 +58,7 @@ export default async function PlayerMyTrainingsPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <MesoStatusBadge status={meso.status} />
                     <span className="text-xs text-muted-foreground">
-                      {LEVEL_LABELS[meso.level] ?? meso.level} · {meso.duration_weeks} semanas
+                      {meso.level ? `${LEVEL_LABELS[meso.level] ?? meso.level} · ` : ''}{meso.duration_weeks} semanas
                     </span>
                   </div>
                   <h2 className="text-lg font-bold">{meso.name}</h2>

@@ -71,8 +71,8 @@ export type Mesocycle = {
   created_by:       string
   macrocycle_id?:   string | null
   name:             string
-  general_objective: string
-  level:            string
+  general_objective: string | null
+  level:            string | null
   duration_weeks:   number
   status:           'draft' | 'active' | 'completed' | 'archived'
   start_date:       string | null
@@ -596,6 +596,7 @@ export async function createMesocycleAction(
   // Optional auto-assignment targets
   const playerId = (formData.get('playerId') as string)?.trim() || null
   const groupId  = (formData.get('groupId')  as string)?.trim() || null
+  const macrocycleId = (formData.get('macrocycleId') as string)?.trim() || null
 
   const startDateParsed = startDate ? new Date(startDate) : null
   const endDateParsed   = startDateParsed
@@ -607,6 +608,7 @@ export async function createMesocycleAction(
     .insert({
       organization_id:   organizationId,
       created_by:        userId,
+      macrocycle_id:     macrocycleId,
       name,
       general_objective: generalObjective,
       level,
@@ -655,6 +657,10 @@ export async function createMesocycleAction(
   if (groupId) {
     revalidatePath(`/admin/planning/group/${groupId}`)
     revalidatePath(`/coach/planning/group/${groupId}`)
+  }
+  if (macrocycleId) {
+    revalidatePath(`/admin/planning/macro/${macrocycleId}`)
+    revalidatePath(`/coach/planning/macro/${macrocycleId}`)
   }
   return { error: null, success: `Mesociclo "${name}" creado.`, id: mesocycleId }
 }
@@ -1406,7 +1412,7 @@ export async function getMacrocycleById(id: string): Promise<Macrocycle | null> 
 
   const { data } = await supabase
     .from('macrocycles')
-    .select('id, created_by, name, general_objective, status, athlete_level, competition_type, periodization_model, qualities, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id, name, level, status, duration_weeks, start_date, end_date)')
+    .select('id, created_by, name, general_objective, status, athlete_level, competition_type, periodization_model, qualities, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id, name, level, status, duration_weeks, start_date, end_date, microcycles(id, week_number, content_phase, planned_volume, planned_intensity))')
     .eq('id', id)
     .single()
 
@@ -1434,6 +1440,50 @@ export async function getMacrocycleById(id: string): Promise<Macrocycle | null> 
 }
 
 /** Crear un macrociclo. */
+const PLAN_MESOCYCLES = 12
+const MESO_WEEKS = 4
+
+function addDays(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Genera 12 mesociclos de 4 semanas (con sus 4 microciclos) para un plan, desde startDate. */
+async function generatePlanMesocycles(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  macrocycleId: string,
+  organizationId: string | null,
+  userId: string,
+  startDate: string,
+): Promise<void> {
+  const mesos = Array.from({ length: PLAN_MESOCYCLES }, (_, i) => {
+    const start = addDays(startDate, i * MESO_WEEKS * 7)
+    return {
+      organization_id: organizationId,
+      macrocycle_id:   macrocycleId,
+      created_by:      userId,
+      name:            `Mesociclo ${i + 1}`,
+      duration_weeks:  MESO_WEEKS,
+      start_date:      start,
+      end_date:        addDays(start, MESO_WEEKS * 7 - 1),
+      status:          'draft',
+    }
+  })
+
+  const { data, error } = await supabase.from('mesocycles').insert(mesos).select('id')
+  if (error || !data) {
+    console.error('[generatePlanMesocycles] mesos:', error)
+    return
+  }
+
+  const micros = (data as { id: string }[]).flatMap((m) =>
+    Array.from({ length: MESO_WEEKS }, (_, w) => ({ mesocycle_id: m.id, week_number: w + 1 })),
+  )
+  const { error: mcErr } = await supabase.from('microcycles').insert(micros)
+  if (mcErr) console.error('[generatePlanMesocycles] micros:', mcErr)
+}
+
 export async function createMacrocycleAction(
   _prev: TrainingState,
   formData: FormData,
@@ -1453,6 +1503,8 @@ export async function createMacrocycleAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const { name, generalObjective, startDate, endDate, athleteLevel, competitionType, periodizationModel, qualities } = parsed.data
+
+  if (!startDate) return { error: 'La fecha de inicio es requerida para generar los mesociclos.' }
 
   const { data: macro, error } = await supabase
     .from('macrocycles')
@@ -1477,9 +1529,42 @@ export async function createMacrocycleAction(
     return { error: error?.message ?? 'Error al crear el macrociclo.' }
   }
 
+  const macroId = (macro as { id: string }).id
+  await generatePlanMesocycles(supabase, macroId, organizationId, userId, startDate)
+
   revalidatePath('/admin/planning')
   revalidatePath('/coach/planning')
-  return { error: null, success: `Macrociclo "${name}" creado.`, id: (macro as { id: string }).id }
+  return { error: null, success: `Plan "${name}" creado con ${PLAN_MESOCYCLES} mesociclos.`, id: macroId }
+}
+
+/** Genera los 12 mesociclos para un plan existente que aún no los tiene. Direct-submit. */
+export async function generateMesocyclesAction(formData: FormData): Promise<void> {
+  const { supabase, userId, role, organizationId } = await requireCoachOrAdmin()
+
+  const macrocycleId = (formData.get('macrocycleId') as string)?.trim()
+  if (!macrocycleId) return
+
+  const { data: existing } = await supabase
+    .from('macrocycles')
+    .select('created_by, start_date')
+    .eq('id', macrocycleId)
+    .single()
+
+  const ex = existing as { created_by: string; start_date: string | null } | null
+  if (!ex) return
+  if (role !== 'admin' && ex.created_by !== userId) return
+
+  const { count } = await supabase
+    .from('mesocycles')
+    .select('id', { count: 'exact', head: true })
+    .eq('macrocycle_id', macrocycleId)
+  if ((count ?? 0) > 0) return
+
+  const start = ex.start_date ?? new Date().toISOString().slice(0, 10)
+  await generatePlanMesocycles(supabase, macrocycleId, organizationId, userId, start)
+
+  revalidatePath(`/admin/planning/macro/${macrocycleId}`)
+  revalidatePath(`/coach/planning/macro/${macrocycleId}`)
 }
 
 /** Actualizar campos del macrociclo. */

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
-import { createMesocycleAction, getAssignmentTargets } from '@/actions/training'
+import { createMesocycleAction, getAssignmentTargets, getMacrocycleById } from '@/actions/training'
 import { MesocycleForm } from '@/components/training/mesocycle-form'
 
 export const metadata: Metadata = { title: 'Nuevo Mesociclo — Entrenador' }
@@ -12,12 +12,17 @@ interface PageProps {
 }
 
 export default async function CoachNewMesocyclePage({ searchParams }: PageProps) {
-  const { playerId, groupId } = await searchParams
+  const { playerId, groupId, macroId } = await searchParams
 
   let targetLabel: string | undefined
   let backHref = '/coach/planning'
 
-  if (playerId || groupId) {
+  if (macroId) {
+    const macro = await getMacrocycleById(macroId)
+    if (!macro) notFound()
+    targetLabel = macro.name
+    backHref = `/coach/planning/macro/${macroId}`
+  } else if (playerId || groupId) {
     const targets = await getAssignmentTargets()
     if (playerId) {
       const player = targets.players.find((p) => p.id === playerId)
@@ -53,6 +58,7 @@ export default async function CoachNewMesocyclePage({ searchParams }: PageProps)
           action={createMesocycleAction}
           playerId={playerId}
           groupId={groupId}
+          macrocycleId={macroId}
           targetLabel={targetLabel}
         />
       </div>
