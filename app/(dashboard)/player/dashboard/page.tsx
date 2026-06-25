@@ -5,21 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatBookingDateTime } from '@/lib/format'
 import { Calendar, CheckCircle, Wallet, Star, Users, Clock } from 'lucide-react'
+import { PADEL_LEVEL_LABELS_SHORT as LEVEL_LABELS } from '@/lib/constants'
 
 export const metadata: Metadata = { title: 'Dashboard — Jugador' }
-
-const LEVEL_LABELS: Record<string, string> = {
-  '5ta_masculino':  '5ta Masc.',
-  '6ta_masculino':  '6ta Masc.',
-  '7ma_masculino':  '7ma Masc.',
-  femenino_d:       'Fem. D',
-  femenino_c:       'Fem. C',
-  juvenil_s18:      'Sub-18',
-  juvenil_s16:      'Sub-16',
-  juvenil_s14:      'Sub-14',
-  prejuvenil:       'Prejuvenil',
-  baby_padel:       'Baby Pádel',
-}
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   confirmed: { label: 'Confirmada',  className: 'bg-brand/10 text-brand' },

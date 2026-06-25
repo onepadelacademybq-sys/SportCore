@@ -7,21 +7,9 @@ import { ThemeBadge } from '@/components/exercises/theme-badge'
 import { FavoriteButton } from '@/components/exercises/favorite-button'
 import { ExerciseFilters } from '@/components/exercises/exercise-filters'
 import { Button } from '@/components/ui/button'
+import { PADEL_LEVEL_LABELS_SHORT as LEVEL_LABELS } from '@/lib/constants'
 
 export const metadata: Metadata = { title: 'Biblioteca de Ejercicios — Admin' }
-
-const LEVEL_LABELS: Record<string, string> = {
-  '5ta_masculino': '5ta Masc.',
-  '6ta_masculino': '6ta Masc.',
-  '7ma_masculino': '7ma Masc.',
-  femenino_d: 'Fem. D',
-  femenino_c: 'Fem. C',
-  juvenil_s18: 'S18',
-  juvenil_s16: 'S16',
-  juvenil_s14: 'S14',
-  prejuvenil: 'Prejuv.',
-  baby_padel: 'Baby',
-}
 
 interface PageProps {
   searchParams: Promise<Record<string, string>>

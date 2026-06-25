@@ -692,7 +692,7 @@ export async function updateMesocycleStatusAction(
   const newStatus   = (formData.get('status') as string)?.trim()
 
   if (!mesocycleId || !newStatus) return { error: 'Datos incompletos' }
-  if (!STATUSES.includes(newStatus as any)) return { error: 'Estado inválido' }
+  if (!(STATUSES as readonly string[]).includes(newStatus)) return { error: 'Estado inválido' }
 
   const { data: existing } = await supabase
     .from('mesocycles')
@@ -942,7 +942,7 @@ export async function updateSessionAction(
     .select('microcycle:microcycles!microcycle_id(mesocycle_id)')
     .eq('id', sessionId)
     .single()
-  const mesocycleIdForNotif = (sessData as any)?.microcycle?.mesocycle_id
+  const mesocycleIdForNotif = (sessData as { microcycle: { mesocycle_id: string } | null } | null)?.microcycle?.mesocycle_id
   if (mesocycleIdForNotif) {
     await notifyMesocyclePlayers(mesocycleIdForNotif, 'Sesión modificada', 'Una sesión de tu plan de entrenamiento ha sido modificada.')
   }
@@ -981,7 +981,7 @@ export async function updateSessionStatusAction(
       .select('microcycle:microcycles!microcycle_id(mesocycle_id)')
       .eq('id', sessionId)
       .single()
-    const mesocycleIdForNotif = (sessData as any)?.microcycle?.mesocycle_id
+    const mesocycleIdForNotif = (sessData as { microcycle: { mesocycle_id: string } | null } | null)?.microcycle?.mesocycle_id
     if (mesocycleIdForNotif) {
       await notifyMesocyclePlayers(mesocycleIdForNotif, 'Sesión completada ✓', 'Una sesión de tu plan de entrenamiento ha sido completada.')
     }
@@ -1020,7 +1020,7 @@ export async function addExerciseToBlockAction(
     .limit(1)
     .maybeSingle()
 
-  const nextOrder = ((existing as any)?.order ?? 0) + 1
+  const nextOrder = ((existing as { order: number } | null)?.order ?? 0) + 1
 
   const { error } = await supabase
     .from('session_block_exercises')
@@ -1248,7 +1248,7 @@ export async function getSessionPlayers(sessionId: string): Promise<{
   const { data: microcycleRow } = await supabase
     .from('microcycles')
     .select('mesocycle_id')
-    .eq('id', (sessionRow as any).microcycle_id)
+    .eq('id', (sessionRow as { microcycle_id: string }).microcycle_id)
     .single()
 
   if (!microcycleRow) return { players: [], attendance }
@@ -1257,7 +1257,7 @@ export async function getSessionPlayers(sessionId: string): Promise<{
   const { data: assignments } = await supabase
     .from('mesocycle_assignments')
     .select('player_id, group_id')
-    .eq('mesocycle_id', (microcycleRow as any).mesocycle_id)
+    .eq('mesocycle_id', (microcycleRow as { mesocycle_id: string }).mesocycle_id)
 
   const playerIds = new Set<string>()
   const groupIds: string[] = []
