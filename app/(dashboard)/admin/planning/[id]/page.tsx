@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, Plus, Calendar, CheckCircle2, XCircle, Clock } from 'lucide-react'
-import { getMesocycleById, getAssignmentTargets, changeMesocycleStatusAction, updateMicrocycleAction, getConfirmedBookingsForAssignment } from '@/actions/training'
+import { getMesocycleById, getAssignmentTargets, changeMesocycleStatusAction, updateMicrocycleAction, getConfirmedBookingsForAssignment, getMacrocycles, setMesocycleMacrocycleAction } from '@/actions/training'
 import { formatSessionDate, formatSessionTime } from '@/lib/format'
 import { MesoStatusBadge, SessionStatusBadge } from '@/components/training/status-badge'
 import { AssignForm } from '@/components/training/assign-form'
@@ -28,9 +28,10 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
   const { id } = await params
   const { tab } = await searchParams
 
-  const [mesocycle, targets] = await Promise.all([
+  const [mesocycle, targets, macrocycles] = await Promise.all([
     getMesocycleById(id),
     getAssignmentTargets(),
+    getMacrocycles(),
   ])
 
   if (!mesocycle) notFound()
@@ -103,6 +104,23 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
           ))}
         </div>
       )}
+
+      {/* Macrociclo */}
+      <form action={setMesocycleMacrocycleAction} className="flex items-center gap-2 flex-wrap">
+        <input type="hidden" name="mesocycleId" value={mesocycle.id} />
+        <span className="text-xs text-muted-foreground">Macrociclo:</span>
+        <select
+          name="macrocycleId"
+          defaultValue={mesocycle.macrocycle_id ?? ''}
+          className="rounded-md border border-border bg-input px-2 py-1 text-sm text-foreground"
+        >
+          <option value="">Sin macrociclo</option>
+          {macrocycles.map((mc) => (
+            <option key={mc.id} value={mc.id}>{mc.name}</option>
+          ))}
+        </select>
+        <Button type="submit" variant="outline" size="sm">Guardar</Button>
+      </form>
 
       {/* Tab nav */}
       <div className="flex gap-1 border-b border-border">

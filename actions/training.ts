@@ -65,6 +65,7 @@ export type Microcycle = {
 export type Mesocycle = {
   id:               string
   created_by:       string
+  macrocycle_id?:   string | null
   name:             string
   general_objective: string
   level:            string
@@ -76,6 +77,20 @@ export type Mesocycle = {
   creator:          { id: string; full_name: string } | null
   microcycles:      Microcycle[]
   assignments:      MesocycleAssignment[]
+}
+
+export type Macrocycle = {
+  id:               string
+  created_by:       string
+  name:             string
+  general_objective: string | null
+  status:           'draft' | 'active' | 'completed' | 'archived'
+  start_date:       string | null
+  end_date:         string | null
+  created_at:       string
+  creator:          { id: string; full_name: string } | null
+  mesocycle_count?: number
+  mesocycles?:      Mesocycle[]
 }
 
 export type MesocycleAssignment = {
@@ -204,7 +219,7 @@ export async function getMesocycles(): Promise<Mesocycle[]> {
   let query = supabase
     .from('mesocycles')
     .select(`
-      id, created_by, name, general_objective, level,
+      id, created_by, macrocycle_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       assignments:mesocycle_assignments(
@@ -235,7 +250,7 @@ export async function getMesocycleById(id: string): Promise<Mesocycle | null> {
   const { data, error } = await supabase
     .from('mesocycles')
     .select(`
-      id, created_by, name, general_objective, level,
+      id, created_by, macrocycle_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       assignments:mesocycle_assignments(
@@ -286,7 +301,7 @@ export async function getMyMesocycles(): Promise<Mesocycle[]> {
   const { data, error } = await supabase
     .from('mesocycles')
     .select(`
-      id, created_by, name, general_objective, level,
+      id, created_by, macrocycle_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       assignments:mesocycle_assignments(
@@ -336,7 +351,7 @@ export async function getMesocyclesByPlayer(playerId: string): Promise<Mesocycle
   const { data, error } = await supabase
     .from('mesocycles')
     .select(`
-      id, created_by, name, general_objective, level,
+      id, created_by, macrocycle_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       assignments:mesocycle_assignments(
@@ -386,7 +401,7 @@ export async function getMesocyclesByGroup(groupId: string): Promise<Mesocycle[]
   const { data, error } = await supabase
     .from('mesocycles')
     .select(`
-      id, created_by, name, general_objective, level,
+      id, created_by, macrocycle_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       assignments:mesocycle_assignments(
@@ -531,6 +546,14 @@ const SessionSchema = z.object({
   scheduledAt:  z.string().min(1, 'La fecha/hora es requerida'),
   durationMin:  z.coerce.number().int().min(15).max(240).optional(),
   coachNotes:   z.string().optional(),
+})
+
+const MacrocycleSchema = z.object({
+  name:             z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  generalObjective: z.string().optional(),
+  startDate:        z.string().optional(),
+  endDate:          z.string().optional(),
+  status:           z.enum(STATUSES).optional(),
 })
 
 // ─── Mesociclo actions ────────────────────────────────────────────────────────
@@ -1296,4 +1319,235 @@ export async function getSessionPlayers(sessionId: string): Promise<{
   }))
 
   return { players, attendance }
+}
+
+// ─── Macrociclo actions ───────────────────────────────────────────────────────
+
+/** Lista de macrociclos. Admin ve todos; coach solo los suyos. */
+export async function getMacrocycles(): Promise<Macrocycle[]> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  let query = supabase
+    .from('macrocycles')
+    .select('id, created_by, name, general_objective, status, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id)')
+    .order('created_at', { ascending: false })
+
+  if (role !== 'admin') query = query.eq('created_by', userId)
+
+  const { data } = await query
+
+  return ((data ?? []) as any[]).map((m) => ({
+    id:                m.id,
+    created_by:        m.created_by,
+    name:              m.name,
+    general_objective: m.general_objective ?? null,
+    status:            m.status,
+    start_date:        m.start_date,
+    end_date:          m.end_date,
+    created_at:        m.created_at,
+    creator:           Array.isArray(m.creator) ? (m.creator[0] ?? null) : (m.creator ?? null),
+    mesocycle_count:   (m.mesocycles ?? []).length,
+  }))
+}
+
+/** Detalle de un macrociclo con sus mesociclos. */
+export async function getMacrocycleById(id: string): Promise<Macrocycle | null> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const { data } = await supabase
+    .from('macrocycles')
+    .select('id, created_by, name, general_objective, status, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id, name, level, status, duration_weeks, start_date, end_date)')
+    .eq('id', id)
+    .single()
+
+  const m = data as any
+  if (!m) return null
+  if (role !== 'admin' && m.created_by !== userId) return null
+
+  return {
+    id:                m.id,
+    created_by:        m.created_by,
+    name:              m.name,
+    general_objective: m.general_objective ?? null,
+    status:            m.status,
+    start_date:        m.start_date,
+    end_date:          m.end_date,
+    created_at:        m.created_at,
+    creator:           Array.isArray(m.creator) ? (m.creator[0] ?? null) : (m.creator ?? null),
+    mesocycles:        ((m.mesocycles ?? []) as any[])
+      .sort((a: any, b: any) => (a.start_date ?? '').localeCompare(b.start_date ?? '')),
+  }
+}
+
+/** Crear un macrociclo. */
+export async function createMacrocycleAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, organizationId } = await requireCoachOrAdmin()
+
+  const parsed = MacrocycleSchema.safeParse({
+    name:             formData.get('name'),
+    generalObjective: formData.get('generalObjective') || undefined,
+    startDate:        formData.get('startDate') || undefined,
+    endDate:          formData.get('endDate')   || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { name, generalObjective, startDate, endDate } = parsed.data
+
+  const { data: macro, error } = await supabase
+    .from('macrocycles')
+    .insert({
+      organization_id:   organizationId,
+      created_by:        userId,
+      name,
+      general_objective: generalObjective ?? null,
+      start_date:        startDate ?? null,
+      end_date:          endDate ?? null,
+      status:            'draft',
+    })
+    .select('id')
+    .single()
+
+  if (error || !macro) {
+    console.error('[createMacrocycleAction]', error)
+    return { error: error?.message ?? 'Error al crear el macrociclo.' }
+  }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  return { error: null, success: `Macrociclo "${name}" creado.`, id: (macro as { id: string }).id }
+}
+
+/** Actualizar campos del macrociclo. */
+export async function updateMacrocycleAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const macrocycleId = (formData.get('macrocycleId') as string)?.trim()
+  if (!macrocycleId) return { error: 'ID de macrociclo requerido' }
+
+  const { data: existing } = await supabase
+    .from('macrocycles')
+    .select('id, created_by')
+    .eq('id', macrocycleId)
+    .single()
+
+  const ex = existing as { id: string; created_by: string } | null
+  if (!ex) return { error: 'Macrociclo no encontrado' }
+  if (role !== 'admin' && ex.created_by !== userId) return { error: 'Sin permisos' }
+
+  const parsed = MacrocycleSchema.safeParse({
+    name:             formData.get('name'),
+    generalObjective: formData.get('generalObjective') || undefined,
+    startDate:        formData.get('startDate') || undefined,
+    endDate:          formData.get('endDate')   || undefined,
+    status:           formData.get('status')    || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { name, generalObjective, startDate, endDate, status } = parsed.data
+
+  const { error } = await supabase
+    .from('macrocycles')
+    .update({
+      name,
+      general_objective: generalObjective ?? null,
+      start_date:        startDate ?? null,
+      end_date:          endDate ?? null,
+      ...(status ? { status } : {}),
+    })
+    .eq('id', macrocycleId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  revalidatePath(`/admin/planning/macro/${macrocycleId}`)
+  revalidatePath(`/coach/planning/macro/${macrocycleId}`)
+  return { error: null, success: 'Macrociclo actualizado.' }
+}
+
+/** Cambiar estado del macrociclo (draft → active → completed → archived). */
+export async function updateMacrocycleStatusAction(
+  _prev: TrainingState,
+  formData: FormData,
+): Promise<TrainingState> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const macrocycleId = (formData.get('macrocycleId') as string)?.trim()
+  const newStatus    = (formData.get('status') as string)?.trim()
+
+  if (!macrocycleId || !newStatus) return { error: 'Datos incompletos' }
+  if (!(STATUSES as readonly string[]).includes(newStatus)) return { error: 'Estado inválido' }
+
+  const { data: existing } = await supabase
+    .from('macrocycles')
+    .select('id, created_by')
+    .eq('id', macrocycleId)
+    .single()
+
+  const ex = existing as { id: string; created_by: string } | null
+  if (!ex) return { error: 'Macrociclo no encontrado' }
+  if (role !== 'admin' && ex.created_by !== userId) return { error: 'Sin permisos' }
+
+  const { error } = await supabase
+    .from('macrocycles')
+    .update({ status: newStatus })
+    .eq('id', macrocycleId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  revalidatePath(`/admin/planning/macro/${macrocycleId}`)
+  revalidatePath(`/coach/planning/macro/${macrocycleId}`)
+  return { error: null, success: 'Estado del macrociclo actualizado.' }
+}
+
+/** Vincular o desvincular un mesociclo a un macrociclo. macrocycleId vacío = desvincular. */
+export async function setMesocycleMacrocycleAction(formData: FormData): Promise<void> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const mesocycleId  = (formData.get('mesocycleId') as string)?.trim()
+  const macrocycleId = (formData.get('macrocycleId') as string)?.trim() || null
+  if (!mesocycleId) return
+
+  const denied = await assertMesocycleOwnerByMesocycleId(supabase, role, userId, mesocycleId)
+  if (denied) return
+
+  await supabase
+    .from('mesocycles')
+    .update({ macrocycle_id: macrocycleId })
+    .eq('id', mesocycleId)
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  if (macrocycleId) {
+    revalidatePath(`/admin/planning/macro/${macrocycleId}`)
+    revalidatePath(`/coach/planning/macro/${macrocycleId}`)
+  }
+}
+
+/** Direct-submit wrapper para <form action> en Server Components. */
+export async function changeMacrocycleStatusAction(formData: FormData): Promise<void> {
+  await updateMacrocycleStatusAction({ error: null }, formData)
+}
+
+async function assertMesocycleOwnerByMesocycleId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  role: string,
+  userId: string,
+  mesocycleId: string,
+): Promise<{ error: string } | null> {
+  if (role === 'admin') return null
+  const { data } = await supabase
+    .from('mesocycles')
+    .select('created_by')
+    .eq('id', mesocycleId)
+    .single()
+  return (data as { created_by: string } | null)?.created_by === userId ? null : { error: 'Sin permisos' }
 }

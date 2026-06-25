@@ -337,6 +337,7 @@ model Organization {
   bookings             Booking[]
   trainingGroups       TrainingGroup[]
   mesocycles           Mesocycle[]
+  macrocycles          Macrocycle[]
   exercises            Exercise[]
   evaluations          Evaluation[]
   evaluationTemplates  EvaluationTemplate[]
@@ -393,6 +394,7 @@ model Profile {
 
   // Módulo 4
   mesocyclesCreated          Mesocycle[]
+  macrocyclesCreated         Macrocycle[]
   mesocycleAssignmentsPlayer MesocycleAssignment[] @relation("PlayerAssignments")
   mesocycleAssignmentsBy     MesocycleAssignment[] @relation("AssignedByAssignments")
   sessionAttendance          SessionAttendance[]
@@ -668,6 +670,7 @@ model ExerciseFavorite {
 model Mesocycle {
   id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId  String?         @map("organization_id") @db.Uuid
+  macrocycleId    String?         @map("macrocycle_id") @db.Uuid
   createdBy       String          @map("created_by") @db.Uuid
   name            String
   generalObjective String         @map("general_objective")
@@ -680,11 +683,31 @@ model Mesocycle {
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  macrocycle   Macrocycle?           @relation(fields: [macrocycleId], references: [id], onDelete: SetNull)
   creator      Profile               @relation(fields: [createdBy], references: [id])
   assignments  MesocycleAssignment[]
   microcycles  Microcycle[]
 
   @@map("mesocycles")
+}
+
+model Macrocycle {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String?         @map("organization_id") @db.Uuid
+  createdBy        String          @map("created_by") @db.Uuid
+  name             String
+  generalObjective String?         @map("general_objective")
+  status           MesocycleStatus @default(draft)
+  startDate        DateTime?       @map("start_date") @db.Date
+  endDate          DateTime?       @map("end_date") @db.Date
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator      Profile       @relation(fields: [createdBy], references: [id])
+  mesocycles   Mesocycle[]
+
+  @@map("macrocycles")
 }
 
 model MesocycleAssignment {

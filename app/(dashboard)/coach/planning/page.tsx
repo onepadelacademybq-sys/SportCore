@@ -1,13 +1,19 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Users, UserCircle2, ChevronRight, Calendar } from 'lucide-react'
-import { getAssignmentTargets } from '@/actions/training'
+import { Users, UserCircle2, ChevronRight, Calendar, Layers, Plus } from 'lucide-react'
+import { getAssignmentTargets, getMacrocycles } from '@/actions/training'
+import { MesoStatusBadge } from '@/components/training/status-badge'
 import { PADEL_LEVEL_LABELS_SHORT as LEVEL_LABELS } from '@/lib/constants'
 
 export const metadata: Metadata = { title: 'Planificación — Entrenador' }
 
+const newBtn = 'inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors'
+
 export default async function CoachPlanningPage() {
-  const { players, groups } = await getAssignmentTargets()
+  const [{ players, groups }, macrocycles] = await Promise.all([
+    getAssignmentTargets(),
+    getMacrocycles(),
+  ])
 
   const hasContent = players.length > 0 || groups.length > 0
 
@@ -19,6 +25,46 @@ export default async function CoachPlanningPage() {
           Seleccioná un jugador o grupo para gestionar su planificación de entrenamiento.
         </p>
       </div>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            Macrociclos ({macrocycles.length})
+          </h2>
+          <Link href="/coach/planning/macro/new" className={newBtn}>
+            <Plus className="h-4 w-4" />
+            Nuevo
+          </Link>
+        </div>
+        {macrocycles.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {macrocycles.map((m) => (
+              <Link
+                key={m.id}
+                href={`/coach/planning/macro/${m.id}`}
+                className="flex items-center justify-between gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Layers className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{m.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {m.mesocycle_count} mesociclo{m.mesocycle_count !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <MesoStatusBadge status={m.status} />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       {!hasContent ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
