@@ -747,13 +747,23 @@ model MesocycleAssignment {
   @@map("mesocycle_assignments")
 }
 
+enum ContentPhase {
+  basico
+  especifico
+  competitivo
+  transicion
+}
+
 model Microcycle {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  mesocycleId     String    @map("mesocycle_id") @db.Uuid
-  weekNumber      Int       @map("week_number")
-  weeklyObjective String?   @map("weekly_objective")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mesocycleId      String        @map("mesocycle_id") @db.Uuid
+  weekNumber       Int           @map("week_number")
+  weeklyObjective  String?       @map("weekly_objective")
+  contentPhase     ContentPhase? @map("content_phase")
+  plannedVolume    Int?          @map("planned_volume")
+  plannedIntensity Int?          @map("planned_intensity")
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   mesocycle Mesocycle        @relation(fields: [mesocycleId], references: [id], onDelete: Cascade)
   sessions  TrainingSession[]

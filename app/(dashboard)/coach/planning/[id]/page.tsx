@@ -7,6 +7,8 @@ import { MesoStatusBadge, SessionStatusBadge } from '@/components/training/statu
 import { AssignForm } from '@/components/training/assign-form'
 import { SessionForm } from '@/components/training/session-form'
 import { MicrocycleTypePicker } from '@/components/training/microcycle-type-picker'
+import { LoadMap } from '@/components/training/load-map'
+import { MicrocycleLoadEditor } from '@/components/training/microcycle-load-editor'
 import { Button } from '@/components/ui/button'
 import { formatSessionDate, formatSessionTime } from '@/lib/format'
 import { PADEL_LEVEL_LABELS as LEVEL_LABELS } from '@/lib/constants'
@@ -148,6 +150,7 @@ export default async function CoachMesocycleDetailPage({ params, searchParams }:
         </div>
       ) : (
         <div className="space-y-4">
+          <LoadMap microcycles={mesocycle.microcycles} />
           {mesocycle.microcycles.map((mc) => (
             <details key={mc.id} className="group rounded-xl border border-border bg-card" open>
               <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none">
@@ -176,6 +179,11 @@ export default async function CoachMesocycleDetailPage({ params, searchParams }:
                     />
                   </div>
                 </details>
+
+                {/* Carga del microciclo */}
+                <div className="rounded-lg border border-border px-4 py-3">
+                  <MicrocycleLoadEditor microcycle={mc} />
+                </div>
 
                 {mc.sessions.map((s) => (
                   <Link

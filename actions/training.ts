@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { createNotification } from '@/actions/notifications'
 import { colombiaLocalToISO } from '@/lib/format'
 import { PADEL_LEVELS } from '@/lib/constants'
+import { CONTENT_PHASE_VALUES } from '@/lib/planning/load-phases'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,11 +56,14 @@ export type TrainingSession = {
 }
 
 export type Microcycle = {
-  id:              string
-  mesocycle_id:    string
-  week_number:     number
-  weekly_objective: string | null
-  sessions:        TrainingSession[]
+  id:                string
+  mesocycle_id:      string
+  week_number:       number
+  weekly_objective:  string | null
+  content_phase:     'basico' | 'especifico' | 'competitivo' | 'transicion' | null
+  planned_volume:    number | null
+  planned_intensity: number | null
+  sessions:          TrainingSession[]
 }
 
 export type Mesocycle = {
@@ -263,7 +267,7 @@ export async function getMesocycleById(id: string): Promise<Mesocycle | null> {
         group:training_groups!group_id(id, name)
       ),
       microcycles(
-        id, mesocycle_id, week_number, weekly_objective,
+        id, mesocycle_id, week_number, weekly_objective, content_phase, planned_volume, planned_intensity,
         sessions:training_sessions(
           id, microcycle_id, scheduled_at, duration_min, status, coach_notes,
           blocks:session_blocks(
@@ -314,7 +318,7 @@ export async function getMyMesocycles(): Promise<Mesocycle[]> {
         group:training_groups!group_id(id, name)
       ),
       microcycles(
-        id, mesocycle_id, week_number, weekly_objective,
+        id, mesocycle_id, week_number, weekly_objective, content_phase, planned_volume, planned_intensity,
         sessions:training_sessions(
           id, microcycle_id, scheduled_at, duration_min, status, coach_notes,
           blocks:session_blocks(
@@ -364,7 +368,7 @@ export async function getMesocyclesByPlayer(playerId: string): Promise<Mesocycle
         group:training_groups!group_id(id, name)
       ),
       microcycles(
-        id, mesocycle_id, week_number, weekly_objective,
+        id, mesocycle_id, week_number, weekly_objective, content_phase, planned_volume, planned_intensity,
         sessions:training_sessions(
           id, microcycle_id, scheduled_at, duration_min, status, coach_notes,
           blocks:session_blocks(
@@ -414,7 +418,7 @@ export async function getMesocyclesByGroup(groupId: string): Promise<Mesocycle[]
         group:training_groups!group_id(id, name)
       ),
       microcycles(
-        id, mesocycle_id, week_number, weekly_objective,
+        id, mesocycle_id, week_number, weekly_objective, content_phase, planned_volume, planned_intensity,
         sessions:training_sessions(
           id, microcycle_id, scheduled_at, duration_min, status, coach_notes,
           blocks:session_blocks(
@@ -870,6 +874,36 @@ export async function updateMicrocycleAction(
   revalidatePath('/admin/planning')
   revalidatePath('/coach/planning')
   return { error: null, success: 'Objetivo semanal actualizado.' }
+}
+
+/** Carga del microciclo: fase b/e/c/T + volumen + intensidad (0–100). Direct-submit. */
+export async function updateMicrocycleLoadAction(formData: FormData): Promise<void> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const microcycleId = (formData.get('microcycleId') as string)?.trim()
+  if (!microcycleId) return
+
+  const denied = await assertMesocycleOwner(supabase, role, userId, 'microcycle', microcycleId)
+  if (denied) return
+
+  const phase = (formData.get('contentPhase') as string)?.trim()
+  const clamp = (v: FormDataEntryValue | null): number | null => {
+    if (v === null || v === '') return null
+    const n = Math.round(Number(v))
+    return Number.isNaN(n) ? null : Math.max(0, Math.min(100, n))
+  }
+
+  await supabase
+    .from('microcycles')
+    .update({
+      content_phase:     phase && (CONTENT_PHASE_VALUES as readonly string[]).includes(phase) ? phase : null,
+      planned_volume:    clamp(formData.get('plannedVolume')),
+      planned_intensity: clamp(formData.get('plannedIntensity')),
+    })
+    .eq('id', microcycleId)
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
 }
 
 // ─── Sesión actions ───────────────────────────────────────────────────────────
