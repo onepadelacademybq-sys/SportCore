@@ -80,17 +80,21 @@ export type Mesocycle = {
 }
 
 export type Macrocycle = {
-  id:               string
-  created_by:       string
-  name:             string
-  general_objective: string | null
-  status:           'draft' | 'active' | 'completed' | 'archived'
-  start_date:       string | null
-  end_date:         string | null
-  created_at:       string
-  creator:          { id: string; full_name: string } | null
-  mesocycle_count?: number
-  mesocycles?:      Mesocycle[]
+  id:                  string
+  created_by:          string
+  name:               string
+  general_objective:  string | null
+  status:             'draft' | 'active' | 'completed' | 'archived'
+  athlete_level:      'principiante' | 'intermedio' | 'avanzado' | null
+  competition_type:   'aislada' | 'agrupada' | null
+  periodization_model: 'regular' | 'concentrado' | 'dup' | null
+  qualities:          string[]
+  start_date:         string | null
+  end_date:           string | null
+  created_at:         string
+  creator:            { id: string; full_name: string } | null
+  mesocycle_count?:   number
+  mesocycles?:        Mesocycle[]
 }
 
 export type MesocycleAssignment = {
@@ -548,12 +552,20 @@ const SessionSchema = z.object({
   coachNotes:   z.string().optional(),
 })
 
+const ATHLETE_LEVELS    = ['principiante', 'intermedio', 'avanzado'] as const
+const COMPETITION_TYPES = ['aislada', 'agrupada'] as const
+const PERIOD_MODELS     = ['regular', 'concentrado', 'dup'] as const
+
 const MacrocycleSchema = z.object({
-  name:             z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  generalObjective: z.string().optional(),
-  startDate:        z.string().optional(),
-  endDate:          z.string().optional(),
-  status:           z.enum(STATUSES).optional(),
+  name:               z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  generalObjective:   z.string().optional(),
+  startDate:          z.string().optional(),
+  endDate:            z.string().optional(),
+  status:             z.enum(STATUSES).optional(),
+  athleteLevel:       z.enum(ATHLETE_LEVELS).optional(),
+  competitionType:    z.enum(COMPETITION_TYPES).optional(),
+  periodizationModel: z.enum(PERIOD_MODELS).optional(),
+  qualities:          z.array(z.string()).optional(),
 })
 
 // ─── Mesociclo actions ────────────────────────────────────────────────────────
@@ -1329,7 +1341,7 @@ export async function getMacrocycles(): Promise<Macrocycle[]> {
 
   let query = supabase
     .from('macrocycles')
-    .select('id, created_by, name, general_objective, status, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id)')
+    .select('id, created_by, name, general_objective, status, athlete_level, competition_type, periodization_model, qualities, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id)')
     .order('created_at', { ascending: false })
 
   if (role !== 'admin') query = query.eq('created_by', userId)
@@ -1337,16 +1349,20 @@ export async function getMacrocycles(): Promise<Macrocycle[]> {
   const { data } = await query
 
   return ((data ?? []) as any[]).map((m) => ({
-    id:                m.id,
-    created_by:        m.created_by,
-    name:              m.name,
-    general_objective: m.general_objective ?? null,
-    status:            m.status,
-    start_date:        m.start_date,
-    end_date:          m.end_date,
-    created_at:        m.created_at,
-    creator:           Array.isArray(m.creator) ? (m.creator[0] ?? null) : (m.creator ?? null),
-    mesocycle_count:   (m.mesocycles ?? []).length,
+    id:                  m.id,
+    created_by:          m.created_by,
+    name:                m.name,
+    general_objective:   m.general_objective ?? null,
+    status:              m.status,
+    athlete_level:       m.athlete_level ?? null,
+    competition_type:    m.competition_type ?? null,
+    periodization_model: m.periodization_model ?? null,
+    qualities:           m.qualities ?? [],
+    start_date:          m.start_date,
+    end_date:            m.end_date,
+    created_at:          m.created_at,
+    creator:             Array.isArray(m.creator) ? (m.creator[0] ?? null) : (m.creator ?? null),
+    mesocycle_count:     (m.mesocycles ?? []).length,
   }))
 }
 
@@ -1356,7 +1372,7 @@ export async function getMacrocycleById(id: string): Promise<Macrocycle | null> 
 
   const { data } = await supabase
     .from('macrocycles')
-    .select('id, created_by, name, general_objective, status, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id, name, level, status, duration_weeks, start_date, end_date)')
+    .select('id, created_by, name, general_objective, status, athlete_level, competition_type, periodization_model, qualities, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id, name, level, status, duration_weeks, start_date, end_date)')
     .eq('id', id)
     .single()
 
@@ -1365,16 +1381,20 @@ export async function getMacrocycleById(id: string): Promise<Macrocycle | null> 
   if (role !== 'admin' && m.created_by !== userId) return null
 
   return {
-    id:                m.id,
-    created_by:        m.created_by,
-    name:              m.name,
-    general_objective: m.general_objective ?? null,
-    status:            m.status,
-    start_date:        m.start_date,
-    end_date:          m.end_date,
-    created_at:        m.created_at,
-    creator:           Array.isArray(m.creator) ? (m.creator[0] ?? null) : (m.creator ?? null),
-    mesocycles:        ((m.mesocycles ?? []) as any[])
+    id:                  m.id,
+    created_by:          m.created_by,
+    name:                m.name,
+    general_objective:   m.general_objective ?? null,
+    status:              m.status,
+    athlete_level:       m.athlete_level ?? null,
+    competition_type:    m.competition_type ?? null,
+    periodization_model: m.periodization_model ?? null,
+    qualities:           m.qualities ?? [],
+    start_date:          m.start_date,
+    end_date:            m.end_date,
+    created_at:          m.created_at,
+    creator:             Array.isArray(m.creator) ? (m.creator[0] ?? null) : (m.creator ?? null),
+    mesocycles:          ((m.mesocycles ?? []) as any[])
       .sort((a: any, b: any) => (a.start_date ?? '').localeCompare(b.start_date ?? '')),
   }
 }
@@ -1387,25 +1407,33 @@ export async function createMacrocycleAction(
   const { supabase, userId, organizationId } = await requireCoachOrAdmin()
 
   const parsed = MacrocycleSchema.safeParse({
-    name:             formData.get('name'),
-    generalObjective: formData.get('generalObjective') || undefined,
-    startDate:        formData.get('startDate') || undefined,
-    endDate:          formData.get('endDate')   || undefined,
+    name:               formData.get('name'),
+    generalObjective:   formData.get('generalObjective') || undefined,
+    startDate:          formData.get('startDate') || undefined,
+    endDate:            formData.get('endDate')   || undefined,
+    athleteLevel:       formData.get('athleteLevel') || undefined,
+    competitionType:    formData.get('competitionType') || undefined,
+    periodizationModel: formData.get('periodizationModel') || undefined,
+    qualities:          formData.getAll('qualities').map(String),
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { name, generalObjective, startDate, endDate } = parsed.data
+  const { name, generalObjective, startDate, endDate, athleteLevel, competitionType, periodizationModel, qualities } = parsed.data
 
   const { data: macro, error } = await supabase
     .from('macrocycles')
     .insert({
-      organization_id:   organizationId,
-      created_by:        userId,
+      organization_id:     organizationId,
+      created_by:          userId,
       name,
-      general_objective: generalObjective ?? null,
-      start_date:        startDate ?? null,
-      end_date:          endDate ?? null,
-      status:            'draft',
+      general_objective:   generalObjective ?? null,
+      start_date:          startDate ?? null,
+      end_date:            endDate ?? null,
+      athlete_level:       athleteLevel ?? null,
+      competition_type:    competitionType ?? null,
+      periodization_model: periodizationModel ?? null,
+      qualities:           qualities ?? [],
+      status:              'draft',
     })
     .select('id')
     .single()
@@ -1441,23 +1469,31 @@ export async function updateMacrocycleAction(
   if (role !== 'admin' && ex.created_by !== userId) return { error: 'Sin permisos' }
 
   const parsed = MacrocycleSchema.safeParse({
-    name:             formData.get('name'),
-    generalObjective: formData.get('generalObjective') || undefined,
-    startDate:        formData.get('startDate') || undefined,
-    endDate:          formData.get('endDate')   || undefined,
-    status:           formData.get('status')    || undefined,
+    name:               formData.get('name'),
+    generalObjective:   formData.get('generalObjective') || undefined,
+    startDate:          formData.get('startDate') || undefined,
+    endDate:            formData.get('endDate')   || undefined,
+    status:             formData.get('status')    || undefined,
+    athleteLevel:       formData.get('athleteLevel') || undefined,
+    competitionType:    formData.get('competitionType') || undefined,
+    periodizationModel: formData.get('periodizationModel') || undefined,
+    qualities:          formData.getAll('qualities').map(String),
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { name, generalObjective, startDate, endDate, status } = parsed.data
+  const { name, generalObjective, startDate, endDate, status, athleteLevel, competitionType, periodizationModel, qualities } = parsed.data
 
   const { error } = await supabase
     .from('macrocycles')
     .update({
       name,
-      general_objective: generalObjective ?? null,
-      start_date:        startDate ?? null,
-      end_date:          endDate ?? null,
+      general_objective:   generalObjective ?? null,
+      start_date:          startDate ?? null,
+      end_date:            endDate ?? null,
+      athlete_level:       athleteLevel ?? null,
+      competition_type:    competitionType ?? null,
+      periodization_model: periodizationModel ?? null,
+      qualities:           qualities ?? [],
       ...(status ? { status } : {}),
     })
     .eq('id', macrocycleId)

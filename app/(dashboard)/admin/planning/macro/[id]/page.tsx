@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Layers } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Layers, Pencil } from 'lucide-react'
 import { getMacrocycleById, changeMacrocycleStatusAction } from '@/actions/training'
 import { MesoStatusBadge } from '@/components/training/status-badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
 import { PADEL_LEVEL_LABELS as LEVEL_LABELS } from '@/lib/constants'
+import { ATHLETE_LEVEL_LABELS, COMPETITION_TYPE_LABELS, PERIODIZATION_MODEL_LABELS, QUALITY_LABELS } from '@/lib/planning/diagnostic'
 
 export const metadata: Metadata = { title: 'Macrociclo — Admin' }
 
@@ -59,14 +60,53 @@ export default async function AdminMacrocycleDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {transition && (
-          <form action={changeMacrocycleStatusAction}>
-            <input type="hidden" name="macrocycleId" value={macro.id} />
-            <input type="hidden" name="status" value={transition.next} />
-            <Button type="submit" variant="outline" size="sm">{transition.label}</Button>
-          </form>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          <Link
+            href={`/admin/planning/macro/${macro.id}/edit`}
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Editar
+          </Link>
+          {transition && (
+            <form action={changeMacrocycleStatusAction}>
+              <input type="hidden" name="macrocycleId" value={macro.id} />
+              <input type="hidden" name="status" value={transition.next} />
+              <Button type="submit" variant="outline" size="sm">{transition.label}</Button>
+            </form>
+          )}
+        </div>
       </div>
+
+      {/* Diagnóstico */}
+      {(macro.athlete_level || macro.competition_type || macro.periodization_model || macro.qualities.length > 0) && (
+        <div className="rounded-xl border border-border bg-card p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground">Nivel</p>
+            <p className="font-medium">{macro.athlete_level ? ATHLETE_LEVEL_LABELS[macro.athlete_level] : '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Competición</p>
+            <p className="font-medium">{macro.competition_type ? COMPETITION_TYPE_LABELS[macro.competition_type] : '—'}</p>
+          </div>
+          <div className="col-span-2">
+            <p className="text-xs text-muted-foreground">Modelo de periodización</p>
+            <p className="font-medium">{macro.periodization_model ? PERIODIZATION_MODEL_LABELS[macro.periodization_model] : '—'}</p>
+          </div>
+          {macro.qualities.length > 0 && (
+            <div className="col-span-2 sm:col-span-4">
+              <p className="text-xs text-muted-foreground mb-1">Cualidades</p>
+              <div className="flex flex-wrap gap-1.5">
+                {macro.qualities.map((q) => (
+                  <span key={q} className="px-2 py-0.5 rounded-full border border-border bg-muted text-xs">
+                    {QUALITY_LABELS[q] ?? q}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
