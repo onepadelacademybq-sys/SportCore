@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { ChevronLeft, Plus, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { getMesocycleById, getAssignmentTargets, changeMesocycleStatusAction, updateMicrocycleAction, getConfirmedBookingsForAssignment, getMacrocycles, setMesocycleMacrocycleAction, getObjectives } from '@/actions/training'
 import { MesocycleObjectiveForm } from '@/components/training/mesocycle-objective-form'
+import { MesocycleConfigForm } from '@/components/training/mesocycle-config-form'
 import { MesoStatusBadge, SessionStatusBadge } from '@/components/training/status-badge'
 import { AssignForm } from '@/components/training/assign-form'
 import { SessionForm } from '@/components/training/session-form'
@@ -127,6 +128,9 @@ export default async function CoachMesocycleDetailPage({ params, searchParams }:
         objectives={objectives}
         currentObjectiveId={mesocycle.objective_id ?? null}
       />
+
+      {/* Config */}
+      <MesocycleConfigForm mesocycle={mesocycle} />
 
       <div className="flex gap-1 border-b border-border">
         {([

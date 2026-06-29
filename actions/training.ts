@@ -77,6 +77,9 @@ export type Mesocycle = {
   level:            string | null
   duration_weeks:   number
   status:           'draft' | 'active' | 'completed' | 'archived'
+  sessions_per_week?: number | null
+  hours_per_session?: number | null
+  suspended?:        boolean
   start_date:       string | null
   end_date:         string | null
   created_at:       string
@@ -230,7 +233,7 @@ export async function getMesocycles(): Promise<Mesocycle[]> {
     .from('mesocycles')
     .select(`
       id, created_by, macrocycle_id, objective_id, name, general_objective, level,
-      duration_weeks, status, start_date, end_date, created_at,
+      duration_weeks, status, sessions_per_week, hours_per_session, suspended, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
@@ -262,7 +265,7 @@ export async function getMesocycleById(id: string): Promise<Mesocycle | null> {
     .from('mesocycles')
     .select(`
       id, created_by, macrocycle_id, objective_id, name, general_objective, level,
-      duration_weeks, status, start_date, end_date, created_at,
+      duration_weeks, status, sessions_per_week, hours_per_session, suspended, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
@@ -314,7 +317,7 @@ export async function getMyMesocycles(): Promise<Mesocycle[]> {
     .from('mesocycles')
     .select(`
       id, created_by, macrocycle_id, objective_id, name, general_objective, level,
-      duration_weeks, status, start_date, end_date, created_at,
+      duration_weeks, status, sessions_per_week, hours_per_session, suspended, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
@@ -365,7 +368,7 @@ export async function getMesocyclesByPlayer(playerId: string): Promise<Mesocycle
     .from('mesocycles')
     .select(`
       id, created_by, macrocycle_id, objective_id, name, general_objective, level,
-      duration_weeks, status, start_date, end_date, created_at,
+      duration_weeks, status, sessions_per_week, hours_per_session, suspended, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
@@ -416,7 +419,7 @@ export async function getMesocyclesByGroup(groupId: string): Promise<Mesocycle[]
     .from('mesocycles')
     .select(`
       id, created_by, macrocycle_id, objective_id, name, general_objective, level,
-      duration_weeks, status, start_date, end_date, created_at,
+      duration_weeks, status, sessions_per_week, hours_per_session, suspended, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
       objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
@@ -517,6 +520,7 @@ function normalizeMesocycle(m: any): Mesocycle {
   return {
     ...m,
     objective: Array.isArray(m.objective) ? (m.objective[0] ?? null) : (m.objective ?? null),
+    hours_per_session: m.hours_per_session != null ? Number(m.hours_per_session) : null,
     microcycles: ((m.microcycles ?? []) as any[])
       .sort((a: any, b: any) => a.week_number - b.week_number)
       .map((mc: any) => ({
@@ -965,6 +969,77 @@ export async function setMesocycleObjectiveAction(formData: FormData): Promise<v
 
   revalidatePath('/admin/planning')
   revalidatePath('/coach/planning')
+}
+
+// ─── Config del mesociclo ─────────────────────────────────────────────────────
+
+/** Config del mesociclo: sesiones/semana, horas/sesión, suspender. Auto-genera sesiones placeholder. */
+export async function updateMesocycleConfigAction(formData: FormData): Promise<void> {
+  const { supabase, userId, role } = await requireCoachOrAdmin()
+
+  const mesocycleId = (formData.get('mesocycleId') as string)?.trim()
+  if (!mesocycleId) return
+
+  const denied = await assertMesocycleOwnerByMesocycleId(supabase, role, userId, mesocycleId)
+  if (denied) return
+
+  const perWeek = Math.max(0, Math.min(7, Math.round(Number(formData.get('sessionsPerWeek')) || 0)))
+  const hoursRaw = Number(formData.get('hoursPerSession'))
+  const hours = Number.isNaN(hoursRaw) || hoursRaw <= 0 ? null : Math.min(8, hoursRaw)
+  const suspended = formData.get('suspended') === 'on'
+
+  await supabase
+    .from('mesocycles')
+    .update({ sessions_per_week: perWeek || null, hours_per_session: hours, suspended })
+    .eq('id', mesocycleId)
+
+  if (perWeek > 0 && !suspended) {
+    await generateSessionPlaceholders(supabase, mesocycleId, perWeek, hours ?? 1)
+  }
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+  revalidatePath(`/admin/planning/${mesocycleId}`)
+  revalidatePath(`/coach/planning/${mesocycleId}`)
+}
+
+/** Crea sesiones placeholder (con sus bloques) hasta completar perWeek por semana, sin tocar las existentes. */
+async function generateSessionPlaceholders(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  mesocycleId: string,
+  perWeek: number,
+  hours: number,
+): Promise<void> {
+  const { data } = await supabase
+    .from('mesocycles')
+    .select('start_date, microcycles(id, week_number, sessions:training_sessions(id))')
+    .eq('id', mesocycleId)
+    .single()
+  const m = data as any
+  if (!m?.start_date) return
+
+  const durationMin = Math.round(hours * 60)
+  const rows: { microcycle_id: string; scheduled_at: string; duration_min: number; status: string }[] = []
+
+  for (const mc of (m.microcycles ?? [])) {
+    const existing  = (mc.sessions ?? []).length
+    const weekStart = addDays(m.start_date, (mc.week_number - 1) * 7)
+    for (let i = existing; i < perWeek; i++) {
+      rows.push({
+        microcycle_id: mc.id,
+        scheduled_at:  colombiaLocalToISO(`${addDays(weekStart, i)}T18:00`),
+        duration_min:  durationMin,
+        status:        'scheduled',
+      })
+    }
+  }
+  if (rows.length === 0) return
+
+  const { data: created } = await supabase.from('training_sessions').insert(rows).select('id')
+  const blocks = ((created ?? []) as { id: string }[]).flatMap((s) =>
+    BLOCK_DEFAULTS.map((b) => ({ ...b, session_id: s.id })),
+  )
+  if (blocks.length > 0) await supabase.from('session_blocks').insert(blocks)
 }
 
 // ─── Sesión actions ───────────────────────────────────────────────────────────
