@@ -109,6 +109,8 @@ export default async function AdminSessionDetailPage({ params }: PageProps) {
               key={block.id}
               block={block}
               availableExercises={filtered}
+              recommendedTheme={mesocycle.objective?.theme ?? null}
+              objectiveName={mesocycle.objective?.name ?? null}
             />
           )
         })}

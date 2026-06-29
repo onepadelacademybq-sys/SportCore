@@ -103,6 +103,8 @@ export default async function CoachSessionDetailPage({ params }: PageProps) {
               key={block.id}
               block={block}
               availableExercises={filtered}
+              recommendedTheme={mesocycle.objective?.theme ?? null}
+              objectiveName={mesocycle.objective?.name ?? null}
             />
           )
         })}

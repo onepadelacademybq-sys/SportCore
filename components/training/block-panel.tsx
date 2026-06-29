@@ -29,6 +29,8 @@ interface Props {
   block: SessionBlock
   availableExercises: AvailableExercise[]
   readOnly?: boolean
+  recommendedTheme?: string | null
+  objectiveName?: string | null
 }
 
 function RemoveExerciseButton({ blockExerciseId }: { blockExerciseId: string }) {
@@ -52,19 +54,25 @@ function AddExercisePicker({
   blockId,
   availableExercises,
   existingIds,
+  recommendedTheme = null,
+  objectiveName = null,
 }: {
   blockId: string
   availableExercises: AvailableExercise[]
   existingIds: Set<string>
+  recommendedTheme?: string | null
+  objectiveName?: string | null
 }) {
   const [state, formAction, isPending] = useActionState(addExerciseToBlockAction, { error: null })
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
+  const [onlyRec, setOnlyRec] = useState(!!recommendedTheme)
 
   const filtered = availableExercises.filter(
     (e) =>
       !existingIds.has(e.id) &&
-      (search === '' || e.name.toLowerCase().includes(search.toLowerCase())),
+      (search === '' || e.name.toLowerCase().includes(search.toLowerCase())) &&
+      (!onlyRec || !recommendedTheme || e.theme === recommendedTheme),
   )
 
   return (
@@ -97,11 +105,20 @@ function AddExercisePicker({
             />
           </div>
 
+          {recommendedTheme && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+              <input type="checkbox" checked={onlyRec} onChange={(e) => setOnlyRec(e.target.checked)} className="h-3.5 w-3.5" />
+              Solo recomendados{objectiveName ? ` para «${objectiveName}»` : ''}
+            </label>
+          )}
+
           {filtered.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
               {availableExercises.length === 0
                 ? 'No hay ejercicios disponibles para este bloque'
-                : 'No se encontraron ejercicios'}
+                : onlyRec
+                  ? 'No hay ejercicios recomendados; destildá el filtro para ver todos'
+                  : 'No se encontraron ejercicios'}
             </p>
           ) : (
             <ul className="max-h-48 overflow-y-auto space-y-0.5">
@@ -152,7 +169,7 @@ function NotesEditor({ blockId, initialNotes }: { blockId: string; initialNotes:
   )
 }
 
-export function BlockPanel({ block, availableExercises, readOnly = false }: Props) {
+export function BlockPanel({ block, availableExercises, readOnly = false, recommendedTheme = null, objectiveName = null }: Props) {
   const cfg = BLOCK_LABELS[block.block_type] ?? {
     number: '?', title: block.block_type, color: 'text-muted-foreground bg-muted border-border',
   }
@@ -222,6 +239,8 @@ export function BlockPanel({ block, availableExercises, readOnly = false }: Prop
           blockId={block.id}
           availableExercises={availableExercises}
           existingIds={existingIds}
+          recommendedTheme={recommendedTheme}
+          objectiveName={objectiveName}
         />
       )}
     </div>
