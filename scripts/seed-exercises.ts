@@ -175,7 +175,7 @@ async function main() {
   // Obtener primer admin
   const { data: adminProfile, error: adminErr } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, organization_id')
     .eq('role', 'admin')
     .eq('is_active', true)
     .order('created_at', { ascending: true })
@@ -187,12 +187,14 @@ async function main() {
     process.exit(1)
   }
 
-  const createdBy = (adminProfile as { id: string }).id
-  console.log(`👤  created_by: ${createdBy}`)
+  const createdBy      = (adminProfile as { id: string }).id
+  const organizationId = (adminProfile as { organization_id: string | null }).organization_id
+  console.log(`👤  created_by: ${createdBy}  ·  org: ${organizationId}`)
   console.log(`📋  ${EXERCISES.length} ejercicios a insertar\n`)
 
   const rows = EXERCISES.map((ex) => ({
     created_by:             createdBy,
+    organization_id:        organizationId,
     name:                   ex.name,
     theme:                  ex.theme,
     level:                  '5ta_masculino',
