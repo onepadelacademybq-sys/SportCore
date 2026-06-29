@@ -13,6 +13,18 @@ export const CONTENT_PHASE_VALUES = CONTENT_PHASES.map((p) => p.value)
 export const CONTENT_PHASE_BY_VALUE: Record<string, (typeof CONTENT_PHASES)[number]> =
   Object.fromEntries(CONTENT_PHASES.map((p) => [p.value, p]))
 
+// Escala de intensidad de pádel (1–5): método de alimentación / tipo de bola.
+export const INTENSITY_SCALE = [
+  { value: 1, label: 'Alimentación manual, bola muerta' },
+  { value: 2, label: 'Alimentación manual, bola viva' },
+  { value: 3, label: 'Alimentación con pala, bola viva' },
+  { value: 4, label: 'Bola viva cooperativa' },
+  { value: 5, label: 'Bola viva competitiva' },
+] as const
+
+export const INTENSITY_LABELS: Record<number, string> =
+  Object.fromEntries(INTENSITY_SCALE.map((i) => [i.value, i.label]))
+
 // Parámetros de carga sugeridos por fase (NSCA). Referencia editable por el coach; no se persisten.
 export const PHASE_PARAMS: Record<string, { sets: string; reps: string; load: string; rpe: string }> = {
   basico:      { sets: '3–6', reps: '10–20',  load: '50–75% 1RM', rpe: '6–7' },

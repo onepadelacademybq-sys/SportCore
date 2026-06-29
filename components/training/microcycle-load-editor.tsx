@@ -1,6 +1,6 @@
 import type { Microcycle } from '@/actions/training'
 import { updateMicrocycleLoadAction } from '@/actions/training'
-import { CONTENT_PHASES } from '@/lib/planning/load-phases'
+import { CONTENT_PHASES, INTENSITY_SCALE } from '@/lib/planning/load-phases'
 import { Button } from '@/components/ui/button'
 
 const fieldClass =
@@ -22,13 +22,20 @@ export function MicrocycleLoadEditor({ microcycle }: { microcycle: Microcycle })
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Volumen (0–100)</label>
-        <input name="plannedVolume" type="number" min={0} max={100} defaultValue={microcycle.planned_volume ?? ''} className={`${fieldClass} w-24`} />
+        <label className="text-xs text-muted-foreground">Intensidad (1–5)</label>
+        <select name="plannedIntensity" defaultValue={microcycle.planned_intensity ?? ''} className={`${fieldClass} min-w-64`}>
+          <option value="">—</option>
+          {INTENSITY_SCALE.map((i) => (
+            <option key={i.value} value={i.value}>{i.value} · {i.label}</option>
+          ))}
+        </select>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Intensidad (0–100)</label>
-        <input name="plannedIntensity" type="number" min={0} max={100} defaultValue={microcycle.planned_intensity ?? ''} className={`${fieldClass} w-24`} />
+      <div className="flex flex-col gap-1 pb-1.5">
+        <span className="text-xs text-muted-foreground">Volumen</span>
+        <span className="text-sm">
+          {microcycle.planned_volume != null ? `${microcycle.planned_volume} min/sem` : '— (definí la config)'}
+        </span>
       </div>
 
       <Button type="submit" variant="outline" size="sm">Guardar carga</Button>

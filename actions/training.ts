@@ -894,7 +894,8 @@ export async function updateMicrocycleAction(
   return { error: null, success: 'Objetivo semanal actualizado.' }
 }
 
-/** Carga del microciclo: fase b/e/c/T + volumen + intensidad (0–100). Direct-submit. */
+/** Carga del microciclo: fase b/e/c/T + intensidad (escala pádel 1–5). El volumen
+ *  se deriva de la config del meso (tiempo de trabajo), no se edita acá. Direct-submit. */
 export async function updateMicrocycleLoadAction(formData: FormData): Promise<void> {
   const { supabase, userId, role } = await requireCoachOrAdmin()
 
@@ -905,18 +906,16 @@ export async function updateMicrocycleLoadAction(formData: FormData): Promise<vo
   if (denied) return
 
   const phase = (formData.get('contentPhase') as string)?.trim()
-  const clamp = (v: FormDataEntryValue | null): number | null => {
-    if (v === null || v === '') return null
-    const n = Math.round(Number(v))
-    return Number.isNaN(n) ? null : Math.max(0, Math.min(100, n))
-  }
+  const intRaw = formData.get('plannedIntensity')
+  const intensity = intRaw === null || intRaw === ''
+    ? null
+    : Math.max(1, Math.min(5, Math.round(Number(intRaw)) || 1))
 
   await supabase
     .from('microcycles')
     .update({
       content_phase:     phase && (CONTENT_PHASE_VALUES as readonly string[]).includes(phase) ? phase : null,
-      planned_volume:    clamp(formData.get('plannedVolume')),
-      planned_intensity: clamp(formData.get('plannedIntensity')),
+      planned_intensity: intensity,
     })
     .eq('id', microcycleId)
 
@@ -992,6 +991,14 @@ export async function updateMesocycleConfigAction(formData: FormData): Promise<v
     .from('mesocycles')
     .update({ sessions_per_week: perWeek || null, hours_per_session: hours, suspended })
     .eq('id', mesocycleId)
+
+  // Volumen = tiempo de trabajo semanal (minutos), derivado de la config → a cada microciclo.
+  const weeklyMinutes = perWeek > 0 && hours ? Math.round(perWeek * hours * 60) : null
+  const { data: micros } = await supabase.from('microcycles').select('id').eq('mesocycle_id', mesocycleId)
+  const microIds = ((micros ?? []) as { id: string }[]).map((x) => x.id)
+  if (microIds.length > 0) {
+    await supabase.from('microcycles').update({ planned_volume: weeklyMinutes }).in('id', microIds)
+  }
 
   if (perWeek > 0 && !suspended) {
     await generateSessionPlaceholders(supabase, mesocycleId, perWeek, hours ?? 1)
