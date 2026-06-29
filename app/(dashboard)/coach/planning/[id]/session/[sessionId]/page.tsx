@@ -13,9 +13,9 @@ import { formatSessionDate, formatSessionTime } from '@/lib/format'
 export const metadata: Metadata = { title: 'Sesión — Entrenador' }
 
 const BLOCK_THEMES: Record<string, string[]> = {
-  calentamiento:     [],
-  central:           ['tecnica', 'tactica'],
-  vuelta_a_la_calma: [],
+  calentamiento:     ['calentamiento', 'fisico'],
+  central:           ['tecnica', 'tactica', 'fisico'],
+  vuelta_a_la_calma: ['vuelta_a_la_calma', 'mental'],
 }
 
 interface PageProps {
@@ -103,8 +103,8 @@ export default async function CoachSessionDetailPage({ params }: PageProps) {
               key={block.id}
               block={block}
               availableExercises={filtered}
-              recommendedTheme={mesocycle.objective?.theme ?? null}
-              objectiveName={mesocycle.objective?.name ?? null}
+              recommendedTheme={block.block_type === 'central' ? (mesocycle.objective?.theme ?? null) : null}
+              objectiveName={block.block_type === 'central' ? (mesocycle.objective?.name ?? null) : null}
             />
           )
         })}

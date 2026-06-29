@@ -174,7 +174,6 @@ export function BlockPanel({ block, availableExercises, readOnly = false, recomm
     number: '?', title: block.block_type, color: 'text-muted-foreground bg-muted border-border',
   }
 
-  const isCentral = block.block_type === 'central'
   const existingIds = new Set(block.exercises.map((e) => e.exercise.id))
   const totalMin = block.exercises.reduce((sum, e) => sum + (e.exercise.estimated_duration_min ?? 0), 0)
 
@@ -189,13 +188,13 @@ export function BlockPanel({ block, availableExercises, readOnly = false, recomm
           <h3 className="font-semibold text-sm">{cfg.title}</h3>
           <span className="text-xs text-muted-foreground">{block.duration_min} min</span>
         </div>
-        {isCentral && totalMin > 0 && (
+        {totalMin > 0 && (
           <span className="text-xs text-muted-foreground">{totalMin} min en ejercicios</span>
         )}
       </div>
 
-      {/* Exercises — only for central block */}
-      {isCentral && (
+      {/* Exercises */}
+      {(
         <div className="space-y-1">
           {block.exercises.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">Sin ejercicios asignados</p>
@@ -233,8 +232,8 @@ export function BlockPanel({ block, availableExercises, readOnly = false, recomm
         <p className="text-xs text-muted-foreground italic border-t border-current/20 pt-2">{block.notes}</p>
       )}
 
-      {/* Add exercise — only for central block */}
-      {!readOnly && isCentral && (
+      {/* Add exercise */}
+      {!readOnly && (
         <AddExercisePicker
           blockId={block.id}
           availableExercises={availableExercises}
