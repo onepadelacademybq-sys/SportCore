@@ -2,13 +2,15 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Layers, Pencil } from 'lucide-react'
-import { getMacrocycleById, changeMacrocycleStatusAction, generateMesocyclesAction } from '@/actions/training'
+import { getMacrocycleById, changeMacrocycleStatusAction, generateMesocyclesAction, getObjectives } from '@/actions/training'
 import { MesoStatusBadge } from '@/components/training/status-badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
 import { PADEL_LEVEL_LABELS as LEVEL_LABELS } from '@/lib/constants'
 import { ATHLETE_LEVEL_LABELS, COMPETITION_TYPE_LABELS, PERIODIZATION_MODEL_LABELS, QUALITY_LABELS } from '@/lib/planning/diagnostic'
 import { LoadMap } from '@/components/training/load-map'
+import { MesocycleObjectiveForm } from '@/components/training/mesocycle-objective-form'
+import { MesocycleConfigForm } from '@/components/training/mesocycle-config-form'
 
 export const metadata: Metadata = { title: 'Macrociclo — Entrenador' }
 
@@ -29,7 +31,7 @@ interface PageProps {
 
 export default async function CoachMacrocycleDetailPage({ params }: PageProps) {
   const { id } = await params
-  const macro = await getMacrocycleById(id)
+  const [macro, objectives] = await Promise.all([getMacrocycleById(id), getObjectives()])
   if (!macro) notFound()
 
   const transition  = STATUS_TRANSITIONS[macro.status]
@@ -127,24 +129,26 @@ export default async function CoachMacrocycleDetailPage({ params }: PageProps) {
             </form>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {mesocycles.map((m) => (
-              <Link
-                key={m.id}
-                href={`/coach/planning/${m.id}`}
-                className="flex items-center justify-between gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-colors"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{m.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {m.level ? `${LEVEL_LABELS[m.level] ?? m.level} · ` : ''}{m.duration_weeks} semanas
-                  </p>
+              <div key={m.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Link href={`/coach/planning/${m.id}`} className="min-w-0 group">
+                    <p className="font-medium truncate group-hover:text-primary transition-colors">{m.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {m.level ? `${LEVEL_LABELS[m.level] ?? m.level} · ` : ''}{m.duration_weeks} semanas
+                    </p>
+                  </Link>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <MesoStatusBadge status={m.status} />
+                    <Link href={`/coach/planning/${m.id}`} className="text-xs text-primary hover:underline inline-flex items-center gap-0.5">
+                      Configurar semanas <ChevronRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <MesoStatusBadge status={m.status} />
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </Link>
+                <MesocycleObjectiveForm mesocycleId={m.id} objectives={objectives} currentObjectiveId={m.objective_id ?? null} />
+                <MesocycleConfigForm mesocycle={m} />
+              </div>
             ))}
           </div>
         )}

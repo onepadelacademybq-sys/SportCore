@@ -1549,7 +1549,7 @@ export async function getMacrocycleById(id: string): Promise<Macrocycle | null> 
 
   const { data } = await supabase
     .from('macrocycles')
-    .select('id, created_by, name, general_objective, status, athlete_level, competition_type, periodization_model, qualities, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id, name, level, status, duration_weeks, start_date, end_date, microcycles(id, week_number, content_phase, planned_volume, planned_intensity))')
+    .select('id, created_by, name, general_objective, status, athlete_level, competition_type, periodization_model, qualities, start_date, end_date, created_at, creator:profiles!created_by(id, full_name), mesocycles(id, name, level, status, duration_weeks, start_date, end_date, objective_id, sessions_per_week, hours_per_session, suspended, microcycles(id, week_number, content_phase, planned_volume, planned_intensity))')
     .eq('id', id)
     .single()
 
@@ -1625,7 +1625,7 @@ export async function createMacrocycleAction(
   _prev: TrainingState,
   formData: FormData,
 ): Promise<TrainingState> {
-  const { supabase, userId, organizationId } = await requireCoachOrAdmin()
+  const { supabase, userId, organizationId, role } = await requireCoachOrAdmin()
 
   const parsed = MacrocycleSchema.safeParse({
     name:               formData.get('name'),
@@ -1671,7 +1671,9 @@ export async function createMacrocycleAction(
 
   revalidatePath('/admin/planning')
   revalidatePath('/coach/planning')
-  return { error: null, success: `Plan "${name}" creado con ${PLAN_MESOCYCLES} mesociclos.`, id: macroId }
+
+  // Continuidad: ir directo al plan creado para configurar sus mesociclos.
+  redirect(`/${role === 'coach' ? 'coach' : 'admin'}/planning/macro/${macroId}`)
 }
 
 /** Genera los 12 mesociclos para un plan existente que aún no los tiene. Direct-submit. */
