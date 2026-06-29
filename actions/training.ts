@@ -70,6 +70,8 @@ export type Mesocycle = {
   id:               string
   created_by:       string
   macrocycle_id?:   string | null
+  objective_id?:    string | null
+  objective?:       { id: string; name: string; theme: string | null } | null
   name:             string
   general_objective: string | null
   level:            string | null
@@ -227,9 +229,10 @@ export async function getMesocycles(): Promise<Mesocycle[]> {
   let query = supabase
     .from('mesocycles')
     .select(`
-      id, created_by, macrocycle_id, name, general_objective, level,
+      id, created_by, macrocycle_id, objective_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
+      objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
         id, mesocycle_id, player_id, group_id, assigned_at,
         player:profiles!player_id(id, full_name),
@@ -258,9 +261,10 @@ export async function getMesocycleById(id: string): Promise<Mesocycle | null> {
   const { data, error } = await supabase
     .from('mesocycles')
     .select(`
-      id, created_by, macrocycle_id, name, general_objective, level,
+      id, created_by, macrocycle_id, objective_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
+      objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
         id, mesocycle_id, player_id, group_id, assigned_at,
         player:profiles!player_id(id, full_name),
@@ -309,9 +313,10 @@ export async function getMyMesocycles(): Promise<Mesocycle[]> {
   const { data, error } = await supabase
     .from('mesocycles')
     .select(`
-      id, created_by, macrocycle_id, name, general_objective, level,
+      id, created_by, macrocycle_id, objective_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
+      objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
         id, mesocycle_id, player_id, group_id, assigned_at,
         player:profiles!player_id(id, full_name),
@@ -359,9 +364,10 @@ export async function getMesocyclesByPlayer(playerId: string): Promise<Mesocycle
   const { data, error } = await supabase
     .from('mesocycles')
     .select(`
-      id, created_by, macrocycle_id, name, general_objective, level,
+      id, created_by, macrocycle_id, objective_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
+      objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
         id, mesocycle_id, player_id, group_id, assigned_at,
         player:profiles!player_id(id, full_name),
@@ -409,9 +415,10 @@ export async function getMesocyclesByGroup(groupId: string): Promise<Mesocycle[]
   const { data, error } = await supabase
     .from('mesocycles')
     .select(`
-      id, created_by, macrocycle_id, name, general_objective, level,
+      id, created_by, macrocycle_id, objective_id, name, general_objective, level,
       duration_weeks, status, start_date, end_date, created_at,
       creator:profiles!created_by(id, full_name),
+      objective:training_objectives!objective_id(id, name, theme),
       assignments:mesocycle_assignments(
         id, mesocycle_id, player_id, group_id, assigned_at,
         player:profiles!player_id(id, full_name),
@@ -509,6 +516,7 @@ export async function getConfirmedBookingsForAssignment(
 function normalizeMesocycle(m: any): Mesocycle {
   return {
     ...m,
+    objective: Array.isArray(m.objective) ? (m.objective[0] ?? null) : (m.objective ?? null),
     microcycles: ((m.microcycles ?? []) as any[])
       .sort((a: any, b: any) => a.week_number - b.week_number)
       .map((mc: any) => ({
@@ -907,6 +915,53 @@ export async function updateMicrocycleLoadAction(formData: FormData): Promise<vo
       planned_intensity: clamp(formData.get('plannedIntensity')),
     })
     .eq('id', microcycleId)
+
+  revalidatePath('/admin/planning')
+  revalidatePath('/coach/planning')
+}
+
+// ─── Objetivos ────────────────────────────────────────────────────────────────
+
+export type TrainingObjective = { id: string; name: string; theme: string | null }
+
+/** Catálogo de objetivos: globales (semilla) + los de la organización. */
+export async function getObjectives(): Promise<TrainingObjective[]> {
+  const { supabase } = await requireCoachOrAdmin()
+  const { data } = await supabase
+    .from('training_objectives')
+    .select('id, name, theme')
+    .order('name', { ascending: true })
+  return (data ?? []) as TrainingObjective[]
+}
+
+/** Asigna el objetivo de un mesociclo. objectiveId='__new__' + newObjectiveName crea uno nuevo en la org. */
+export async function setMesocycleObjectiveAction(formData: FormData): Promise<void> {
+  const { supabase, userId, role, organizationId } = await requireCoachOrAdmin()
+
+  const mesocycleId = (formData.get('mesocycleId') as string)?.trim()
+  if (!mesocycleId) return
+
+  const denied = await assertMesocycleOwnerByMesocycleId(supabase, role, userId, mesocycleId)
+  if (denied) return
+
+  let objectiveId = (formData.get('objectiveId') as string)?.trim() || null
+
+  if (objectiveId === '__new__') {
+    const newName  = (formData.get('newObjectiveName') as string)?.trim()
+    const newTheme = (formData.get('newObjectiveTheme') as string)?.trim() || null
+    if (newName) {
+      const { data: created } = await supabase
+        .from('training_objectives')
+        .insert({ organization_id: organizationId, name: newName, theme: newTheme, created_by: userId })
+        .select('id')
+        .single()
+      objectiveId = (created as { id: string } | null)?.id ?? null
+    } else {
+      objectiveId = null
+    }
+  }
+
+  await supabase.from('mesocycles').update({ objective_id: objectiveId }).eq('id', mesocycleId)
 
   revalidatePath('/admin/planning')
   revalidatePath('/coach/planning')

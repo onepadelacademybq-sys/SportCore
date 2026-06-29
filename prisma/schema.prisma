@@ -671,6 +671,7 @@ model Mesocycle {
   id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId  String?         @map("organization_id") @db.Uuid
   macrocycleId    String?         @map("macrocycle_id") @db.Uuid
+  objectiveId     String?         @map("objective_id") @db.Uuid
   createdBy       String          @map("created_by") @db.Uuid
   name            String
   generalObjective String?        @map("general_objective")
@@ -752,6 +753,17 @@ enum ContentPhase {
   especifico
   competitivo
   transicion
+}
+
+model TrainingObjective {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  name           String
+  theme          String?
+  createdBy      String?  @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("training_objectives")
 }
 
 model Microcycle {

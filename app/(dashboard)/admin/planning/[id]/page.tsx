@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, Plus, Calendar, CheckCircle2, XCircle, Clock } from 'lucide-react'
-import { getMesocycleById, getAssignmentTargets, changeMesocycleStatusAction, updateMicrocycleAction, getConfirmedBookingsForAssignment, getMacrocycles, setMesocycleMacrocycleAction } from '@/actions/training'
+import { getMesocycleById, getAssignmentTargets, changeMesocycleStatusAction, updateMicrocycleAction, getConfirmedBookingsForAssignment, getMacrocycles, setMesocycleMacrocycleAction, getObjectives } from '@/actions/training'
+import { MesocycleObjectiveForm } from '@/components/training/mesocycle-objective-form'
 import { formatSessionDate, formatSessionTime } from '@/lib/format'
 import { MesoStatusBadge, SessionStatusBadge } from '@/components/training/status-badge'
 import { AssignForm } from '@/components/training/assign-form'
@@ -30,10 +31,11 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
   const { id } = await params
   const { tab } = await searchParams
 
-  const [mesocycle, targets, macrocycles] = await Promise.all([
+  const [mesocycle, targets, macrocycles, objectives] = await Promise.all([
     getMesocycleById(id),
     getAssignmentTargets(),
     getMacrocycles(),
+    getObjectives(),
   ])
 
   if (!mesocycle) notFound()
@@ -124,6 +126,13 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
         <Button type="submit" variant="outline" size="sm">Guardar</Button>
       </form>
 
+      {/* Objetivo */}
+      <MesocycleObjectiveForm
+        mesocycleId={mesocycle.id}
+        objectives={objectives}
+        currentObjectiveId={mesocycle.objective_id ?? null}
+      />
+
       {/* Tab nav */}
       <div className="flex gap-1 border-b border-border">
         {([
@@ -173,6 +182,11 @@ export default async function AdminMesocycleDetailPage({ params, searchParams }:
               </summary>
 
               <div className="border-t border-border px-5 py-4 space-y-4">
+                {mesocycle.objective && (
+                  <p className="text-xs text-muted-foreground">
+                    Objetivo del mes: <span className="text-foreground font-medium">{mesocycle.objective.name}</span>
+                  </p>
+                )}
                 {/* Microcycle type picker */}
                 <details className="rounded-lg border border-border">
                   <summary className="px-4 py-2.5 cursor-pointer text-sm font-medium list-none hover:bg-muted/40 transition-colors">
