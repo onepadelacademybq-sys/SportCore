@@ -27,26 +27,6 @@ export type Court = {
 
 export type CourtActionState = { error: string | null; success?: string }
 
-export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
-  cancha: 'Cancha',
-  campo:  'Campo',
-  carril: 'Carril',
-  pista:  'Pista',
-  sala:   'Sala',
-}
-
-export const COURT_TYPE_LABELS: Record<CourtType, string> = {
-  indoor:  'Cubierta',
-  outdoor: 'Exterior',
-}
-
-export const SURFACE_LABELS: Record<CourtSurface, string> = {
-  cesped_artificial: 'Césped artificial',
-  moqueta:           'Moqueta',
-  cristal:           'Cristal',
-  hormigon:          'Hormigón',
-}
-
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function getCourtsAdmin(): Promise<Court[]> {

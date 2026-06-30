@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
 import { LayoutGrid } from 'lucide-react'
+import { getCourtsAdmin } from '@/actions/courts'
+import type { Court, CourtStatus } from '@/actions/courts'
 import {
-  getCourtsAdmin,
   RESOURCE_TYPE_LABELS,
   COURT_TYPE_LABELS,
   SURFACE_LABELS,
-} from '@/actions/courts'
-import type { Court, CourtStatus } from '@/actions/courts'
+} from '@/lib/court-labels'
 import { CourtActionsMenu } from '@/components/courts/court-actions-menu'
 import { CreateCourtButton } from '@/components/courts/create-court-button'
 import { Badge } from '@/components/ui/badge'

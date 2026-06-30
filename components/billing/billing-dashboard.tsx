@@ -9,9 +9,9 @@ import { Badge } from '@/components/ui/badge'
 import {
   createCheckoutSessionAction,
   openBillingPortalAction,
-  PLAN_DISPLAY,
   type BillingStatus,
 } from '@/actions/billing'
+import { PLAN_DISPLAY } from '@/lib/billing-display'
 import type { BillingModality } from '@/lib/stripe/client'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
