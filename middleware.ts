@@ -15,6 +15,13 @@ function getTenantSlug(request: NextRequest): string | null {
   if (orgParam) return orgParam
 
   const hostname = request.nextUrl.hostname
+  // URLs de preview/deploy de Vercel (*.vercel.app) y localhost son la app en
+  // sí, no un club: su primera etiqueta no es un slug de tenant. Sin esta guarda
+  // "one-padel-app-xxx.vercel.app" se interpretaría como el club "one-padel-app-xxx"
+  // y todo (incluido /login) reescribiría a /club/... → "club no existe".
+  // En preview, usar ?_org=<slug> para ver páginas públicas de club.
+  if (hostname.endsWith('.vercel.app') || hostname === 'localhost') return null
+
   const parts = hostname.split('.')
   if (parts.length >= 3 && !APP_SUBDOMAINS.has(parts[0])) {
     return parts[0]
