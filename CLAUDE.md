@@ -39,6 +39,9 @@ STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET
 RESEND_API_KEY
 NEXT_PUBLIC_APP_URL
+NEXT_PUBLIC_ROOT_DOMAIN          ← dominio raíz para tenant por subdominio (ej. sportcore.co)
+                                  Sin él = single-tenant (sin subdominios de club). Por proyecto:
+                                  SportCore = sportcore.co · One Padel = vacío
 ```
 
 ## Migraciones (workaround Supabase + Prisma)

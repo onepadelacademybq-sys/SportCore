@@ -14,19 +14,18 @@ function getTenantSlug(request: NextRequest): string | null {
   const orgParam = request.nextUrl.searchParams.get('_org')
   if (orgParam) return orgParam
 
+  // Lista blanca: solo es tenant un subdominio del dominio raíz configurado
+  // (NEXT_PUBLIC_ROOT_DOMAIN, p.ej. "sportcore.co"). Sin él (instancia
+  // single-tenant, preview *.vercel.app, localhost) no hay tenant por
+  // subdominio — usar ?_org=<slug> en dev. Esto excluye solo lo que coincide,
+  // en vez de enumerar lo que se excluye.
   const hostname = request.nextUrl.hostname
-  // URLs de preview/deploy de Vercel (*.vercel.app) y localhost son la app en
-  // sí, no un club: su primera etiqueta no es un slug de tenant. Sin esta guarda
-  // "one-padel-app-xxx.vercel.app" se interpretaría como el club "one-padel-app-xxx"
-  // y todo (incluido /login) reescribiría a /club/... → "club no existe".
-  // En preview, usar ?_org=<slug> para ver páginas públicas de club.
-  if (hostname.endsWith('.vercel.app') || hostname === 'localhost') return null
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN
+  if (!rootDomain || !hostname.endsWith('.' + rootDomain)) return null
 
-  const parts = hostname.split('.')
-  if (parts.length >= 3 && !APP_SUBDOMAINS.has(parts[0])) {
-    return parts[0]
-  }
-  return null
+  const slug = hostname.slice(0, -(rootDomain.length + 1))
+  if (slug.includes('.') || APP_SUBDOMAINS.has(slug)) return null
+  return slug
 }
 
 // Routes that don't require auth. /club/* is always public (club landing pages).
