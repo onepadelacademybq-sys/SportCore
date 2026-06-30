@@ -14,7 +14,7 @@ interface Props {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Bogota' })
 }
 
 export default async function CoachEvaluationDetailPage({ params }: Props) {

@@ -19,9 +19,9 @@ function toDatetimeLocal(iso: string): string {
 function formatBookingLabel(b: ConfirmedBooking): string {
   const start = new Date(b.start_time)
   const end = new Date(b.end_time)
-  const date = start.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
-  const startT = start.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-  const endT = end.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  const date = start.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Bogota' })
+  const startT = start.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
+  const endT = end.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
   const court = b.court_name ? ` · ${b.court_name}` : ''
   return `${date} ${startT}–${endT}${court}`
 }

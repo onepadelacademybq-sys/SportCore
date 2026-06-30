@@ -16,7 +16,7 @@ interface Props {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Bogota' })
 }
 
 function techLevel(pct: number | null): { label: string; cls: string } {

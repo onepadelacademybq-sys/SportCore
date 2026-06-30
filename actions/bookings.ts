@@ -6,6 +6,7 @@ import { creditClasses, debitClass } from '@/actions/wallet'
 import { recordBookingFinancials } from '@/actions/finances'
 import { createNotification, notifyAdmins } from '@/actions/notifications'
 import { sendBookingConfirmedEmail } from '@/lib/email'
+import { CO_TZ } from '@/lib/format'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -413,7 +414,7 @@ export async function requestBookingAction(
     await recordBookingFinancials(supabase, (inserted as { id: string }).id, userId, organizationId)
   }
 
-  const dateLabel = start.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+  const dateLabel = start.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: CO_TZ })
   const timeLabel = `${startTime}–${endTime}`
   await notifyAdmins(
     'Nueva reserva solicitada',
@@ -559,9 +560,9 @@ export async function confirmBookingAction(
   // Registrar ingresos/egresos automáticos de la reserva confirmada
   await recordBookingFinancials(supabase, bookingId, userId, organizationId)
 
-  const dateLabel  = new Date(b.start_time).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' })
-  const startLabel = new Date(b.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
-  const endLabel   = new Date(b.end_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const dateLabel  = new Date(b.start_time).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short', timeZone: CO_TZ })
+  const startLabel = new Date(b.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: CO_TZ })
+  const endLabel   = new Date(b.end_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: CO_TZ })
 
   await Promise.all([
     b.player_id
@@ -633,7 +634,7 @@ export async function cancelBookingAction(
     if (b.status === 'pending') {
       await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
       if (b.coach_id) {
-        const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+        const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: CO_TZ })
         await createNotification(b.coach_id, 'Reserva cancelada', `Una reserva del ${dateLabel} fue cancelada por el jugador.`, 'booking_cancelled', '/coach/bookings')
       }
       revalidatePath('/player/bookings')
@@ -658,14 +659,14 @@ export async function cancelBookingAction(
       if (cancelErr) return { error: 'Error al cancelar la reserva.' }
 
       if (b.coach_id) {
-        const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+        const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: CO_TZ })
         await createNotification(b.coach_id, 'Reserva cancelada', `Una reserva del ${dateLabel} fue cancelada por el jugador.`, 'booking_cancelled', '/coach/bookings')
       }
 
       const slot      = getSlotType(b.start_time)
       const label     = SLOT_LABELS[slot]
       const classDate = new Date(b.start_time).toLocaleDateString('es-CO', {
-        day: 'numeric', month: 'short',
+        day: 'numeric', month: 'short', timeZone: CO_TZ,
       })
 
       await creditClasses(
@@ -695,7 +696,7 @@ export async function cancelBookingAction(
 
   if (error) return { error: 'Error al cancelar la reserva' }
 
-  const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+  const dateLabel = new Date(b.start_time).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: CO_TZ })
   await Promise.all([
     createNotification(b.player_id, 'Reserva cancelada', `Tu reserva del ${dateLabel} fue cancelada por el administrador.`, 'booking_cancelled', '/player/bookings'),
     b.coach_id ? createNotification(b.coach_id, 'Reserva cancelada', `Una reserva del ${dateLabel} fue cancelada por el administrador.`, 'booking_cancelled', '/coach/bookings') : Promise.resolve(),

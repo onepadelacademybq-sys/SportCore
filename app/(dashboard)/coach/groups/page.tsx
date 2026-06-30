@@ -99,7 +99,7 @@ export default async function CoachGroupsPage() {
                           {m.player.padel_level && (
                             <span className="font-medium text-foreground">{m.player.padel_level}</span>
                           )}
-                          <p>Desde {new Date(m.joined_at).toLocaleDateString('es-ES')}</p>
+                          <p>Desde {new Date(m.joined_at).toLocaleDateString('es-ES', { timeZone: 'America/Bogota' })}</p>
                         </div>
                       </div>
                     ))}

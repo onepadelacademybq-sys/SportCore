@@ -57,7 +57,7 @@ const STATUS_ICON: Record<EvaluationStatus, React.ElementType> = {
 const ALL_TABS: EvaluationStatus[] = ['requested', 'scheduled', 'payment_pending', 'confirmed', 'completed']
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Bogota' })
 }
 
 function formatScheduled(date: string | null, time: string | null) {

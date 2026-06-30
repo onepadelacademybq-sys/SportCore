@@ -12,12 +12,12 @@ import type { CoachSession } from '@/actions/training'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-CO', {
-    weekday: 'short', day: 'numeric', month: 'short',
+    weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Bogota',
   })
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
 }
 
 function isToday(iso: string) {

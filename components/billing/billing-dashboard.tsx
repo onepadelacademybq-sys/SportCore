@@ -181,7 +181,7 @@ export function BillingDashboard({ billing, success, cancelled }: Props) {
             <div className="text-sm text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
               Prueba gratuita hasta el{' '}
               <span className="font-semibold">
-                {new Date(billing.trialEndsAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {new Date(billing.trialEndsAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' })}
               </span>
             </div>
           )}
@@ -190,7 +190,7 @@ export function BillingDashboard({ billing, success, cancelled }: Props) {
             <p className="text-sm text-muted-foreground">
               Próxima renovación:{' '}
               <span className="font-medium text-foreground">
-                {new Date(billing.planExpiresAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {new Date(billing.planExpiresAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' })}
               </span>
             </p>
           )}

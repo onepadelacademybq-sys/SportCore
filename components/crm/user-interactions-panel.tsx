@@ -157,7 +157,7 @@ export function UserInteractionsPanel({ profileId, profileName, phone, initial }
               const date = new Date(item.createdAt)
               const daysAgo = Math.floor((Date.now() - date.getTime()) / 86_400_000)
               const timeLabel =
-                daysAgo === 0 ? `Hoy ${date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`
+                daysAgo === 0 ? `Hoy ${date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}`
                 : daysAgo === 1 ? 'Ayer'
                 : `Hace ${daysAgo} días`
 

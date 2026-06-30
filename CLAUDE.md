@@ -94,6 +94,8 @@ Tests en `tests/unit/` — estructura espeja `lib/` y `actions/`.
 
 ## Bugs conocidos activos
 
-1. ~~Timezone~~: RESUELTO en `lib/finances/pricing.ts` — usa `CO_OFFSET_MS` + `getUTCDay()` en hora Colombia
-2. Race condition en registro: si falla INSERT en `profiles`, usuario queda en Auth sin fila en DB
-3. Pérdida de wallet: `debitClass()` se ejecuta antes del INSERT de booking — si falla el INSERT, el jugador pierde clases
+1. ~~Timezone (pricing)~~: RESUELTO en `lib/finances/pricing.ts` — usa `CO_OFFSET_MS` + `getUTCDay()` en hora Colombia
+2. ~~Race condition en registro~~: MITIGADO en `actions/auth.ts` — compensa con `auth.admin.deleteUser` si falla el INSERT en `profiles`
+3. ~~Pérdida de wallet~~: RESUELTO — `debitClass`/`creditClasses` (`actions/wallet.ts`) ahora hacen el débito/crédito con `prisma.$executeRaw` atómico (`UPDATE ... SET used = used + 1 WHERE (total - used) >= 1` / upsert `ON CONFLICT` con incremento). Mata el read-modify-write que perdía clases bajo concurrencia y el TOCTOU del chequeo de saldo. La saga cross-op (débito+booking) sigue cubierta por la compensación `creditClasses` en `bookings.ts`
+4. ~~Timezone (labels actions/)~~: RESUELTO — 10 `toLocale*` sin `timeZone` ahora usan `CO_TZ` (emails/notificaciones rendían el día/hora equivocados en Vercel=UTC)
+5. ~~Timezone (labels UI)~~: RESUELTO — `toLocale*` sobre instantes `timestamptz` ahora llevan `timeZone: 'America/Bogota'`; columnas `@db.Date` (start_date/end_date/tournament_date) llevan `timeZone: 'UTC'` (fijar el día). Se DEJAN intencionalmente los wall-clock naive (`new Date(\`${date}T${time}\`)`) y los constructores locales `new Date(y,m,d)` — round-trip identidad, añadirles zona los rompería. Los `Number.toLocaleString` (montos) NO son fechas y no se tocan

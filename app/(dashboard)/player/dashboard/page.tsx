@@ -102,11 +102,11 @@ export default async function PlayerDashboardPage() {
       label: 'Próxima clase',
       value: nextClass
         ? new Date(nextClass.start_time).toLocaleString('es-CO', {
-            weekday: 'short', day: 'numeric', month: 'short',
+            weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Bogota',
           })
         : 'Sin clases',
       sub: nextClass
-        ? `${new Date(nextClass.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} · ${nextClass.coach?.full_name ?? ''}`
+        ? `${new Date(nextClass.start_time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' })} · ${nextClass.coach?.full_name ?? ''}`
         : '—',
       icon: Calendar,
       color: nextClass ? 'text-brand' : 'text-muted-foreground',

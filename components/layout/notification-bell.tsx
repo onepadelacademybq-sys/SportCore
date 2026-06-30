@@ -20,7 +20,7 @@ function relativeTime(dateStr: string): string {
   if (hours < 24) return `hace ${hours}h`
   const days = Math.floor(hours / 24)
   if (days < 7)   return `hace ${days}d`
-  return new Date(dateStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+  return new Date(dateStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'America/Bogota' })
 }
 
 const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: string }> = {

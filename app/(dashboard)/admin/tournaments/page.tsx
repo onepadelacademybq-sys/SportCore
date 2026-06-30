@@ -108,8 +108,8 @@ function TournamentTable({ tournaments }: { tournaments: Awaited<ReturnType<type
             const entries = (t.entries ?? []) as Array<{ id: string; status: string }>
             const confirmed = entries.filter(e => e.status === 'confirmed').length
             const total = entries.filter(e => e.status !== 'withdrawn').length
-            const startDate = new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
-            const endDate   = new Date(t.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: '2-digit' })
+            const startDate = new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+            const endDate   = new Date(t.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' })
 
             return (
               <tr key={t.id} className="hover:bg-muted/30 transition-colors">

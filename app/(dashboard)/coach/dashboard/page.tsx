@@ -112,7 +112,7 @@ export default async function CoachDashboardPage() {
     },
     {
       label: 'Próxima sesión',
-      value: next ? new Date(next.start_time).toLocaleString('es-CO', { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : '—',
+      value: next ? new Date(next.start_time).toLocaleString('es-CO', { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }) : '—',
       icon: Clock,
       color: next ? 'text-blue-400' : 'text-muted-foreground',
       note: next ? (next.player?.full_name ?? '') : 'Sin sesiones próximas',

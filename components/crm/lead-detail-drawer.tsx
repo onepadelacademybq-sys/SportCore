@@ -376,7 +376,7 @@ export function LeadDetailDrawer({ lead: initialLead, onClose }: Props) {
                       const date = new Date(item.createdAt)
                       const daysAgo = Math.floor((Date.now() - date.getTime()) / 86_400_000)
                       const timeLabel = daysAgo === 0
-                        ? `Hoy ${date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`
+                        ? `Hoy ${date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}`
                         : daysAgo === 1
                         ? 'Ayer'
                         : `Hace ${daysAgo} días`
@@ -499,14 +499,14 @@ export function LeadDetailDrawer({ lead: initialLead, onClose }: Props) {
                 <div className="flex justify-between">
                   <span>Creado</span>
                   <span className="text-foreground">
-                    {new Date(lead.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {new Date(lead.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Bogota' })}
                   </span>
                 </div>
                 {lead.convertedAt && (
                   <div className="flex justify-between">
                     <span>Convertido</span>
                     <span className="text-green-400">
-                      {new Date(lead.convertedAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {new Date(lead.convertedAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Bogota' })}
                     </span>
                   </div>
                 )}

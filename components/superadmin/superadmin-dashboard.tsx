@@ -81,12 +81,12 @@ function OrgTableRow({ org }: { org: OrgRow }) {
   }
 
   const created = new Date(org.createdAt).toLocaleDateString('es-CO', {
-    day: '2-digit', month: 'short', year: '2-digit',
+    day: '2-digit', month: 'short', year: '2-digit', timeZone: 'America/Bogota',
   })
 
   const expiry = org.trialEndsAt ?? org.planExpiresAt
   const expiryLabel = expiry
-    ? new Date(expiry).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' })
+    ? new Date(expiry).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit', timeZone: 'America/Bogota' })
     : '—'
 
   return (
@@ -182,7 +182,7 @@ export function SuperAdminDashboard({ orgs, metrics }: Props) {
       <div>
         <h1 className="text-2xl font-bold">Tenants SportCore</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Gestión global de organizaciones · {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          Gestión global de organizaciones · {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' })}
         </p>
       </div>
 

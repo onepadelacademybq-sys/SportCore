@@ -64,9 +64,9 @@ export default async function CoachTournamentsPage() {
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                          {new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
                           {' – '}
-                          {new Date(t.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: '2-digit' })}
+                          {new Date(t.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' })}
                         </span>
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />

@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { STROKE_GROUPS, type ShotGroup } from '@/lib/eval-strokes'
 import { createNotification, notifyAdmins } from '@/actions/notifications'
+import { CO_TZ, CO_OFFSET } from '@/lib/format'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -298,7 +299,7 @@ export async function scheduleEvaluationAction(
 
   if (error) return { error: error.message }
 
-  const dateLabel = new Date(`${scheduledDate}T${scheduledTime}`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+  const dateLabel = new Date(`${scheduledDate}T${scheduledTime}${CO_OFFSET}`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: CO_TZ })
   const timeLabel = scheduledTime.slice(0, 5)
 
   await createNotification(
@@ -414,7 +415,7 @@ export async function confirmEvaluationPaymentAction(
   if (error) return { error: error.message }
 
   const dateLabel = e.scheduled_date
-    ? new Date(`${e.scheduled_date}T${e.scheduled_time ?? '00:00'}`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+    ? new Date(`${e.scheduled_date}T${e.scheduled_time ?? '00:00'}${CO_OFFSET}`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: CO_TZ })
     : 'fecha por definir'
   const timeLabel = e.scheduled_time ? e.scheduled_time.slice(0, 5) : ''
   const body = `Evaluación "${e.title}" confirmada para el ${dateLabel}${timeLabel ? ` a las ${timeLabel}` : ''}.`

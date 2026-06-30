@@ -102,7 +102,7 @@ export default async function AdminDashboardPage() {
     { label: 'Jugadores activos',    value: playerCount ?? 0,               icon: Users,    color: 'text-brand' },
     { label: 'Entrenadores',         value: coachCount ?? 0,                icon: UserCog,  color: 'text-blue-400'  },
     { label: 'Reservas pendientes',  value: pendingCount ?? 0,              icon: AlertCircle, color: pendingCount ? 'text-amber-400' : 'text-muted-foreground' },
-    { label: `Ingresos ${today.toLocaleString('es-CO', { month: 'long' })}`, value: formatCOP(monthIncome), icon: TrendingUp, color: 'text-emerald-400' },
+    { label: `Ingresos ${today.toLocaleString('es-CO', { month: 'long', timeZone: 'America/Bogota' })}`, value: formatCOP(monthIncome), icon: TrendingUp, color: 'text-emerald-400' },
   ]
 
   return (

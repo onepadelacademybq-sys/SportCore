@@ -1,5 +1,5 @@
-const CO_TZ = 'America/Bogota'
-const CO_OFFSET = '-05:00' // Colombia UTC-5, sin DST
+export const CO_TZ = 'America/Bogota'
+export const CO_OFFSET = '-05:00' // Colombia UTC-5, sin DST
 
 /** Fecha de sesión en hora Colombia. long: "lunes, 23 de junio"; corto: "lun, 23 jun" */
 export function formatSessionDate(iso: string, opts?: { long?: boolean; year?: boolean }): string {

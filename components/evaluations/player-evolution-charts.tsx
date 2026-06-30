@@ -10,7 +10,7 @@ interface Props {
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', timeZone: 'America/Bogota' })
 }
 
 function domainFor(data: ChartPoint[], key: string, padFraction = 0.15): [number, number] {

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getPrisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -77,25 +78,14 @@ export async function creditClasses(
   description: string,
   slotType: 'am' | 'pm' | 'weekend' | 'any' = 'any',
 ): Promise<void> {
-  // Upsert wallet — create if player has none yet
-  const { data: existing } = await supabase
-    .from('class_wallet')
-    .select('id, total_classes')
-    .eq('player_id', playerId)
-    .single()
-
-  const ex = existing as { id: string; total_classes: number } | null
-
-  if (ex) {
-    await supabase
-      .from('class_wallet')
-      .update({ total_classes: ex.total_classes + classes })
-      .eq('player_id', playerId)
-  } else {
-    await supabase
-      .from('class_wallet')
-      .insert({ player_id: playerId, total_classes: classes, used_classes: 0 })
-  }
+  // Incremento atómico (upsert): evita el read-modify-write que perdía créditos
+  // bajo concurrencia. available_classes es columna generada — no se escribe.
+  await getPrisma().$executeRaw`
+    INSERT INTO class_wallet (player_id, total_classes, used_classes)
+    VALUES (${playerId}::uuid, ${classes}, 0)
+    ON CONFLICT (player_id)
+    DO UPDATE SET total_classes = class_wallet.total_classes + ${classes},
+                  updated_at = now()`
 
   await supabase.from('wallet_transactions').insert({
     player_id:   playerId,
@@ -113,22 +103,17 @@ export async function debitClass(
   bookingId: string,
   description: string,
 ): Promise<{ error: string } | null> {
-  const { data: wallet } = await supabase
-    .from('class_wallet')
-    .select('id, used_classes, available_classes')
-    .eq('player_id', playerId)
-    .single()
+  // Débito atómico con guarda: el incremento y el chequeo de disponibilidad
+  // ocurren en una sola sentencia → sin race ni TOCTOU. affected=0 ⇒ sin saldo.
+  const affected = await getPrisma().$executeRaw`
+    UPDATE class_wallet
+    SET used_classes = used_classes + 1, updated_at = now()
+    WHERE player_id = ${playerId}::uuid
+      AND (total_classes - used_classes) >= 1`
 
-  const w = wallet as { id: string; used_classes: number; available_classes: number } | null
-
-  if (!w || w.available_classes < 1) {
+  if (affected === 0) {
     return { error: 'No tenés clases disponibles en tu billetera' }
   }
-
-  await supabase
-    .from('class_wallet')
-    .update({ used_classes: w.used_classes + 1 })
-    .eq('player_id', playerId)
 
   await supabase.from('wallet_transactions').insert({
     player_id:   playerId,

@@ -87,7 +87,7 @@ export default async function PlayerTournamentsPage() {
                       <p className="font-medium text-sm">{t?.name ?? '—'}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {t?.category} ·{' '}
-                        {t?.start_date && new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {t?.start_date && new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
                       </p>
                       {(partner as any)?.full_name && (
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -138,9 +138,9 @@ export default async function PlayerTournamentsPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Calendar className="h-3.5 w-3.5" />
-                        {new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                        {new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
                         {' – '}
-                        {new Date(t.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                        {new Date(t.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
                       </div>
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Users className="h-3.5 w-3.5" />
@@ -246,9 +246,9 @@ function TournamentCard({ tournament: t }: { tournament: Awaited<ReturnType<type
           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              {new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+              {new Date(t.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
               {' – '}
-              {new Date(t.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: '2-digit' })}
+              {new Date(t.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' })}
             </span>
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />

@@ -304,7 +304,7 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                           {m.player?.padel_level ?? '—'}
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell text-xs text-muted-foreground">
-                          {new Date(m.joined_at).toLocaleDateString('es-ES')}
+                          {new Date(m.joined_at).toLocaleDateString('es-ES', { timeZone: 'America/Bogota' })}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <RemovePlayerButton memberId={m.id} playerName={m.player?.full_name ?? ''} />
@@ -341,7 +341,7 @@ export default async function AdminGroupDetailPage({ params, searchParams }: Pro
                           <p className="text-xs text-muted-foreground">{m.player?.email ?? '—'}</p>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">
-                          En espera desde {new Date(m.joined_at).toLocaleDateString('es-ES')}
+                          En espera desde {new Date(m.joined_at).toLocaleDateString('es-ES', { timeZone: 'America/Bogota' })}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <RemovePlayerButton memberId={m.id} playerName={m.player?.full_name ?? ''} />

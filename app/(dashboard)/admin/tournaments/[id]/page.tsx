@@ -228,11 +228,11 @@ export default async function AdminTournamentDetailPage({
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Inicio</span>
-                <span>{new Date(tournament.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                <span>{new Date(tournament.start_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Fin</span>
-                <span>{new Date(tournament.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                <span>{new Date(tournament.end_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}</span>
               </div>
             </CardContent>
           </Card>
@@ -492,7 +492,7 @@ export default async function AdminTournamentDetailPage({
                       <tr key={entry.id} className="hover:bg-muted/20">
                         <td className="px-4 py-3 font-medium">{label}</td>
                         <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">
-                          {new Date(entry.registered_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(entry.registered_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Bogota' })}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
